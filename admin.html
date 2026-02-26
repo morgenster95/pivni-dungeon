@@ -129,7 +129,7 @@
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, deleteDoc, updateDoc,
-                 increment, addDoc, getDoc, query, orderBy, limit, writeBatch, where }
+                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ─── CONFIG ──────────────────────────────────────────────────────────
@@ -145,8 +145,9 @@
         // ─── SEZNAM ADMIN UID (přidej svá UID sem) ───────────────────────────
         // Jak získat UID: přihlas se do Firebase console → Authentication → Users
         const ADMIN_UIDS = [
-    "pyyRzSGXzDcpo0wV8xzi0AOcJnb2",
-];
+            // "VLOZ_SEM_SVUJ_FIREBASE_UID_1",
+            // "VLOZ_SEM_SVUJ_FIREBASE_UID_2",
+        ];
 
         const app  = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -236,7 +237,7 @@
                 const btnSchvalit = document.createElement('button');
                 btnSchvalit.className = 'btn btn-green px-4 py-2 text-xs uppercase';
                 btnSchvalit.textContent = '✓ Schválit';
-                btnSchvalit.addEventListener('click', () => schvalit(d.id, p.nazev_piva, p.navrhl_uid));
+                btnSchvalit.addEventListener('click', () => schvalit(d.id, p));
 
                 const btnZamitnout = document.createElement('button');
                 btnZamitnout.className = 'btn btn-red px-3 py-2 text-xs uppercase';
@@ -251,7 +252,12 @@
             });
         }
 
-        async function schvalit(id, nazev, hracUid) {
+        async function schvalit(id, navrh) {
+            const nazev = navrh.nazev_piva;
+            const hracUid = navrh.navrhl_uid;
+            const hospoda = navrh.hospoda || 'Nezadáno';
+            const casNavrhu = navrh.cas || null; // Timestamp z odeslání návrhu = čas pití
+
             try {
                 const batch = writeBatch(db);
 
@@ -259,12 +265,26 @@
                 const pivRef = doc(collection(db, "vsechna_piva"));
                 batch.set(pivRef, { nazev });
 
-                // 2. Odměnit hráče (jen pokud UID existuje)
+                // 2. Odměnit hráče + zapsat log + dungeony (jen pokud UID existuje)
                 if (hracUid) {
                     const hracRef = doc(db, "hraci", hracUid);
                     const hracSnap = await getDoc(hracRef);
                     if (hracSnap.exists()) {
-                        batch.update(hracRef, { xp: increment(100) });
+                        // XP + dungeony
+                        const bezTecky = hospoda.replace(/\./g, '_');
+                        batch.update(hracRef, {
+                            xp: increment(100),
+                            [`dungeony.${bezTecky}`]: increment(1)
+                        });
+
+                        // Log_piv záznam s původním časem odeslání návrhu
+                        const logRef = doc(collection(db, "hraci", hracUid, "log_piv"));
+                        batch.set(logRef, {
+                            pivo: nazev,
+                            hospoda: hospoda,
+                            cas: casNavrhu,          // datum kdy hráč pivo pil (odeslal návrh)
+                            schvaleno: true          // označení že jde o schválený návrh
+                        });
                     }
                 }
 
@@ -272,7 +292,23 @@
                 batch.delete(doc(db, "navrhy_piv", id));
 
                 await batch.commit();
-                notify(`✓ Mok "${nazev}" přidán do análů! Hrdina odměněn +100 XP.`, '#276749');
+
+                // 4. Globální statistiky (mimo batch — increment nefunguje v batch.set)
+                if (hracUid) {
+                    try {
+                        await setDoc(doc(db, "statistiky_piv", nazev), { pocet: increment(1) }, { merge: true });
+                    } catch(e) {
+                        await setDoc(doc(db, "statistiky_piv", nazev), { pocet: 1 });
+                    }
+                    const bezTecky = hospoda.replace(/\./g, '_');
+                    try {
+                        await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: hospoda }, { merge: true });
+                    } catch(e) {
+                        await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: 1, nazev: hospoda });
+                    }
+                }
+
+                notify(`✓ Mok "${nazev}" přidán! Hrdina odměněn +100 XP a záznam zapsán do deníčku s původním datem.`, '#276749');
                 nactiNavrhy();
             } catch (e) { notify('Chyba: ' + e.message, '#9b2c2c'); }
         }
