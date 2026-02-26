@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velmistrův Panel – Pivní Dungeon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@400;700&display=swap');
+        :root { --bg: #0d0a14; --card: rgba(22,14,32,0.97); --border: #8b4513; --accent: #f6e05e; }
+        body { background: var(--bg); color: #eee; font-family: 'Cinzel', serif; min-height: 100vh; }
+        .fantasy-font { font-family: 'Bangers', cursive; text-shadow: 2px 2px 6px #000; letter-spacing: 2px; }
+        .glass-card { background: var(--card); border: 1px solid rgba(139,69,19,0.6); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        .hidden { display: none !important; }
+        input { background: rgba(0,0,0,0.7); border: 1px solid rgba(139,69,19,0.5); border-radius: 8px; color: #fff; font-family: 'Cinzel', serif; outline: none; }
+        .btn { border-radius: 8px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: filter 0.2s; border: none; }
+        .btn:hover { filter: brightness(1.15); }
+        .btn-green { background: linear-gradient(135deg, #276749, #1a4731); color: #fff; border: 1px solid #2f7a54; }
+        .btn-red   { background: linear-gradient(135deg, #9b2c2c, #6b1f1f); color: #fff; border: 1px solid #c53030; }
+        .btn-blue  { background: linear-gradient(135deg, #2b5fa0, #1a3a6b); color: #fff; border: 1px solid #3b7dd8; }
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2d3748; color: #fff; padding: 10px 20px; border-radius: 10px; z-index: 9999; font-size: 0.85rem; border: 1px solid #8b4513; transition: opacity 0.3s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease forwards; }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+    <!-- Přihlašovací formulář -->
+    <div id="login-screen" class="w-full max-w-sm mt-16">
+        <h1 class="text-4xl mb-6 text-yellow-500 fantasy-font text-center">⚔️ VELMISTRŮV PANEL ⚔️</h1>
+        <div class="glass-card p-6">
+            <p class="text-orange-400 text-sm mb-4 text-center">Přístup jen pro velmistra</p>
+            <input id="admin-email"    type="email"    placeholder="E-mail" class="w-full p-3 mb-3">
+            <input id="admin-password" type="password" placeholder="Heslo"  class="w-full p-3 mb-4">
+            <button id="btn-admin-login" class="btn btn-blue w-full py-3 uppercase text-sm">Vstoupit do panelu</button>
+            <div id="login-error" class="text-red-400 text-xs mt-3 text-center font-bold"></div>
+        </div>
+    </div>
+
+    <!-- Hlavní panel -->
+    <div id="admin-panel" class="hidden w-full max-w-3xl">
+        <div class="flex justify-between items-center my-6">
+            <h1 class="text-4xl text-yellow-500 fantasy-font">⚔️ VELMISTRŮV PANEL ⚔️</h1>
+            <div class="text-right">
+                <div id="admin-info" class="text-xs text-gray-400 mb-1"></div>
+                <button id="btn-admin-logout" class="text-red-500 text-xs underline">Odhlásit</button>
+            </div>
+        </div>
+
+        <!-- Schvalování piv -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">📜 Návrhy piv ke schválení</h2>
+                <button id="btn-refresh" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
+            </div>
+            <div id="seznam-navrhu" class="space-y-3">
+                <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
+            </div>
+        </div>
+
+        <!-- Správa válečných záznamů -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">⚔️ Aktivní cechovní války</h2>
+                <button id="btn-refresh-valky" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
+            </div>
+            <div id="seznam-valek" class="space-y-3">
+                <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
+            </div>
+        </div>
+
+        <!-- Žebříček hráčů -->
+        <div class="glass-card p-6 mb-6">
+            <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide mb-4">🏆 Top hráči (XP)</h2>
+            <div id="zebricek-hracu" class="space-y-1 text-sm"></div>
+        </div>
+
+        <!-- Migrace databáze -->
+        <div class="glass-card p-6 mb-6 border border-yellow-900">
+            <h2 class="text-xl text-yellow-500 font-bold uppercase tracking-wide mb-1">🔧 Správa & Migrace</h2>
+            <p class="text-xs text-gray-500 mb-5">Nástroje pro údržbu databáze. Spouštěj jen když víš co děláš.</p>
+
+            <div class="space-y-4">
+
+                <!-- Migrace statistik -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1">📊 Přepočítat statistiky piv & hospod</div>
+                            <div class="text-xs text-gray-400">Projde logy všech hráčů a znovu sestaví <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code>. Nutné po přidání Síně slávy.</div>
+                        </div>
+                        <button id="btn-migrace-statistiky" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-statistiky-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <!-- Migrace schémat hráčů -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1">👤 Doplnit chybějící pole hráčů</div>
+                            <div class="text-xs text-gray-400">Projde všechny hráče a doplní nová pole která jim chybí (<code class="text-yellow-600">cech_zakladatel</code>, <code class="text-yellow-600">verze_schematu</code> atd.). Odstraní rozdíl mezi starými a novými účty.</div>
+                        </div>
+                        <button id="btn-migrace-hraci" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-hraci-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <!-- Reset statistik -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-400 mb-1">🗑️ Vymazat a přepočítat statistiky</div>
+                            <div class="text-xs text-gray-400">Smaže <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code> a sestaví je od nuly. Použij pokud jsou data poškozená nebo zduplikovaná.</div>
+                        </div>
+                        <button id="btn-reset-statistiky" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
+                    </div>
+                    <div id="reset-statistiky-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, deleteDoc, updateDoc,
+                 increment, addDoc, getDoc, query, orderBy, limit, writeBatch, where }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ─── CONFIG ──────────────────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrtK_99uh1SGyj2KhA2ljH3aAhynDnhqI",
+            authDomain: "pivnidungeon.firebaseapp.com",
+            projectId: "pivnidungeon",
+            storageBucket: "pivnidungeon.firebasestorage.app",
+            messagingSenderId: "174543526039",
+            appId: "1:174543526039:web:be6092c458e376c306b1d2"
+        };
+
+        // ─── SEZNAM ADMIN UID (přidej svá UID sem) ───────────────────────────
+        // Jak získat UID: přihlas se do Firebase console → Authentication → Users
+        const ADMIN_UIDS = [
+            // "VLOZ_SEM_SVUJ_FIREBASE_UID_1",
+            // "VLOZ_SEM_SVUJ_FIREBASE_UID_2",
+        ];
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // ─── HELPERS ─────────────────────────────────────────────────────────
+        function $(id) { return document.getElementById(id); }
+        function show(id) { $(id).classList.remove('hidden'); }
+        function hide(id) { $(id).classList.add('hidden'); }
+
+        function notify(msg, color = '#2d3748') {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            t.style.background = color;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        // ─── AUTH ─────────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                show('login-screen');
+                hide('admin-panel');
+                return;
+            }
+
+            // Pokud je seznam ADMIN_UIDS prázdný, povolíme kohokoli (dev mode)
+            if (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(user.uid)) {
+                notify('⛔ Nemáš přístup do velmistrova panelu!', '#7b341e');
+                await signOut(auth);
+                return;
+            }
+
+            hide('login-screen');
+            show('admin-panel');
+            $('admin-info').textContent = `Přihlášen: ${user.email}`;
+            await Promise.all([nactiNavrhy(), nactiValky(), nactiZebricek()]);
+        });
+
+        $('btn-admin-login').addEventListener('click', async () => {
+            const email = $('admin-email').value.trim();
+            const pass  = $('admin-password').value;
+            $('login-error').textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch(e) {
+                $('login-error').textContent = 'Nesprávné přihlašovací údaje.';
+            }
+        });
+
+        $('btn-admin-logout').addEventListener('click', () => signOut(auth));
+
+        $('btn-refresh').addEventListener('click', nactiNavrhy);
+        $('btn-refresh-valky').addEventListener('click', nactiValky);
+
+        // ─── NÁVRHY PIV ───────────────────────────────────────────────────────
+        async function nactiNavrhy() {
+            const list = $('seznam-navrhu');
+            list.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám návrhy...</p>';
+
+            const snap = await getDocs(collection(db, "navrhy_piv"));
+
+            if (snap.empty) {
+                list.innerHTML = '<p class="text-green-500 text-sm text-center py-4">✓ Žádné čekající návrhy. Sudy jsou v pořádku.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            snap.forEach(d => {
+                const p = d.data();
+                const card = document.createElement('div');
+                card.className = 'bg-black bg-opacity-60 p-4 rounded-lg border border-gray-700 flex justify-between items-center fade-in';
+
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <div class="text-yellow-400 font-bold text-base">${escapeHtml(p.nazev_piva)}</div>
+                    <div class="text-xs text-gray-400 mt-1">
+                        Navrhl: <span class="text-orange-400">${escapeHtml(p.navrhl ?? '—')}</span>
+                        &nbsp;·&nbsp; Hospoda: <span class="text-gray-300">${escapeHtml(p.hospoda ?? '—')}</span>
+                    </div>
+                `;
+
+                const btns = document.createElement('div');
+                btns.className = 'flex gap-2 ml-4 flex-shrink-0';
+
+                const btnSchvalit = document.createElement('button');
+                btnSchvalit.className = 'btn btn-green px-4 py-2 text-xs uppercase';
+                btnSchvalit.textContent = '✓ Schválit';
+                btnSchvalit.addEventListener('click', () => schvalit(d.id, p.nazev_piva, p.navrhl_uid));
+
+                const btnZamitnout = document.createElement('button');
+                btnZamitnout.className = 'btn btn-red px-3 py-2 text-xs uppercase';
+                btnZamitnout.textContent = '✕';
+                btnZamitnout.addEventListener('click', () => zamitnout(d.id, p.nazev_piva));
+
+                btns.appendChild(btnSchvalit);
+                btns.appendChild(btnZamitnout);
+                card.appendChild(info);
+                card.appendChild(btns);
+                list.appendChild(card);
+            });
+        }
+
+        async function schvalit(id, nazev, hracUid) {
+            try {
+                const batch = writeBatch(db);
+
+                // 1. Přidat pivo do globální databáze
+                const pivRef = doc(collection(db, "vsechna_piva"));
+                batch.set(pivRef, { nazev });
+
+                // 2. Odměnit hráče (jen pokud UID existuje)
+                if (hracUid) {
+                    const hracRef = doc(db, "hraci", hracUid);
+                    const hracSnap = await getDoc(hracRef);
+                    if (hracSnap.exists()) {
+                        batch.update(hracRef, { xp: increment(100) });
+                    }
+                }
+
+                // 3. Smazat návrh
+                batch.delete(doc(db, "navrhy_piv", id));
+
+                await batch.commit();
+                notify(`✓ Mok "${nazev}" přidán do análů! Hrdina odměněn +100 XP.`, '#276749');
+                nactiNavrhy();
+            } catch (e) { notify('Chyba: ' + e.message, '#9b2c2c'); }
+        }
+
+        async function zamitnout(id, nazev) {
+            if (!confirm(`Opravdu zamítnout návrh "${nazev}"?`)) return;
+            try {
+                await deleteDoc(doc(db, "navrhy_piv", id));
+                notify(`✕ Návrh "${nazev}" zamítnut.`);
+                nactiNavrhy();
+            } catch (e) { notify('Chyba: ' + e.message, '#9b2c2c'); }
+        }
+
+        // ─── VÁLEČNÉ ZÁZNAMY ──────────────────────────────────────────────────
+        async function nactiValky() {
+            const box = $('seznam-valek');
+            box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>';
+
+            const snap = await getDocs(collection(db, "valky"));
+
+            if (snap.empty) {
+                box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Žádné záznamy o válkách.</p>';
+                return;
+            }
+
+            box.innerHTML = '';
+            for (const d of snap.docs) {
+                const v = d.data();
+
+                const [uSnap, oSnap] = await Promise.all([
+                    getDoc(doc(db, "cechy", v.utocnik_id)),
+                    getDoc(doc(db, "cechy", v.obrance_id))
+                ]);
+                const uNazev = uSnap.exists() ? uSnap.data().nazev : 'Zrušený cech';
+                const oNazev = oSnap.exists() ? oSnap.data().nazev : 'Zrušený cech';
+
+                const stavBadge = {
+                    'aktivni': '<span class="text-green-400 font-bold">🔥 Aktivní</span>',
+                    'ceka':    '<span class="text-yellow-400 font-bold">⏳ Čeká na přijetí</span>',
+                    'skoncila':'<span class="text-gray-400">✓ Ukončena</span>'
+                }[v.stav] ?? v.stav;
+
+                const card = document.createElement('div');
+                card.className = 'bg-black bg-opacity-60 p-4 rounded-lg border border-orange-900 fade-in';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-orange-300 font-bold text-sm mb-1">
+                                ${escapeHtml(uNazev)} <span class="text-gray-500">⚔️</span> ${escapeHtml(oNazev)}
+                            </div>
+                            <div class="text-xs text-gray-400">Stav: ${stavBadge}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Skóre: <span class="text-yellow-400">${v.utocnik_bodu ?? 0}</span>
+                                 : <span class="text-red-400">${v.obrance_bodu ?? 0}</span>
+                                (cíl: ${v.cil_bodu ?? 50})
+                            </div>
+                        </div>
+                        ${v.stav !== 'skoncila' ? `
+                        <button class="btn btn-red px-3 py-1 text-xs uppercase" data-vid="${d.id}">Ukončit</button>
+                        ` : ''}
+                    </div>
+                `;
+
+                const delBtn = card.querySelector('[data-vid]');
+                if (delBtn) {
+                    delBtn.addEventListener('click', async () => {
+                        if (!confirm('Ukončit a smazat tuto válku?')) return;
+                        await deleteDoc(doc(db, "valky", d.id));
+                        notify('Válka ukončena.');
+                        nactiValky();
+                    });
+                }
+
+                box.appendChild(card);
+            }
+        }
+
+        // ─── ŽEBŘÍČEK HRÁČŮ ──────────────────────────────────────────────────
+        async function nactiZebricek() {
+            const q = query(collection(db, "hraci"), orderBy("xp", "desc"), limit(20));
+            const snap = await getDocs(q);
+            $('zebricek-hracu').innerHTML = snap.docs.map((d, i) => {
+                const h = d.data();
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                return `<div class="flex justify-between items-center border-b border-gray-800 py-1">
+                    <span>${medal} <span class="text-yellow-400">${escapeHtml(h.prezdivka ?? h.email ?? '—')}</span></span>
+                    <span class="text-yellow-500 text-xs">${h.xp ?? 0} XP</span>
+                </div>`;
+            }).join('') || '<div class="text-gray-600 text-sm">Žádní hráči.</div>';
+        }
+
+        // ─── UTILS ────────────────────────────────────────────────────────────
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // ─── MIGRACE ─────────────────────────────────────────────────────────
+
+        // Aktuální verze schématu – zvyšuj při každé nové funkci co přidá pole
+        const SCHEMA_VERZE = 2;
+
+        // Co každá verze přidává:
+        // v1 → základní pole: email, prezdivka, xp, dungeony, cech_id
+        // v2 → cech_zakladatel (bool)
+        // v3 → sem přidej příště...
+
+        function logLine(boxId, text, color = '#86efac') {
+            const box = $(boxId);
+            box.classList.remove('hidden');
+            const line = document.createElement('div');
+            line.style.color = color;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            box.appendChild(line);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ── 1. Přepočítat statistiky piv & hospod ────────────────────────────
+        $('btn-migrace-statistiky').addEventListener('click', async () => {
+            if (!confirm('Spustit přepočet statistik? Stávající data budou PŘIČTENA (ne smazána). Pro čistý přepočet použij Reset.')) return;
+            await spustMigraciStatistik('migrace-statistiky-log', false);
+        });
+
+        $('btn-reset-statistiky').addEventListener('click', async () => {
+            if (!confirm('VAROVÁNÍ: Toto smaže všechny statistiky piv a hospod a přepočítá je od nuly. Pokračovat?')) return;
+            await spustMigraciStatistik('reset-statistiky-log', true);
+        });
+
+        async function spustMigraciStatistik(logId, resetNejdrive) {
+            const box = $(logId);
+            box.innerHTML = '';
+            box.classList.remove('hidden');
+            const btn = resetNejdrive ? $('btn-reset-statistiky') : $('btn-migrace-statistiky');
+            btn.disabled = true;
+
+            try {
+                // Reset stávajících statistik pokud je požadován
+                if (resetNejdrive) {
+                    logLine(logId, 'Mažu stávající statistiky piv...');
+                    const pivSnap = await getDocs(collection(db, "statistiky_piv"));
+                    let delBatch = writeBatch(db);
+                    let delCount = 0;
+                    for (const d of pivSnap.docs) {
+                        delBatch.delete(d.ref);
+                        delCount++;
+                        if (delCount % 400 === 0) { await delBatch.commit(); delBatch = writeBatch(db); }
+                    }
+                    await delBatch.commit();
+                    logLine(logId, `  → Smazáno ${delCount} záznamů piv.`);
+
+                    logLine(logId, 'Mažu stávající statistiky hospod...');
+                    const hospSnap = await getDocs(collection(db, "statistiky_hospod"));
+                    let delBatch2 = writeBatch(db);
+                    let delCount2 = 0;
+                    for (const d of hospSnap.docs) {
+                        delBatch2.delete(d.ref);
+                        delCount2++;
+                        if (delCount2 % 400 === 0) { await delBatch2.commit(); delBatch2 = writeBatch(db); }
+                    }
+                    await delBatch2.commit();
+                    logLine(logId, `  → Smazáno ${delCount2} záznamů hospod.`);
+                }
+
+                // Načti všechny hráče
+                logLine(logId, 'Načítám seznam hráčů...');
+                const hraciSnap = await getDocs(collection(db, "hraci"));
+                logLine(logId, `  → Nalezeno ${hraciSnap.size} hráčů.`);
+
+                const poctyPiv = {};
+                const poctyHospod = {};
+                let celkemLogu = 0;
+
+                // Projdi logy každého hráče
+                for (const hracDoc of hraciSnap.docs) {
+                    logLine(logId, `Čtu logy: ${hracDoc.data().prezdivka ?? hracDoc.id}...`, '#fbbf24');
+                    try {
+                        const logSnap = await getDocs(
+                            collection(db, "hraci", hracDoc.id, "log_piv")
+                        );
+                        logSnap.forEach(l => {
+                            const data = l.data();
+                            if (data.pivo)   poctyPiv[data.pivo]     = (poctyPiv[data.pivo]     || 0) + 1;
+                            if (data.hospoda) poctyHospod[data.hospoda] = (poctyHospod[data.hospoda] || 0) + 1;
+                            celkemLogu++;
+                        });
+                        logLine(logId, `  → ${logSnap.size} záznamů.`);
+                    } catch (e) {
+                        logLine(logId, `  ⚠ Chyba čtení logů: ${e.message}`, '#f87171');
+                    }
+                }
+
+                logLine(logId, `Celkem ${celkemLogu} zápisů, ${Object.keys(poctyPiv).length} unikátních piv, ${Object.keys(poctyHospod).length} hospod.`);
+                logLine(logId, 'Zapisuji statistiky piv...');
+
+                // Zápis statistik piv (po 400 kvůli batch limitu)
+                let pivBatch = writeBatch(db);
+                let pivCount = 0;
+                for (const [nazev, pocet] of Object.entries(poctyPiv)) {
+                    pivBatch.set(doc(db, "statistiky_piv", nazev), { pocet }, { merge: !resetNejdrive });
+                    pivCount++;
+                    if (pivCount % 400 === 0) { await pivBatch.commit(); pivBatch = writeBatch(db); }
+                }
+                await pivBatch.commit();
+                logLine(logId, `  → Zapsáno ${pivCount} piv.`);
+
+                logLine(logId, 'Zapisuji statistiky hospod...');
+                let hospBatch = writeBatch(db);
+                let hospCount = 0;
+                for (const [nazev, pocet] of Object.entries(poctyHospod)) {
+                    hospBatch.set(doc(db, "statistiky_hospod", nazev), { pocet }, { merge: !resetNejdrive });
+                    hospCount++;
+                    if (hospCount % 400 === 0) { await hospBatch.commit(); hospBatch = writeBatch(db); }
+                }
+                await hospBatch.commit();
+                logLine(logId, `  → Zapsáno ${hospCount} hospod.`);
+
+                logLine(logId, '✅ Migrace statistik dokončena!', '#34d399');
+
+            } catch (e) {
+                logLine(logId, `❌ Chyba: ${e.message}`, '#f87171');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ── 2. Migrace schématu hráčů ────────────────────────────────────────
+        $('btn-migrace-hraci').addEventListener('click', async () => {
+            if (!confirm('Doplnit chybějící pole všem hráčům?')) return;
+            const logId = 'migrace-hraci-log';
+            const box = $(logId);
+            box.innerHTML = '';
+            box.classList.remove('hidden');
+            $('btn-migrace-hraci').disabled = true;
+
+            try {
+                logLine(logId, 'Načítám hráče...');
+                const snap = await getDocs(collection(db, "hraci"));
+                logLine(logId, `  → ${snap.size} hráčů nalezeno.`);
+
+                let opraveno = 0;
+                let vporizadku = 0;
+
+                for (const d of snap.docs) {
+                    const h = d.data();
+                    const opravy = {};
+
+                    // Každá nová verze schématu přidá svou kontrolu sem:
+
+                    // v1 – základní pole
+                    if (!h.prezdivka)                   opravy.prezdivka = h.email?.split('@')[0] ?? 'Hrdina';
+                    if (h.xp === undefined)              opravy.xp = 0;
+                    if (!h.dungeony)                     opravy.dungeony = {};
+                    if (h.cech_id === undefined)         opravy.cech_id = null;
+
+                    // v2 – cech_zakladatel
+                    if (h.cech_zakladatel === undefined) opravy.cech_zakladatel = false;
+
+                    // Verze schématu – pro sledování
+                    if ((h.verze_schematu ?? 0) < SCHEMA_VERZE) opravy.verze_schematu = SCHEMA_VERZE;
+
+                    if (Object.keys(opravy).length > 0) {
+                        await updateDoc(d.ref, opravy);
+                        logLine(logId, `  ✏ ${h.prezdivka ?? d.id}: doplněno ${Object.keys(opravy).join(', ')}`, '#fbbf24');
+                        opraveno++;
+                    } else {
+                        vporizadku++;
+                    }
+                }
+
+                logLine(logId, `✅ Hotovo! Opraveno: ${opraveno}, v pořádku: ${vporizadku}`, '#34d399');
+
+            } catch (e) {
+                logLine(logId, `❌ Chyba: ${e.message}`, '#f87171');
+            } finally {
+                $('btn-migrace-hraci').disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>
