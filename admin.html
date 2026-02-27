@@ -131,6 +131,18 @@
                     <div id="migrace-hraci-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
                 </div>
 
+                <!-- Přepočítat krajské války -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-yellow-800">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-yellow-300 mb-1">👑 Přepočítat Království z logů</div>
+                            <div class="text-xs text-gray-400">Projde log_piv všech hráčů pro aktuální měsíc a znovu sestaví kolekce <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>. Použij když jsou data prázdná nebo nesprávná.</div>
+                        </div>
+                        <button id="btn-prepocitat-kralovstvi" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Přepočítat</button>
+                    </div>
+                    <div id="prepocitat-kralovstvi-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
                 <!-- Reset krajové války -->
                 <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
                     <div class="flex justify-between items-start gap-4">
@@ -542,6 +554,87 @@
                 notify('Chyba při mazání: ' + e.message);
             }
         };
+
+        // ─── PŘEPOČÍTAT KRÁLOVSTVÍ ───────────────────────────────────────────
+        $('btn-prepocitat-kralovstvi').addEventListener('click', async () => {
+            const logEl = $('prepocitat-kralovstvi-log');
+            logEl.classList.remove('hidden');
+            logEl.innerHTML = '';
+            $('btn-prepocitat-kralovstvi').disabled = true;
+
+            const log = (msg) => { logEl.innerHTML += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+
+            try {
+                const mesic = new Date().toISOString().slice(0, 7);
+                log('Spouštím přepočet pro měsíc: ' + mesic);
+
+                // 1. Smaž existující záznamy pro tento měsíc
+                const kSnap = await getDocs(query(collection(db, "kralovstvi"), where("mesic", "==", mesic)));
+                const khSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
+                let delBatch = writeBatch(db);
+                let delCount = 0;
+                kSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
+                khSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
+                if (delCount > 0) await delBatch.commit();
+                log('Smazáno ' + delCount + ' starých záznamů.');
+
+                // 2. Načti všechny hráče s krajem
+                const hraciSnap = await getDocs(query(collection(db, "hraci"), where("kraj", "!=", null)));
+                log('Nalezeno ' + hraciSnap.size + ' hráčů s krajem.');
+
+                // 3. Pro každého hráče spočítej piva tento měsíc
+                const krajSoučty = {}; // kraj -> počet piv
+                let zpracovano = 0;
+
+                for (const hracDoc of hraciSnap.docs) {
+                    const h = hracDoc.data();
+                    if (!h.kraj) continue;
+
+                    const zacatekMesice = new Date(mesic + '-01T00:00:00');
+                    const konecMesice = new Date(new Date(zacatekMesice).setMonth(zacatekMesice.getMonth() + 1));
+
+                    const logSnap = await getDocs(query(
+                        collection(db, "hraci", hracDoc.id, "log_piv"),
+                        where("cas", ">=", Timestamp.fromDate(zacatekMesice)),
+                        where("cas", "<", Timestamp.fromDate(konecMesice))
+                    ));
+
+                    const pocetPiv = logSnap.size;
+                    if (pocetPiv === 0) continue;
+
+                    // Ulož hráčský záznam
+                    await setDoc(doc(db, "kralovstvi_hraci", mesic + "_" + hracDoc.id), {
+                        uid: hracDoc.id,
+                        prezdivka: h.prezdivka || "—",
+                        kraj: h.kraj,
+                        mesic: mesic,
+                        piv: pocetPiv
+                    });
+
+                    // Přičti ke kraji
+                    krajSoučty[h.kraj] = (krajSoučty[h.kraj] || 0) + pocetPiv;
+                    zpracovano++;
+                }
+
+                log('Zpracováno ' + zpracovano + ' aktivních hráčů.');
+
+                // 4. Ulož krajské součty
+                for (const [kraj, pocet] of Object.entries(krajSoučty)) {
+                    await setDoc(doc(db, "kralovstvi", mesic + "_" + kraj), {
+                        kraj: kraj,
+                        mesic: mesic,
+                        piv: pocet
+                    });
+                }
+
+                log('Uloženo ' + Object.keys(krajSoučty).length + ' krajů.');
+                log('✅ Hotovo! Království přepočítáno.');
+            } catch(e) {
+                log('❌ Chyba: ' + e.message);
+            } finally {
+                $('btn-prepocitat-kralovstvi').disabled = false;
+            }
+        });
 
         // ─── UTILS ────────────────────────────────────────────────────────────
         function escapeHtml(str) {
