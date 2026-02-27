@@ -107,6 +107,18 @@
                     <div id="migrace-hraci-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
                 </div>
 
+                <!-- Reset krajové války -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1">👑 Ruční reset Království</div>
+                            <div class="text-xs text-gray-400">Smaže výsledky aktuálního měsíce z kolekcí <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>. Reset jinak probíhá automaticky každý měsíc.</div>
+                        </div>
+                        <button id="btn-reset-kralovstvi" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
+                    </div>
+                    <div id="reset-kralovstvi-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
                 <!-- Spárování společného pití -->
                 <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
                     <div class="flex justify-between items-start gap-4">
@@ -702,6 +714,42 @@
                 $('btn-migrace-spolecne').disabled = false;
             }
         });
+
+        // ── 5. Reset Království ──────────────────────────────────────────────
+        $('btn-reset-kralovstvi').addEventListener('click', async () => {
+            if (!confirm('Opravdu smazat výsledky aktuálního měsíce krajské války?')) return;
+            const logEl = $('reset-kralovstvi-log');
+            logEl.classList.remove('hidden');
+            logEl.innerHTML = '';
+            $('btn-reset-kralovstvi').disabled = true;
+
+            const log = (msg, color) => {
+                const d = document.createElement('div');
+                d.textContent = msg; if (color) d.style.color = color;
+                logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+            };
+
+            try {
+                const mesic = new Date().toISOString().slice(0, 7);
+                log('Mažu kraje za ' + mesic + '...');
+
+                const krajSnap = await getDocs(query(collection(db, "kralovstvi"), where("mesic", "==", mesic)));
+                const hracSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
+
+                const batch = writeBatch(db);
+                krajSnap.forEach(d => batch.delete(d.ref));
+                hracSnap.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+
+                log('Smazáno ' + (krajSnap.size + hracSnap.size) + ' záznamů.', '#34d399');
+                log('✅ Reset dokončen!', '#34d399');
+            } catch(e) {
+                log('❌ Chyba: ' + e.message, '#fc8181');
+            } finally {
+                $('btn-reset-kralovstvi').disabled = false;
+            }
+        });
+
 
     </script>
 </body>
