@@ -1820,8 +1820,7 @@
 
         // ─── SMAZAT ZÁPIS ─────────────────────────────────────────────────────
         window.smazatZapis = async (docId, docRef, z) => {
-            if (!confirm('Smazat záznam: ' + (z.pivo || '—') + ' @ ' + (z.hospoda || '—') + '?
-Odečte -100 XP a odstraní záznam ze statistik.')) return;
+            if (!confirm('Smazat záznam: ' + (z.pivo || '—') + ' @ ' + (z.hospoda || '—') + '? Odečte -100 XP a odstraní záznam ze statistik.')) return;
 
             try {
                 const batch = writeBatch(db);
@@ -2028,7 +2027,7 @@ Odečte -100 XP a odstraní záznam ze statistik.')) return;
                     const h = snap.data();
                     const { lvl } = xpLevel(h.xp || 0);
                     rows.push('<div class="flex justify-between items-center py-1">' +
-                        '<span class="profil-link" onclick="otevritProfil('' + uid + '')">' +
+                        '<span class="profil-link" onclick="otevritProfil(\'' + uid + '\')">' +
                         (h.avatar || '⚔️') + ' ' + (h.prezdivka || '—') +
                         '</span>' +
                         '<span class="text-gray-500">Úr. ' + lvl + '</span>' +
