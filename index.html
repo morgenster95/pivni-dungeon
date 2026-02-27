@@ -1323,13 +1323,17 @@
         }
 
         async function nactiClenyCechu() {
-            const q = query(collection(db, "hraci"), where("cech_id", "==", userData.cech_id), orderBy("xp", "desc"));
+            try {
+            // Pozn: query bez orderBy aby nevyžadoval composite index ve Firestore
+            const q = query(collection(db, "hraci"), where("cech_id", "==", userData.cech_id));
             const snap = await getDocs(q);
             const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
             const zakladatelUid = cSnap.data().zakladatel;
             const box = $('cech-zebricek');
             if (snap.empty) { box.innerHTML = '<div class="text-gray-600">Žádní členové.</div>'; return; }
-            box.innerHTML = snap.docs.map((d, i) => {
+            // Seřaď podle XP v JS
+            const sorted = snap.docs.slice().sort((a,b) => (b.data().xp||0) - (a.data().xp||0));
+            box.innerHTML = sorted.map((d, i) => {
                 const h = d.data(); const isZ = d.id === zakladatelUid;
                 const isMe = d.id === currentUser.uid;
                 return `<div class="flex justify-between items-center">
@@ -1337,6 +1341,7 @@
                     <span class="text-yellow-500">${h.xp ?? 0} XP</span>
                 </div>`;
             }).join('');
+            } catch(e) { $('cech-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání členů: ' + e.message + '</div>'; }
         }
 
         // ─── CECH AKCE ────────────────────────────────────────────────────────
@@ -2027,7 +2032,7 @@
                     const h = snap.data();
                     const { lvl } = xpLevel(h.xp || 0);
                     rows.push('<div class="flex justify-between items-center py-1">' +
-                        '<span class="profil-link" onclick="otevritProfil(\'' + uid + '\')">' +
+                        '<span class="profil-link" onclick="otevritProfil(\'' + uid + '\')">'+
                         (h.avatar || '⚔️') + ' ' + (h.prezdivka || '—') +
                         '</span>' +
                         '<span class="text-gray-500">Úr. ' + lvl + '</span>' +
