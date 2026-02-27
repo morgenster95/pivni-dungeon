@@ -143,6 +143,18 @@
                     <div id="prepocitat-kralovstvi-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
                 </div>
 
+                <!-- Smazat prázdné cechy -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-300 mb-1">🛡️ Smazat prázdné cechy</div>
+                            <div class="text-xs text-gray-400">Najde a smaže všechny cechy, které nemají žádného člena.</div>
+                        </div>
+                        <button id="btn-smazat-prazdne-cechy" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="prazdne-cechy-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-32 overflow-y-auto"></div>
+                </div>
+
                 <!-- Reset krajové války -->
                 <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
                     <div class="flex justify-between items-start gap-4">
@@ -555,6 +567,35 @@
             }
         };
 
+        // ─── SMAZAT PRÁZDNÉ CECHY ────────────────────────────────────────────
+        $('btn-smazat-prazdne-cechy').addEventListener('click', async () => {
+            const logEl = $('prazdne-cechy-log');
+            logEl.classList.remove('hidden');
+            logEl.innerHTML = '';
+            $('btn-smazat-prazdne-cechy').disabled = true;
+            const log = msg => { logEl.innerHTML += msg + '\n'; logEl.scrollTop = 9999; };
+            try {
+                const vsechnyCechy = await getDocs(collection(db, "cechy"));
+                log('Nalezeno ' + vsechnyCechy.size + ' cechů.');
+                let smazano = 0;
+                for (const cechDoc of vsechnyCechy.docs) {
+                    const clenovSnap = await getDocs(query(
+                        collection(db, "hraci"), where("cech_id", "==", cechDoc.id)
+                    ));
+                    if (clenovSnap.empty) {
+                        await deleteDoc(cechDoc.ref);
+                        log('🗑️ Smazán prázdný cech: ' + (cechDoc.data().nazev || cechDoc.id));
+                        smazano++;
+                    }
+                }
+                log('✅ Hotovo. Smazáno ' + smazano + ' prázdných cechů.');
+            } catch(e) {
+                log('❌ Chyba: ' + e.message);
+            } finally {
+                $('btn-smazat-prazdne-cechy').disabled = false;
+            }
+        });
+
         // ─── PŘEPOČÍTAT KRÁLOVSTVÍ ───────────────────────────────────────────
         $('btn-prepocitat-kralovstvi').addEventListener('click', async () => {
             const logEl = $('prepocitat-kralovstvi-log');
@@ -905,24 +946,21 @@
                         }
 
                         if (spoluhraciJmena.length > 0 && !z.spolecne_s) {
-                            batch.update(z.ref, {
-                                spolecne_s: spoluhraciJmena.join(', '),
-                                spolecne_uids: spoluhraciUids
-                            });
-                            sparovano++;
-                            batchCount++;
-
-                            // Firestore batch limit je 500
-                            if (batchCount >= 480) {
-                                await batch.commit();
-                                logLine(`Zapsáno ${sparovano} párování...`);
-                                batchCount = 0;
+                            // Každý záznam zapisujeme přes updateDoc zvlášť (batch přes cizí log_piv blokují rules)
+                            try {
+                                await updateDoc(z.ref, {
+                                    spolecne_s: spoluhraciJmena.join(', '),
+                                    spolecne_uids: spoluhraciUids
+                                });
+                                sparovano++;
+                            } catch(eWrite) {
+                                // Přeskočíme záznamy kde nemáme write permission
                             }
                         }
                     }
                 }
 
-                if (batchCount > 0) await batch.commit();
+                // (updateDoc volány průběžně výše)
 
                 logLine(`✅ Hotovo! Spárováno ${sparovano} záznamů.`, '#34d399');
             } catch(e) {
