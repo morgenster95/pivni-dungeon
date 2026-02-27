@@ -850,28 +850,33 @@
                 const hraciSnap = await getDocs(collection(db, "hraci"));
                 logLine(`Nalezeno ${hraciSnap.size} hráčů.`);
 
-                // Načti všechny logy najednou pomocí collectionGroup
-                logLine('Načítám všechny logy...');
-                const vsechnyLogy = await getDocs(query(
-                    collectionGroup(db, "log_piv"),
-                    orderBy("cas", "asc")
-                ));
-                logLine(`Nalezeno ${vsechnyLogy.size} záznamů celkem.`);
-
-                // Seskup záznamy podle hospody
+                // Načti logy hráče po hráči (collectionGroup s orderBy vyžaduje index)
+                logLine('Načítám logy hráče po hráči...');
                 const podleHospody = {};
-                vsechnyLogy.docs.forEach(d => {
-                    const data = d.data();
-                    if (!data.hospoda || !data.cas) return;
-                    if (!podleHospody[data.hospoda]) podleHospody[data.hospoda] = [];
-                    podleHospody[data.hospoda].push({
-                        ref: d.ref,
-                        uid: d.ref.parent.parent.id,
-                        cas: data.cas.toDate ? data.cas.toDate() : new Date(data.cas),
-                        pivo: data.pivo,
-                        spolecne_s: data.spolecne_s || null
+                let celkemZaznamu = 0;
+
+                for (const hracDoc of hraciSnap.docs) {
+                    const logSnap = await getDocs(collection(db, "hraci", hracDoc.id, "log_piv"));
+                    logSnap.docs.forEach(d => {
+                        const data = d.data();
+                        if (!data.hospoda || !data.cas) return;
+                        if (!podleHospody[data.hospoda]) podleHospody[data.hospoda] = [];
+                        podleHospody[data.hospoda].push({
+                            ref: d.ref,
+                            uid: hracDoc.id,
+                            cas: data.cas.toDate ? data.cas.toDate() : new Date(data.cas),
+                            pivo: data.pivo,
+                            spolecne_s: data.spolecne_s || null
+                        });
+                        celkemZaznamu++;
                     });
-                });
+                }
+                logLine(`Nalezeno ${celkemZaznamu} záznamů celkem.`);
+
+                // Seřaď záznamy v každé hospodě podle času
+                for (const hospoda of Object.keys(podleHospody)) {
+                    podleHospody[hospoda].sort((a, b) => a.cas - b.cas);
+                }
 
                 let sparovano = 0;
                 const batch = writeBatch(db);
