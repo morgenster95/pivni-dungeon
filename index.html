@@ -1838,9 +1838,14 @@
                 const hracRef = doc(db, "hraci", currentUser.uid);
                 const hracOpravy = { xp: increment(-100) };
                 if (z.hospoda) {
-                    // Zjisti aktuální počet návštěv — nesmí klesnout pod 0
                     const aktualni = (userData.dungeony && userData.dungeony[bezTecky]) || 0;
-                    if (aktualni > 0) hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                    if (aktualni > 1) {
+                        // Odečti návštěvu
+                        hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                    } else if (aktualni === 1) {
+                        // Poslední návštěva — smaž klíč úplně (FieldValue.delete není v batch, použijeme updateDoc po commitu)
+                        hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                    }
                 }
                 batch.update(hracRef, hracOpravy);
 
@@ -1893,6 +1898,19 @@
                             }
                         }
                     } catch(e) {}
+                }
+
+                // Pokud hospodský počet klesl na 0, smaž klíč z dungeony mapy
+                if (z.hospoda) {
+                    const bezTecky2 = (z.hospoda || '').replace(/\./g, '_');
+                    const aktualni2 = (userData.dungeony && userData.dungeony[bezTecky2]) || 0;
+                    if (aktualni2 <= 1) {
+                        try {
+                                await updateDoc(doc(db, "hraci", currentUser.uid), {
+                                ['dungeony.' + bezTecky2]: deleteField()
+                            });
+                        } catch(e) {}
+                    }
                 }
 
                 notify('Záznam smazán. -100 XP.');
@@ -2194,8 +2212,35 @@
                 $('profil-oblibena-hospoda').textContent = oblHosp
                     ? `${oblHosp[0].replace(/_/g, '.')} (${oblHosp[1]}×)` : '—';
 
-                // Akce — pozvat do cechu (jen zakladatel, hráč není v cechu)
+                // Akce — Follow button
                 $('profil-akce').classList.remove('hidden');
+                const btnFollow = $('profil-btn-follow');
+                if (uid !== currentUser.uid) {
+                    btnFollow.classList.remove('hidden');
+                    const sledovani = userData.sledovani || [];
+                    const jizSleduju = sledovani.includes(uid);
+                    btnFollow.textContent = jizSleduju ? '✓ Sleduji' : '➕ Sledovat';
+                    btnFollow.className = 'follow-btn w-full py-2 ' + (jizSleduju ? 'sleduju' : 'nesleduju');
+                    btnFollow.onclick = async () => {
+                        const sledovaniAktualni = userData.sledovani || [];
+                        const uzSleduju = sledovaniAktualni.includes(uid);
+                        let novySeznam;
+                        if (uzSleduju) {
+                            novySeznam = sledovaniAktualni.filter(x => x !== uid);
+                        } else {
+                            novySeznam = [...sledovaniAktualni, uid];
+                        }
+                        await updateDoc(doc(db, "hraci", currentUser.uid), { sledovani: novySeznam });
+                        userData.sledovani = novySeznam;
+                        btnFollow.textContent = uzSleduju ? '➕ Sledovat' : '✓ Sleduji';
+                        btnFollow.className = 'follow-btn w-full py-2 ' + (uzSleduju ? 'nesleduju' : 'sleduju');
+                        notify(uzSleduju ? 'Přestal jsi sledovat hráče.' : 'Sleduješ hráče ' + (h.prezdivka || '') + '!');
+                    };
+                } else {
+                    btnFollow.classList.add('hidden');
+                }
+
+                // Akce — pozvat do cechu (jen zakladatel, hráč není v cechu)
                 const btnPozvat = $('profil-btn-pozvat');
                 if (userData.cech_zakladatel && !h.cech_id && uid !== currentUser.uid) {
                     btnPozvat.classList.remove('hidden');
