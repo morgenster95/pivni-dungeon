@@ -58,7 +58,7 @@
             border-bottom: 1px solid var(--card);
         }
         #map { height: 340px; width: 100%; border-radius: 8px; border: 1px solid #5d2e0a; z-index: 1; }
-        .hidden { display: none !important; }
+        .hidden { display: none !important; pointer-events: none !important; }
         #modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.88);
@@ -447,7 +447,15 @@
                 try {
                     await Promise.all([nactiPiva(), loadUserData()]);
                     initMap();
-                } catch (e) { console.error("Start error:", e); }
+                } catch (e) {
+                    console.error("Start error:", e);
+                    // Zobraz chybu hráči místo tichého selhání
+                    $('auth-error').textContent = 'Chyba načítání dat: ' + e.message;
+                    show('auth-screen');
+                    el.classList.add('hidden');
+                    el.style.display = '';
+                    await signOut(auth);
+                }
             } else {
                 currentUser = null;
                 userData = {};
