@@ -1096,7 +1096,7 @@
                 batch3.update(novyZakladatel.ref, { cech_zakladatel: true });
                 batch3.update(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
                 await batch3.commit();
-                notify(\`Vedení cechu předáno hráči "\${novyZakladatel.data().prezdivka}". Opustil jsi cech.\`);
+                notify(`Vedení cechu předáno hráči "${novyZakladatel.data().prezdivka}". Opustil jsi cech.`);
             } else {
                 await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
                 notify('Opustil jsi cech.');
