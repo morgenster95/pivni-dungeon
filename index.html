@@ -94,6 +94,11 @@
         .xp-bar-inner { background: linear-gradient(90deg, #d69e2e, #f6e05e); height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 
         .log-item { background: rgba(0,0,0,0.4); border-left: 2px solid var(--border); border-radius: 0 6px 6px 0; padding: 6px 10px; font-size: 0.75rem; }
+        .log-akce { display: flex; gap: 4px; margin-top: 4px; }
+        .log-btn { font-size: 0.65rem; padding: 2px 7px; border-radius: 5px; border: none; cursor: pointer; font-family: Cinzel,serif; font-weight: 700; transition: filter 0.15s; }
+        .log-btn:hover { filter: brightness(1.3); }
+        .log-btn-repeat { background: rgba(39,103,73,0.5); color: #68d391; border: 1px solid #276749; }
+        .log-btn-delete { background: rgba(155,44,44,0.4); color: #fc8181; border: 1px solid #9b2c2c; }
 
         .war-card { background: rgba(90,30,10,0.3); border: 1px solid #c05621; border-radius: 8px; padding: 10px; }
         .war-progress-bar { background: rgba(0,0,0,0.5); border-radius: 4px; height: 8px; overflow: hidden; display: flex; }
@@ -123,6 +128,16 @@
         .profil-link { cursor:pointer; text-decoration:underline; color:#f6e05e; }
         .profil-link:hover { color:#ed8936; }
         .spolecne-badge { display:inline-block; background:rgba(39,103,73,0.5); border:1px solid #276749; border-radius:4px; padding:1px 6px; font-size:0.65rem; color:#68d391; margin-left:4px; }
+
+        .kraj-card { background: rgba(0,0,0,0.45); border: 1px solid rgba(139,69,19,0.35); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+        .kraj-bar-outer { background: rgba(0,0,0,0.5); border-radius: 4px; height: 10px; overflow: hidden; margin-top: 4px; }
+        .kraj-bar-inner { background: linear-gradient(90deg, #d69e2e, #f6e05e); height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+        .avatar-option { font-size: 1.8rem; cursor: pointer; padding: 6px; border-radius: 8px; border: 2px solid transparent; transition: all 0.15s; }
+        .avatar-option:hover { background: rgba(139,69,19,0.3); }
+        .avatar-option.selected { border-color: #f6e05e; background: rgba(139,69,19,0.4); }
+        .follow-btn { font-size: 0.7rem; padding: 3px 10px; border-radius: 6px; font-family: Cinzel,serif; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+        .follow-btn.sleduju { background: rgba(39,103,73,0.5); color: #68d391; border: 1px solid #276749; }
+        .follow-btn.nesleduju { background: rgba(139,69,19,0.4); color: #f6e05e; border: 1px solid #8b4513; }
     </style>
 </head>
 <body class="p-2 flex flex-col items-center text-center">
@@ -160,6 +175,7 @@
         <div class="glass-card w-full p-4 mb-3 flex justify-between items-center">
             <div class="text-left">
                 <div class="flex items-center gap-2">
+                    <span id="user-avatar-display" class="text-2xl">⚔️</span>
                     <span id="user-nickname-display" class="text-yellow-400 font-bold text-xl fantasy-font tracking-wide">Hrdina</span>
                 </div>
                 <div class="text-xs text-gray-400 mt-1"><span id="user-xp-display" class="text-yellow-300 font-bold">0</span> XP</div>
@@ -170,10 +186,11 @@
 
         <!-- Tabs -->
         <div class="flex w-full mb-[-1px] z-10 justify-between">
-            <button id="tab-mapa"  onclick="switchTab('mapa')"  class="tab-btn active w-[24%]">🗺️ Mapa</button>
-            <button id="tab-denik" onclick="switchTab('denik')" class="tab-btn w-[24%]">📜 Deník</button>
-            <button id="tab-cech"  onclick="switchTab('cech')"  class="tab-btn w-[24%]">🛡️ Cech</button>
-            <button id="tab-sin"   onclick="switchTab('sin')"   class="tab-btn w-[24%]">🏆 Síň</button>
+            <button id="tab-mapa"      onclick="switchTab('mapa')"      class="tab-btn active w-[19%]" style="font-size:0.68rem">🗺️ Mapa</button>
+            <button id="tab-denik"     onclick="switchTab('denik')"     class="tab-btn w-[19%]" style="font-size:0.68rem">📜 Deník</button>
+            <button id="tab-cech"      onclick="switchTab('cech')"      class="tab-btn w-[19%]" style="font-size:0.68rem">🛡️ Cech</button>
+            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn w-[19%]" style="font-size:0.68rem">👑 Kraj</button>
+            <button id="tab-sin"       onclick="switchTab('sin')"       class="tab-btn w-[19%]" style="font-size:0.68rem">🏆 Síň</button>
         </div>
 
         <div class="glass-card w-full p-4 rounded-tl-none">
@@ -196,6 +213,88 @@
             <!-- TAB: DENÍČEK -->
             <div id="obsah-denik" class="hidden">
                 <h3 class="text-orange-400 fantasy-font text-xl mb-3">Kronika Hrdiny</h3>
+
+                <!-- Editace profilu -->
+                <div class="glass-card p-4 mb-4 border border-orange-900 text-left">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="sin-section-title" style="margin:0">⚙️ Můj profil</div>
+                        <button id="btn-profil-toggle" onclick="toggleEditProfil()" class="text-xs text-orange-400 underline">Upravit</button>
+                    </div>
+                    <!-- Zobrazení -->
+                    <div id="profil-zobrazeni" class="flex items-center gap-3">
+                        <div class="text-3xl" id="muj-avatar-display">⚔️</div>
+                        <div>
+                            <div class="text-yellow-400 font-bold" id="muj-nick-display">—</div>
+                            <div class="text-xs text-gray-400" id="muj-bio-display"></div>
+                            <div class="text-xs text-orange-400" id="muj-kraj-display"></div>
+                        </div>
+                    </div>
+                    <!-- Editace (skrytá) -->
+                    <div id="profil-editace" class="hidden mt-3 space-y-3">
+                        <!-- Avatar výběr -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-2">Avatar</div>
+                            <div id="avatar-vyber" class="flex flex-wrap gap-1">
+                                <span class="avatar-option" data-avatar="⚔️">⚔️</span>
+                                <span class="avatar-option" data-avatar="🍺">🍺</span>
+                                <span class="avatar-option" data-avatar="🛡️">🛡️</span>
+                                <span class="avatar-option" data-avatar="🏰">🏰</span>
+                                <span class="avatar-option" data-avatar="🐉">🐉</span>
+                                <span class="avatar-option" data-avatar="🦅">🦅</span>
+                                <span class="avatar-option" data-avatar="🌙">🌙</span>
+                                <span class="avatar-option" data-avatar="⚡">⚡</span>
+                                <span class="avatar-option" data-avatar="🔥">🔥</span>
+                                <span class="avatar-option" data-avatar="💀">💀</span>
+                                <span class="avatar-option" data-avatar="🌟">🌟</span>
+                                <span class="avatar-option" data-avatar="🎯">🎯</span>
+                            </div>
+                        </div>
+                        <!-- Přezdívka -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Přezdívka</div>
+                            <input id="edit-prezdivka" type="text" class="w-full p-2 text-sm" placeholder="Přezdívka hrdiny...">
+                        </div>
+                        <!-- Bio -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Bio</div>
+                            <input id="edit-bio" type="text" class="w-full p-2 text-sm" placeholder="Pár slov o tobě..." maxlength="80">
+                        </div>
+                        <!-- Kraj -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Domovský kraj <span class="text-red-400">(změna vymaže body v aktuální krajské válce!)</span></div>
+                            <select id="edit-kraj" class="w-full p-2 text-sm">
+                                <option value="">— Nevybráno —</option>
+                                <option value="Praha">Praha</option>
+                                <option value="Středočeský">Středočeský kraj</option>
+                                <option value="Jihočeský">Jihočeský kraj</option>
+                                <option value="Plzeňský">Plzeňský kraj</option>
+                                <option value="Karlovarský">Karlovarský kraj</option>
+                                <option value="Ústecký">Ústecký kraj</option>
+                                <option value="Liberecký">Liberecký kraj</option>
+                                <option value="Královéhradecký">Královéhradecký kraj</option>
+                                <option value="Pardubický">Pardubický kraj</option>
+                                <option value="Olomoucký">Olomoucký kraj</option>
+                                <option value="Moravskoslezský">Moravskoslezský kraj</option>
+                                <option value="Jihomoravský">Jihomoravský kraj</option>
+                                <option value="Zlínský">Zlínský kraj</option>
+                                <option value="Vysočina">Kraj Vysočina</option>
+                            </select>
+                        </div>
+                        <!-- Heslo -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Změna hesla (volitelné)</div>
+                            <input id="edit-heslo-soucasne" type="password" class="w-full p-2 text-sm mb-2" placeholder="Současné heslo...">
+                            <input id="edit-heslo-nove" type="password" class="w-full p-2 text-sm" placeholder="Nové heslo (min. 6 znaků)...">
+                        </div>
+                        <button id="btn-ulozit-profil" class="btn-primary w-full py-2 text-sm uppercase">💾 Uložit profil</button>
+                    </div>
+                </div>
+
+                <!-- Sledovaní hráči -->
+                <div class="mb-4">
+                    <div class="sin-section-title">👥 Sleduji hráče</div>
+                    <div id="seznam-sledovanych" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 text-xs space-y-1 max-h-36 overflow-y-auto"></div>
+                </div>
 
                 <!-- Graf piv -->
                 <div class="mb-4">
@@ -285,6 +384,134 @@
 
             </div>
 
+            <!-- TAB: KRÁLOVSTVÍ -->
+            <div id="obsah-kralovstvi" class="hidden">
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">👑 Království</h3>
+                <p class="text-xs text-gray-500 mb-1">Krajská válka — piješ za svůj kraj</p>
+                <div id="kral-reset-info" class="text-xs text-orange-400 mb-4 text-center"></div>
+
+                <!-- Nemá zvolený kraj -->
+                <div id="kral-bez-kraje" class="hidden text-center py-6">
+                    <div class="text-4xl mb-3">🏴</div>
+                    <p class="text-gray-400 text-sm mb-2">Nemáš zvolený domovský kraj.</p>
+                    <p class="text-xs text-gray-500">Jdi do záložky <strong class="text-orange-400">Deník → Můj profil</strong> a zvol svůj kraj.</p>
+                </div>
+
+                <!-- Má kraj -->
+                <div id="kral-obsah" class="hidden">
+                    <!-- Můj kraj -->
+                    <div class="kraj-card border-yellow-700 mb-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-yellow-400 font-bold text-sm" id="kral-muj-kraj">—</span>
+                            <span class="text-yellow-500 font-bold" id="kral-moje-piva">0 🍺</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Tvůj příspěvek: <span id="kral-muj-prispevek" class="text-white">0 piv</span></div>
+                    </div>
+
+                    <!-- Žebříček krajů -->
+                    <div class="sin-section-title">⚔️ Pořadí krajů (aktuální kolo)</div>
+                    <div id="kral-zebricek" class="space-y-2 mb-4"></div>
+
+                    <!-- SVG mapa ČR -->
+                    <div class="sin-section-title">🗺️ Mapa Království</div>
+                    <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 mb-4">
+                        <svg id="mapa-cr" viewBox="0 0 800 480" style="width:100%;height:auto;">
+                            <!-- Zjednodušené kraje ČR jako obdélníky/mnohoúhelníky -->
+                            <!-- Karlovarský -->
+                            <g class="kraj-svg" data-kraj="Karlovarský" onclick="kliknoutKraj('Karlovarský')">
+                                <rect x="30" y="80" width="110" height="80" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="85" y="115" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Karlovarský</text>
+                                <text x="85" y="130" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Karlovarský">0 🍺</text>
+                            </g>
+                            <!-- Ústecký -->
+                            <g class="kraj-svg" data-kraj="Ústecký" onclick="kliknoutKraj('Ústecký')">
+                                <rect x="145" y="40" width="130" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="210" y="80" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Ústecký</text>
+                                <text x="210" y="95" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Ústecký">0 🍺</text>
+                            </g>
+                            <!-- Liberecký -->
+                            <g class="kraj-svg" data-kraj="Liberecký" onclick="kliknoutKraj('Liberecký')">
+                                <rect x="280" y="40" width="110" height="75" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="335" y="73" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Liberecký</text>
+                                <text x="335" y="88" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Liberecký">0 🍺</text>
+                            </g>
+                            <!-- Královéhradecký -->
+                            <g class="kraj-svg" data-kraj="Královéhradecký" onclick="kliknoutKraj('Královéhradecký')">
+                                <rect x="395" y="40" width="130" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="460" y="76" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">Královéhradecký</text>
+                                <text x="460" y="91" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Královéhradecký">0 🍺</text>
+                            </g>
+                            <!-- Pardubický -->
+                            <g class="kraj-svg" data-kraj="Pardubický" onclick="kliknoutKraj('Pardubický')">
+                                <rect x="395" y="135" width="130" height="80" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="460" y="170" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Pardubický</text>
+                                <text x="460" y="185" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Pardubický">0 🍺</text>
+                            </g>
+                            <!-- Plzeňský -->
+                            <g class="kraj-svg" data-kraj="Plzeňský" onclick="kliknoutKraj('Plzeňský')">
+                                <rect x="30" y="165" width="120" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="90" y="210" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Plzeňský</text>
+                                <text x="90" y="225" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Plzeňský">0 🍺</text>
+                            </g>
+                            <!-- Středočeský -->
+                            <g class="kraj-svg" data-kraj="Středočeský" onclick="kliknoutKraj('Středočeský')">
+                                <rect x="155" y="130" width="235" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="272" y="175" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Středočeský</text>
+                                <text x="272" y="190" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Středočeský">0 🍺</text>
+                            </g>
+                            <!-- Praha -->
+                            <g class="kraj-svg" data-kraj="Praha" onclick="kliknoutKraj('Praha')">
+                                <circle cx="247" cy="160" r="22" fill="#2d1a0e" stroke="#d69e2e" stroke-width="2"/>
+                                <text x="247" y="156" text-anchor="middle" fill="#f6e05e" font-size="9" font-family="Cinzel,serif">Praha</text>
+                                <text x="247" y="169" text-anchor="middle" fill="#f6e05e" font-size="10" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Praha">0🍺</text>
+                            </g>
+                            <!-- Jihočeský -->
+                            <g class="kraj-svg" data-kraj="Jihočeský" onclick="kliknoutKraj('Jihočeský')">
+                                <rect x="80" y="270" width="200" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="180" y="320" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Jihočeský</text>
+                                <text x="180" y="335" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Jihočeský">0 🍺</text>
+                            </g>
+                            <!-- Vysočina -->
+                            <g class="kraj-svg" data-kraj="Vysočina" onclick="kliknoutKraj('Vysočina')">
+                                <rect x="285" y="235" width="145" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="357" y="280" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Vysočina</text>
+                                <text x="357" y="295" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Vysočina">0 🍺</text>
+                            </g>
+                            <!-- Jihomoravský -->
+                            <g class="kraj-svg" data-kraj="Jihomoravský" onclick="kliknoutKraj('Jihomoravský')">
+                                <rect x="435" y="270" width="155" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="512" y="320" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Jihomoravský</text>
+                                <text x="512" y="335" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Jihomoravský">0 🍺</text>
+                            </g>
+                            <!-- Olomoucký -->
+                            <g class="kraj-svg" data-kraj="Olomoucký" onclick="kliknoutKraj('Olomoucký')">
+                                <rect x="530" y="155" width="130" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="595" y="205" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Olomoucký</text>
+                                <text x="595" y="220" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Olomoucký">0 🍺</text>
+                            </g>
+                            <!-- Zlínský -->
+                            <g class="kraj-svg" data-kraj="Zlínský" onclick="kliknoutKraj('Zlínský')">
+                                <rect x="595" y="270" width="110" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="650" y="312" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Zlínský</text>
+                                <text x="650" y="327" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Zlínský">0 🍺</text>
+                            </g>
+                            <!-- Moravskoslezský -->
+                            <g class="kraj-svg" data-kraj="Moravskoslezský" onclick="kliknoutKraj('Moravskoslezský')">
+                                <rect x="665" y="100" width="120" height="165" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="725" y="175" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">Moravsko-</text>
+                                <text x="725" y="188" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">slezský</text>
+                                <text x="725" y="203" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Moravskoslezský">0 🍺</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <!-- Info o resetu -->
+                    <div class="text-center text-xs text-gray-500 pb-2">
+                        Výsledky se resetují každý měsíc. Statistiky hráčů zůstávají.
+                    </div>
+                </div>
+            </div>
+
             <!-- TAB: SÍŇ SLÁVY -->
             <div id="obsah-sin" class="hidden">
                 <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🏆 Síň Slávy</h3>
@@ -360,7 +587,16 @@
                 <div class="sin-section-title">Oblíbená hospoda</div>
                 <div class="text-sm text-yellow-300 font-bold" id="profil-oblibena-hospoda">—</div>
             </div>
+            <div class="text-left mb-2">
+                <div class="sin-section-title">Bio</div>
+                <div class="text-xs text-gray-300" id="profil-bio">—</div>
+            </div>
+            <div class="text-left mb-3">
+                <div class="sin-section-title">Kraj</div>
+                <div class="text-xs text-orange-400" id="profil-kraj">—</div>
+            </div>
             <div id="profil-akce" class="mt-4 space-y-2 hidden">
+                <button id="profil-btn-follow" class="follow-btn nesleduju w-full py-2 hidden">➕ Sledovat</button>
                 <button id="profil-btn-pozvat" class="btn-gold w-full py-2 text-xs uppercase hidden">📬 Pozvat do cechu</button>
             </div>
             <div id="profil-loading" class="text-gray-500 italic text-sm text-center py-4">Načítám...</div>
@@ -369,7 +605,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut }
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, collectionGroup,
                  addDoc, query, where, getDocs, orderBy, limit, deleteDoc, writeBatch, serverTimestamp, Timestamp }
@@ -400,12 +636,13 @@
 
         // Zvyšuj při každé nové funkci která přidává pole do hráčova dokumentu.
         // Hráč s nižší verzi bude automaticky upgradován při příštím přihlášení.
-        const SCHEMA_VERZE = 3;
+        const SCHEMA_VERZE = 4;
 
         // Co každá verze přidává:
         // v1 → email, prezdivka, xp, dungeony, cech_id
         // v2 → cech_zakladatel
-        // v3 → registraci_cas (pro řazení "nejstarší člen" při předání vůdcovství)
+        // v3 → registraci_cas
+        // v4 → avatar, bio, kraj, sledovani
         // ← sem přidávej nové verze
 
         // ─── STAV ─────────────────────────────────────────────────────────────
@@ -484,6 +721,10 @@
                     dungeony: {},
                     cech_id: null,
                     cech_zakladatel: false,
+                    avatar: '⚔️',
+                    bio: '',
+                    kraj: '',
+                    sledovani: [],
                     registraci_cas: serverTimestamp(),
                     verze_schematu: SCHEMA_VERZE
                 });
@@ -537,6 +778,14 @@
                     if (userData.registraci_cas === undefined) opravy.registraci_cas = serverTimestamp();
                 }
 
+                // v4 → avatar, bio, kraj, sledovani
+                if (aktualniVerze < 4) {
+                    if (userData.avatar === undefined) opravy.avatar = '⚔️';
+                    if (userData.bio === undefined) opravy.bio = '';
+                    if (userData.kraj === undefined) opravy.kraj = '';
+                    if (userData.sledovani === undefined) opravy.sledovani = [];
+                }
+
                 // ← sem přidávej nové verze migrace:
                 // if (aktualniVerze < 4) { opravy.nove_pole = defaultniHodnota; }
 
@@ -552,6 +801,9 @@
 
         function vykresliHeader() {
             $('user-nickname-display').textContent = userData.prezdivka || 'Hrdina';
+            // Avatar v headeru
+            const avatarEl = document.getElementById('user-avatar-display');
+            if (avatarEl) avatarEl.textContent = userData.avatar || '⚔️';
             const xp = userData.xp || 0;
             $('user-xp-display').textContent = xp;
             const { lvl, prog } = xpLevel(xp);
@@ -699,18 +951,46 @@
                 });
                 vykresliGraf(pocty);
 
-                // Zobraz posledních 20
-                logBox.innerHTML = snap.docs.slice(0, 20).map(d => {
+                // Zobraz posledních 20 s akcemi
+                logBox.innerHTML = '';
+                snap.docs.slice(0, 20).forEach((d, idx) => {
                     const z = d.data();
                     const casObj = z.cas?.toDate ? z.cas.toDate() : null;
                     const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
                     const cas = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'}) : '';
-                    return `<div class="log-item fade-in">
-                        <span class="text-yellow-400 font-bold">🍺 ${z.pivo}</span>
-                        <span class="text-gray-400"> @ ${z.hospoda}</span>
-                        <span class="block text-gray-600 text-[10px]">${datum}${cas ? ' · ' + cas : ''}${z.spolecne_s ? ' · <span class="spolecne-badge">🍻 s <span class="profil-link" onclick="otevritProfil(\'' + z.spolecne_uid + '\')">'+z.spolecne_s+'</span></span>' : ''}</span>
-                    </div>`;
-                }).join('');
+                    const spolecneHtml = z.spolecne_s
+                        ? ' · <span class="spolecne-badge">🍻 s ' + z.spolecne_s + '</span>'
+                        : '';
+
+                    const div = document.createElement('div');
+                    div.className = 'log-item fade-in';
+                    div.innerHTML =
+                        '<div class="flex justify-between items-start">' +
+                            '<div>' +
+                                '<span class="text-yellow-400 font-bold">🍺 ' + (z.pivo || '—') + '</span>' +
+                                '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
+                                '<span class="block text-gray-600 text-[10px]">' + datum + (cas ? ' · ' + cas : '') + spolecneHtml + '</span>' +
+                            '</div>' +
+                            '<div class="log-akce">' +
+                                (idx === 0 ? '<button class="log-btn log-btn-repeat" title="Zopakovat zápis">🔁</button>' : '') +
+                                '<button class="log-btn log-btn-delete" title="Smazat záznam">🗑️</button>' +
+                            '</div>' +
+                        '</div>';
+
+                    // 🔁 Zopakovat — jen u prvního záznamu
+                    if (idx === 0) {
+                        div.querySelector('.log-btn-repeat').addEventListener('click', () => {
+                            zopakovatzapis(z.pivo, z.hospoda, d.id);
+                        });
+                    }
+
+                    // 🗑️ Smazat
+                    div.querySelector('.log-btn-delete').addEventListener('click', () => {
+                        smazatZapis(d.id, d.ref, z);
+                    });
+
+                    logBox.appendChild(div);
+                });
 
             } catch (e) {
                 logBox.innerHTML = '<div class="text-red-500 text-xs">Chyba načítání deníčku.</div>';
@@ -822,6 +1102,27 @@
                     await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: pN }, { merge: true });
                 } catch(e) {
                     await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: 1, nazev: pN });
+                }
+
+                // Krajová válka — přičti bod kraji pokud má hráč zvolený kraj
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7); // "2025-03"
+                    const krajRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                    try {
+                        await setDoc(krajRef, {
+                            kraj: userData.kraj,
+                            mesic: mesic,
+                            piv: increment(1)
+                        }, { merge: true });
+                        // Příspěvek hráče
+                        const hracKrajRef = doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid);
+                        await setDoc(hracKrajRef, {
+                            uid: currentUser.uid,
+                            kraj: userData.kraj,
+                            mesic: mesic,
+                            piv: increment(1)
+                        }, { merge: true });
+                    } catch(eKraj) { console.warn('Kraj zapis chyba:', eKraj.message); }
                 }
 
                 // Cech skóre + válka body
@@ -942,15 +1243,16 @@
 
         // ─── TABY ─────────────────────────────────────────────────────────────
         window.switchTab = (tabName) => {
-            ['mapa', 'denik', 'cech', 'sin'].forEach(t => {
+            ['mapa', 'denik', 'cech', 'kralovstvi', 'sin'].forEach(t => {
                 $(`tab-${t}`).classList.remove('active');
                 $(`obsah-${t}`).classList.add('hidden');
             });
             $(`tab-${tabName}`).classList.add('active');
             $(`obsah-${tabName}`).classList.remove('hidden');
             if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
-            if (tabName === 'denik') vykresliDenicek();
+            if (tabName === 'denik') { vykresliDenicek(); vykresliEditProfil(); nactiSledovane(); }
             if (tabName === 'cech') nactiVseOkoloCechu();
+            if (tabName === 'kralovstvi') nactiKralovstvi();
             if (tabName === 'sin') nactiSinSlavy();
         };
 
@@ -1096,7 +1398,7 @@
                 batch3.update(novyZakladatel.ref, { cech_zakladatel: true });
                 batch3.update(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
                 await batch3.commit();
-                notify(`Vedení cechu předáno hráči "${novyZakladatel.data().prezdivka}". Opustil jsi cech.`);
+                notify('Vedení cechu předáno hráči ' + novyZakladatel.data().prezdivka + '. Opustil jsi cech.');
             } else {
                 await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
                 notify('Opustil jsi cech.');
@@ -1460,6 +1762,370 @@
             }
         }
 
+
+
+
+        // ─── ZOPAKOVAT ZÁPIS ──────────────────────────────────────────────────
+        window.zopakovatzapis = async (pivo, hospoda, posledniId) => {
+            if (!pivo || !hospoda) { notify('Chybí data záznamu!'); return; }
+            if (!userLatLng) { notify('Nejprve zjisti polohu na záložce Mapa.'); return; }
+            if (!currentPubLatLng) {
+                // Pokus se najít hospodu podle jména — uživatel musí být na mapě
+                notify('Přejdi na Mapu, klikni na hospodu "' + hospoda + '" a pak zkus znovu.');
+                return;
+            }
+
+            const dist = map.distance(userLatLng, currentPubLatLng);
+            if (dist > 150) {
+                notify('Jsi příliš daleko (' + Math.round(dist) + ' m). Musíš být v hospodě!');
+                return;
+            }
+
+            const pubNazev = $('pub-name-input').value.trim();
+            if (pubNazev && pubNazev !== hospoda) {
+                notify('Vybraná hospoda (' + pubNazev + ') se neshoduje s původní (' + hospoda + ').');
+                return;
+            }
+
+            if (!confirm('Zopakovat zápis: ' + pivo + ' @ ' + hospoda + '?')) return;
+
+            try {
+                const batch = writeBatch(db);
+                const logRef = doc(collection(db, "hraci", currentUser.uid, "log_piv"));
+                batch.set(logRef, { pivo, hospoda, cas: serverTimestamp() });
+                const bezTecky = hospoda.replace(/\./g, '_');
+                batch.update(doc(db, "hraci", currentUser.uid), {
+                    xp: increment(100),
+                    ['dungeony.' + bezTecky]: increment(1)
+                });
+                await batch.commit();
+
+                // Statistiky
+                try { await setDoc(doc(db, "statistiky_piv", pivo), { pocet: increment(1) }, { merge: true }); } catch(e) {}
+                try { await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: hospoda }, { merge: true }); } catch(e) {}
+                if (userData.cech_id) {
+                    await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(1) });
+                    await pripoctiValecneBody(hospoda);
+                }
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7);
+                    try { await setDoc(doc(db, "kralovstvi", mesic + '_' + userData.kraj), { kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
+                    try { await setDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid), { uid: currentUser.uid, kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
+                }
+
+                notify('Zopakováno! +100 XP 🍺');
+                await loadUserData();
+            } catch(e) { notify('Chyba: ' + e.message); }
+        };
+
+        // ─── SMAZAT ZÁPIS ─────────────────────────────────────────────────────
+        window.smazatZapis = async (docId, docRef, z) => {
+            if (!confirm('Smazat záznam: ' + (z.pivo || '—') + ' @ ' + (z.hospoda || '—') + '?
+Odečte -100 XP a odstraní záznam ze statistik.')) return;
+
+            try {
+                const batch = writeBatch(db);
+
+                // 1. Smaž log záznam
+                batch.delete(docRef);
+
+                // 2. Odečti XP a dungeon návštěvu
+                const bezTecky = (z.hospoda || '').replace(/\./g, '_');
+                const hracRef = doc(db, "hraci", currentUser.uid);
+                const hracOpravy = { xp: increment(-100) };
+                if (z.hospoda) {
+                    // Zjisti aktuální počet návštěv — nesmí klesnout pod 0
+                    const aktualni = (userData.dungeony && userData.dungeony[bezTecky]) || 0;
+                    if (aktualni > 0) hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                }
+                batch.update(hracRef, hracOpravy);
+
+                await batch.commit();
+
+                // 3. Globální statistiky (mimo batch)
+                if (z.pivo) {
+                    try {
+                        const pivSnap = await getDoc(doc(db, "statistiky_piv", z.pivo));
+                        if (pivSnap.exists() && (pivSnap.data().pocet || 0) > 1) {
+                            await updateDoc(doc(db, "statistiky_piv", z.pivo), { pocet: increment(-1) });
+                        } else if (pivSnap.exists()) {
+                            await deleteDoc(doc(db, "statistiky_piv", z.pivo));
+                        }
+                    } catch(e) {}
+                }
+                if (z.hospoda) {
+                    try {
+                        const hospSnap = await getDoc(doc(db, "statistiky_hospod", bezTecky));
+                        if (hospSnap.exists() && (hospSnap.data().pocet || 0) > 1) {
+                            await updateDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(-1) });
+                        } else if (hospSnap.exists()) {
+                            await deleteDoc(doc(db, "statistiky_hospod", bezTecky));
+                        }
+                    } catch(e) {}
+                }
+
+                // 4. Cech skóre
+                if (userData.cech_id) {
+                    try {
+                        const cechSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+                        if (cechSnap.exists() && (cechSnap.data().skore || 0) > 0) {
+                            await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(-1) });
+                        }
+                    } catch(e) {}
+                }
+
+                // 5. Krajová válka
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7);
+                    try {
+                        const hkRef = doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid);
+                        const hkSnap = await getDoc(hkRef);
+                        if (hkSnap.exists() && (hkSnap.data().piv || 0) > 0) {
+                            await updateDoc(hkRef, { piv: increment(-1) });
+                            const kRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                            const kSnap = await getDoc(kRef);
+                            if (kSnap.exists() && (kSnap.data().piv || 0) > 0) {
+                                await updateDoc(kRef, { piv: increment(-1) });
+                            }
+                        }
+                    } catch(e) {}
+                }
+
+                notify('Záznam smazán. -100 XP.');
+                await loadUserData();
+
+            } catch(e) { notify('Chyba: ' + e.message); }
+        };
+
+        // ─── EDITACE PROFILU ──────────────────────────────────────────────────
+        window.toggleEditProfil = () => {
+            const ed = $('profil-editace');
+            const isHidden = ed.classList.contains('hidden');
+            ed.classList.toggle('hidden', !isHidden);
+            $('btn-profil-toggle').textContent = isHidden ? 'Zavřít' : 'Upravit';
+        };
+
+        function vykresliEditProfil() {
+            $('muj-avatar-display').textContent = userData.avatar || '⚔️';
+            $('muj-nick-display').textContent = userData.prezdivka || '—';
+            $('muj-bio-display').textContent = userData.bio || '';
+            $('muj-kraj-display').textContent = userData.kraj ? '📍 ' + userData.kraj : 'Kraj nezvolén';
+
+            // Nastav hodnoty formuláře
+            $('edit-prezdivka').value = userData.prezdivka || '';
+            $('edit-bio').value = userData.bio || '';
+            $('edit-kraj').value = userData.kraj || '';
+
+            // Avatar výběr
+            document.querySelectorAll('.avatar-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.avatar === (userData.avatar || '⚔️'));
+                el.onclick = () => {
+                    document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+                    el.classList.add('selected');
+                };
+            });
+        }
+
+        $('btn-ulozit-profil').addEventListener('click', async () => {
+            const novyNick = $('edit-prezdivka').value.trim();
+            const noveBio = $('edit-bio').value.trim();
+            const novyKraj = $('edit-kraj').value;
+            const novyAvatar = document.querySelector('.avatar-option.selected')?.dataset.avatar || userData.avatar || '⚔️';
+            const soucasneHeslo = $('edit-heslo-soucasne').value;
+            const noveHeslo = $('edit-heslo-nove').value;
+
+            if (!novyNick) { notify('Přezdívka nesmí být prázdná!'); return; }
+
+            try {
+                $('btn-ulozit-profil').disabled = true;
+                $('btn-ulozit-profil').textContent = '⏳ Ukládám...';
+
+                const opravy = {
+                    prezdivka: novyNick,
+                    bio: noveBio,
+                    avatar: novyAvatar
+                };
+
+                // Změna kraje — vymaže body v aktuální krajské válce
+                if (novyKraj !== (userData.kraj || '')) {
+                    if (userData.kraj && novyKraj) {
+                        if (!confirm('Změna kraje vymaže tvůj příspěvek v aktuální krajské válce. Pokračovat?')) {
+                            $('btn-ulozit-profil').disabled = false;
+                            $('btn-ulozit-profil').textContent = '💾 Uložit profil';
+                            return;
+                        }
+                    }
+                    // Vymaz příspěvek v aktuálním měsíci
+                    if (userData.kraj) {
+                        const mesic = new Date().toISOString().slice(0, 7);
+                        try {
+                            await deleteDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid));
+                            // Odečti od krajského součtu
+                            const krajRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                            const krajSnap = await getDoc(krajRef);
+                            if (krajSnap.exists()) {
+                                const staryPrispevek = (await getDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid)))?.data()?.piv || 0;
+                                if (staryPrispevek > 0) {
+                                    await updateDoc(krajRef, { piv: increment(-staryPrispevek) });
+                                }
+                            }
+                        } catch(e) { console.warn('Mazání kraj příspěvku:', e); }
+                    }
+                    opravy.kraj = novyKraj;
+                }
+
+                await updateDoc(doc(db, "hraci", currentUser.uid), opravy);
+                Object.assign(userData, opravy);
+
+                // Změna hesla
+                if (soucasneHeslo && noveHeslo) {
+                    if (noveHeslo.length < 6) { notify('Nové heslo musí mít alespoň 6 znaků!'); return; }
+                    try {
+                        const credential = EmailAuthProvider.credential(currentUser.email, soucasneHeslo);
+                        await reauthenticateWithCredential(currentUser, credential);
+                        await updatePassword(currentUser, noveHeslo);
+                        $('edit-heslo-soucasne').value = '';
+                        $('edit-heslo-nove').value = '';
+                        notify('Profil i heslo uloženy! ✓');
+                    } catch(eHeslo) {
+                        if (eHeslo.code === 'auth/wrong-password') {
+                            notify('Současné heslo je špatně!');
+                        } else {
+                            notify('Chyba změny hesla: ' + eHeslo.message);
+                        }
+                        return;
+                    }
+                } else {
+                    notify('Profil uložen! ✓');
+                }
+
+                vykresliHeader();
+                vykresliEditProfil();
+                toggleEditProfil();
+
+            } catch(e) {
+                notify('Chyba: ' + e.message);
+            } finally {
+                $('btn-ulozit-profil').disabled = false;
+                $('btn-ulozit-profil').textContent = '💾 Uložit profil';
+            }
+        });
+
+        // ─── SLEDOVÁNÍ ────────────────────────────────────────────────────────
+        async function nactiSledovane() {
+            const box = $('seznam-sledovanych');
+            const sledovani = userData.sledovani || [];
+            if (sledovani.length === 0) {
+                box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Zatím nikoho nesleduješ.</div>';
+                return;
+            }
+            box.innerHTML = '<div class="text-gray-500 italic text-center py-1">Načítám...</div>';
+            const rows = [];
+            for (const uid of sledovani) {
+                try {
+                    const snap = await getDoc(doc(db, "hraci", uid));
+                    if (!snap.exists()) continue;
+                    const h = snap.data();
+                    const { lvl } = xpLevel(h.xp || 0);
+                    rows.push('<div class="flex justify-between items-center py-1">' +
+                        '<span class="profil-link" onclick="otevritProfil('' + uid + '')">' +
+                        (h.avatar || '⚔️') + ' ' + (h.prezdivka || '—') +
+                        '</span>' +
+                        '<span class="text-gray-500">Úr. ' + lvl + '</span>' +
+                        '</div>');
+                } catch(e) {}
+            }
+            box.innerHTML = rows.length ? rows.join('') : '<div class="text-gray-600 italic text-center py-2">Žádní sledovaní.</div>';
+        }
+
+        // ─── KRÁLOVSTVÍ ───────────────────────────────────────────────────────
+        window.kliknoutKraj = (kraj) => {
+            notify('Kraj: ' + kraj + ' — statistiky načteny v žebříčku.');
+        };
+
+        async function nactiKralovstvi() {
+            const mesic = new Date().toISOString().slice(0, 7);
+
+            // Nastav info o resetu
+            const pristiMesic = new Date();
+            pristiMesic.setMonth(pristiMesic.getMonth() + 1);
+            pristiMesic.setDate(1);
+            $('kral-reset-info').textContent = 'Aktuální kolo: ' + mesic + '  ·  Reset: 1. ' +
+                pristiMesic.toLocaleDateString('cs-CZ', {month:'long', year:'numeric'});
+
+            if (!userData.kraj) {
+                show('kral-bez-kraje');
+                hide('kral-obsah');
+                return;
+            }
+            hide('kral-bez-kraje');
+            show('kral-obsah');
+
+            $('kral-muj-kraj').textContent = '📍 ' + userData.kraj;
+
+            // Načti příspěvek hráče
+            try {
+                const hracKrajSnap = await getDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid));
+                const mojePiv = hracKrajSnap.exists() ? (hracKrajSnap.data().piv || 0) : 0;
+                $('kral-muj-prispevek').textContent = mojePiv + ' piv';
+            } catch(e) {}
+
+            // Načti všechny kraje v aktuálním měsíci
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "kralovstvi"),
+                    where("mesic", "==", mesic),
+                    orderBy("piv", "desc")
+                ));
+
+                // Načti celkový počet piv pro kraj přihlášeného hráče
+                const mojKrajDoc = snap.docs.find(d => d.data().kraj === userData.kraj);
+                $('kral-moje-piva').textContent = (mojKrajDoc ? mojKrajDoc.data().piv : 0) + ' 🍺';
+
+                // Žebříček
+                const box = $('kral-zebricek');
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center text-xs py-2">Zatím žádná piva. Začni psát za svůj kraj!</div>';
+                } else {
+                    const max = snap.docs[0].data().piv || 1;
+                    box.innerHTML = snap.docs.map((d, i) => {
+                        const k = d.data();
+                        const isMe = k.kraj === userData.kraj;
+                        const pct = Math.round((k.piv / max) * 100);
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
+                        return '<div class="kraj-card' + (isMe ? ' border-yellow-600' : '') + '">' +
+                            '<div class="flex justify-between items-center">' +
+                            '<span class="text-sm ' + (isMe ? 'text-yellow-400 font-bold' : 'text-gray-300') + '">' + medal + ' ' + k.kraj + (isMe ? ' 👈' : '') + '</span>' +
+                            '<span class="text-yellow-500 font-bold">' + k.piv + ' 🍺</span>' +
+                            '</div>' +
+                            '<div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:' + pct + '%"></div></div>' +
+                            '</div>';
+                    }).join('');
+                }
+
+                // Aktualizuj SVG mapu
+                snap.docs.forEach(d => {
+                    const k = d.data();
+                    const maxPiv = snap.docs[0].data().piv || 1;
+                    const intenzita = Math.min(k.piv / maxPiv, 1);
+                    // Obarvi kraj na mapě
+                    const g = document.querySelector('[data-kraj="' + k.kraj + '"]');
+                    if (g) {
+                        const rect = g.querySelector('rect, circle');
+                        if (rect) {
+                            const r = Math.round(26 + intenzita * 100);
+                            const g2 = Math.round(26 + intenzita * 60);
+                            rect.setAttribute('fill', 'rgb(' + r + ',' + g2 + ',14)');
+                        }
+                        const txt = g.querySelector('.kraj-piva-text');
+                        if (txt) txt.textContent = k.piv + ' 🍺';
+                    }
+                });
+
+            } catch(e) {
+                $('kral-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání: ' + e.message + '</div>';
+            }
+        }
 
         // ─── HRÁČSKÝ PROFIL ───────────────────────────────────────────────────
         window.zavritProfilModal = () => {
