@@ -107,6 +107,18 @@
                     <div id="migrace-hraci-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
                 </div>
 
+                <!-- Spárování společného pití -->
+                <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1">🍻 Spárovat záznamy společného pití</div>
+                            <div class="text-xs text-gray-400">Projde logy všech hráčů a zpětně spáruje záznamy ze stejné hospody do 5 minut od sebe. Doplní pole <code class="text-yellow-600">spolecne_s</code> u historických záznamů.</div>
+                        </div>
+                        <button id="btn-migrace-spolecne" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-spolecne-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                </div>
+
                 <!-- Reset statistik -->
                 <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
                     <div class="flex justify-between items-start gap-4">
@@ -128,8 +140,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, deleteDoc, updateDoc,
-                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where }
+        import { getFirestore, collection, collectionGroup, getDocs, doc, deleteDoc, updateDoc,
+                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where, Timestamp }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ─── CONFIG ──────────────────────────────────────────────────────────
@@ -589,6 +601,105 @@
                 logLine(logId, `❌ Chyba: ${e.message}`, '#f87171');
             } finally {
                 $('btn-migrace-hraci').disabled = false;
+            }
+        });
+
+
+        // ── 4. Spárovat záznamy společného pití ─────────────────────────────
+        $('btn-migrace-spolecne').addEventListener('click', async () => {
+            const logId = 'migrace-spolecne-log';
+            const logEl = $(logId);
+            logEl.classList.remove('hidden');
+            logEl.innerHTML = '';
+            $('btn-migrace-spolecne').disabled = true;
+
+            const logLine = (msg, color) => {
+                const d = document.createElement('div');
+                d.textContent = msg;
+                if (color) d.style.color = color;
+                logEl.appendChild(d);
+                logEl.scrollTop = logEl.scrollHeight;
+            };
+
+            try {
+                logLine('Načítám všechny hráče...');
+                const hraciSnap = await getDocs(collection(db, "hraci"));
+                logLine(`Nalezeno ${hraciSnap.size} hráčů.`);
+
+                // Načti všechny logy najednou pomocí collectionGroup
+                logLine('Načítám všechny logy...');
+                const vsechnyLogy = await getDocs(query(
+                    collectionGroup(db, "log_piv"),
+                    orderBy("cas", "asc")
+                ));
+                logLine(`Nalezeno ${vsechnyLogy.size} záznamů celkem.`);
+
+                // Seskup záznamy podle hospody
+                const podleHospody = {};
+                vsechnyLogy.docs.forEach(d => {
+                    const data = d.data();
+                    if (!data.hospoda || !data.cas) return;
+                    if (!podleHospody[data.hospoda]) podleHospody[data.hospoda] = [];
+                    podleHospody[data.hospoda].push({
+                        ref: d.ref,
+                        uid: d.ref.parent.parent.id,
+                        cas: data.cas.toDate ? data.cas.toDate() : new Date(data.cas),
+                        pivo: data.pivo,
+                        spolecne_s: data.spolecne_s || null
+                    });
+                });
+
+                let sparovano = 0;
+                const batch = writeBatch(db);
+                let batchCount = 0;
+
+                for (const [hospoda, zaznamy] of Object.entries(podleHospody)) {
+                    if (zaznamy.length < 2) continue;
+
+                    // Pro každý záznam najdi ostatní do 5 minut
+                    for (let i = 0; i < zaznamy.length; i++) {
+                        const z = zaznamy[i];
+                        const spoluhraciUids = [];
+                        const spoluhraciJmena = [];
+
+                        for (let j = 0; j < zaznamy.length; j++) {
+                            if (i === j) continue;
+                            const z2 = zaznamy[j];
+                            if (z2.uid === z.uid) continue;
+                            const rozdilMs = Math.abs(z.cas - z2.cas);
+                            if (rozdilMs <= 5 * 60 * 1000) {
+                                spoluhraciUids.push(z2.uid);
+                                // Zjisti přezdívku
+                                const hSnap = hraciSnap.docs.find(d => d.id === z2.uid);
+                                if (hSnap) spoluhraciJmena.push(hSnap.data().prezdivka);
+                            }
+                        }
+
+                        if (spoluhraciJmena.length > 0 && !z.spolecne_s) {
+                            batch.update(z.ref, {
+                                spolecne_s: spoluhraciJmena.join(', '),
+                                spolecne_uids: spoluhraciUids
+                            });
+                            sparovano++;
+                            batchCount++;
+
+                            // Firestore batch limit je 500
+                            if (batchCount >= 480) {
+                                await batch.commit();
+                                logLine(`Zapsáno ${sparovano} párování...`);
+                                batchCount = 0;
+                            }
+                        }
+                    }
+                }
+
+                if (batchCount > 0) await batch.commit();
+
+                logLine(`✅ Hotovo! Spárováno ${sparovano} záznamů.`, '#34d399');
+            } catch(e) {
+                logLine('❌ Chyba: ' + e.message, '#fc8181');
+            } finally {
+                $('btn-migrace-spolecne').disabled = false;
             }
         });
 
