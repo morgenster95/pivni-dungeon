@@ -1047,10 +1047,18 @@
             map.locate({ setView: true, maxZoom: 16 });
         });
 
+        // Sleduje aktuální pub seanci — návštěva se počítá jen jednou za seanci
+        let currentPubSession = null; // { pubName, started }
+
         window.pickPub = (n, lat, lng) => {
             $('pub-name-input').value = n;
             currentPubLatLng = L.latLng(lat, lng);
             map.closePopup();
+            // Nová hospoda = nová seance
+            if (!currentPubSession || currentPubSession.pubName !== n) {
+                currentPubSession = { pubName: n, navstevaPocitana: false };
+                notify('📍 Hospoda vybrána: ' + n + ' — první pivo zapíše návštěvu.');
+            }
         };
 
         // ─── CLAIM XP ─────────────────────────────────────────────────────────
@@ -1085,10 +1093,14 @@
                 // Aktualizace hráče — dungeony klíč nesmí obsahovat tečky (Firestore to bere jako cestu)
                 const hracRef = doc(db, "hraci", currentUser.uid);
                 const bezTecky = pN.replace(/\./g, '_');
-                batch.update(hracRef, {
-                    xp: increment(100),
-                    [`dungeony.${bezTecky}`]: increment(1)
-                });
+                // Návštěva se počítá jen jednou za seanci (první pivo v hospodě)
+                const jeNovyNavsteva = !currentPubSession || !currentPubSession.navstevaPocitana;
+                const hracUpdate = { xp: increment(100) };
+                if (jeNovyNavsteva) {
+                    hracUpdate[`dungeony.${bezTecky}`] = increment(1);
+                    if (currentPubSession) currentPubSession.navstevaPocitana = true;
+                }
+                batch.update(hracRef, hracUpdate);
 
                 await batch.commit();
 
@@ -1168,35 +1180,11 @@
                             ));
 
                             if (!mojLogSnap.empty) {
-                                const batch2 = writeBatch(db);
-
-                                // Doplň spoluhráče do MÉHO záznamu
-                                batch2.update(mojLogSnap.docs[0].ref, {
+                                // Doplň spoluhráče jen do MÉHO záznamu (cizí log_piv nemůžeme zapisovat)
+                                await updateDoc(mojLogSnap.docs[0].ref, {
                                     spolecne_s: jmena,
                                     spolecne_uids: spoluhraciList.map(s => s.uid)
                                 });
-
-                                // Zpětně doplň MĚ do JEJICH posledního záznamu z této hospody
-                                for (const sh of spoluhraciList) {
-                                    const jejichLog = await getDocs(query(
-                                        collection(db, "hraci", sh.uid, "log_piv"),
-                                        where("hospoda", "==", pN),
-                                        orderBy("cas", "desc"), limit(1)
-                                    ));
-                                    if (!jejichLog.empty) {
-                                        const jd = jejichLog.docs[0].data();
-                                        const noveSpolecne = jd.spolecne_s
-                                            ? jd.spolecne_s + ', ' + userData.prezdivka
-                                            : userData.prezdivka;
-                                        const noveUids = [...(jd.spolecne_uids || []), currentUser.uid];
-                                        batch2.update(jejichLog.docs[0].ref, {
-                                            spolecne_s: noveSpolecne,
-                                            spolecne_uids: noveUids
-                                        });
-                                    }
-                                }
-
-                                await batch2.commit();
                                 notify('Zapsáno! +100 XP 🍺  ·  🍻 Piješ s: ' + jmena);
                             } else {
                                 notify('Zapsáno! +100 XP 🍺');
@@ -1407,6 +1395,11 @@
             } else {
                 await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
                 notify('Opustil jsi cech.');
+                // Zkontroluj jestli cech nezůstal prázdný
+                const zbyvajici = await getDocs(query(collection(db, "hraci"), where("cech_id", "==", cechId)));
+                if (zbyvajici.empty) {
+                    await deleteDoc(doc(db, "cechy", cechId));
+                }
             }
             userData.cech_id = null;
             await loadUserData();
