@@ -1013,11 +1013,24 @@
             userLatLng = e.latlng;
             L.circle(e.latlng, { radius: 30, color: '#f6e05e', fillOpacity: 0.3 }).addTo(map);
 
-            const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(node["amenity"~"pub|bar|restaurant"](around:1500,${e.latlng.lat},${e.latlng.lng}););out;`;
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            const query = `[out:json];(
+                node["amenity"~"pub|bar|restaurant"](around:3000,${lat},${lng});
+                way["amenity"~"pub|bar|restaurant"](around:3000,${lat},${lng});
+                relation["amenity"~"pub|bar|restaurant"](around:3000,${lat},${lng});
+            );out center;`;
+            const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
             fetch(overpassUrl)
                 .then(r => r.json())
                 .then(data => {
                     data.elements.forEach(h => {
+                        // node má lat/lon přímo, way/relation mají center
+                        const hLat = h.lat ?? h.center?.lat;
+                        const hLon = h.lon ?? h.center?.lon;
+                        if (!hLat || !hLon) return;
+
                         const n = h.tags.name || 'Krčma';
                         const p = (userData.dungeony && userData.dungeony[n]) || 0;
                         const b = p >= 5 ? '🟢' : p > 0 ? '🟠' : '🔴';
@@ -1025,9 +1038,9 @@
                             html: `<div class="dungeon-icon-wrapper"><span class="dungeon-circle-bg">${b}</span><span class="dungeon-beer-fg">🍺</span></div>`,
                             className: '', iconSize: [40, 40]
                         });
-                        L.marker([h.lat, h.lon], { icon })
+                        L.marker([hLat, hLon], { icon })
                             .addTo(map)
-                            .bindPopup(buildPopup(n, h.lat, h.lon));
+                            .bindPopup(buildPopup(n, hLat, hLon));
                     });
                 })
                 .catch(() => notify('Nepodařilo se načíst hospody.'));
