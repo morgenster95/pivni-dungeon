@@ -127,6 +127,7 @@
 
         .profil-link { cursor:pointer; text-decoration:underline; color:#f6e05e; }
         .profil-link:hover { color:#ed8936; }
+        .glog-item { background: rgba(0,0,0,0.4); border-left: 2px solid #c05621; border-radius: 0 6px 6px 0; padding: 5px 8px; font-size: 0.72rem; line-height: 1.4; }
         .spolecne-badge { display:inline-block; background:rgba(39,103,73,0.5); border:1px solid #276749; border-radius:4px; padding:1px 6px; font-size:0.65rem; color:#68d391; margin-left:4px; }
 
         .kraj-card { background: rgba(0,0,0,0.45); border: 1px solid rgba(139,69,19,0.35); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
@@ -199,14 +200,50 @@
             <div id="obsah-mapa">
                 <div id="map"></div>
                 <button id="btn-hledej" class="btn-primary w-full py-3 uppercase text-sm mt-3 mb-4">🔍 Najít dungeony v okolí</button>
-                <div class="pt-3 border-t border-orange-900">
-                    <input id="pub-name-input" readonly placeholder="Klikni na hospodu na mapě..." class="w-full p-2 mb-2 text-yellow-400 font-bold cursor-default">
+
+                <!-- Globální log aktivit -->
+                <div class="mb-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="sin-section-title" style="margin:0">🍺 Poslední akce hráčů</div>
+                        <button id="btn-global-log-vice" class="text-xs text-orange-400 underline">Celý log →</button>
+                    </div>
+                    <div id="global-log-box" class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 space-y-1 text-xs">
+                        <div class="text-gray-600 italic text-center py-2">Načítám...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Celý globální log -->
+            <div id="global-log-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+                <div class="glass-card w-full max-w-sm p-4 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xl text-yellow-400 fantasy-font">📜 Kronika Dungeonu</h3>
+                        <button id="btn-zavrit-global-log" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+                    </div>
+                    <div id="global-log-modal-box" class="space-y-1 text-xs">
+                        <div class="text-gray-600 italic text-center py-4">Načítám...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Zápis piva (overlay po kliknutí na hospodu) -->
+            <div id="beer-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1001;display:flex;align-items:flex-end;justify-content:center;padding:0;">
+                <div class="glass-card w-full max-w-md p-5 border border-orange-700 rounded-b-none" style="border-radius:16px 16px 0 0;">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <div class="text-xs text-gray-400 uppercase font-bold mb-1">Vybraná hospoda</div>
+                            <div id="beer-modal-pub-name" class="text-yellow-400 font-bold text-lg fantasy-font">—</div>
+                        </div>
+                        <button id="btn-zavrit-beer-modal" class="text-gray-500 hover:text-white text-2xl leading-none">✕</button>
+                    </div>
                     <div class="flex gap-2 mb-4">
-                        <input id="beer-name-input" list="seznam-piv" placeholder="Vyber nebo napiš pivo..." class="flex-grow p-2">
+                        <input id="beer-name-input" list="seznam-piv" placeholder="Vyber nebo napiš pivo..." class="flex-grow p-3">
                         <datalist id="seznam-piv"></datalist>
                         <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" title="Navrhnout chybějící pivo" class="btn-gold px-3 rounded text-lg">❗</button>
                     </div>
                     <button id="btn-claim" class="btn-primary w-full py-4 text-xl font-black uppercase shadow-lg">🍺 Zapsat pivo (+100 XP)</button>
+                    <!-- Skryté inputy pro kompatibilitu -->
+                    <input id="pub-name-input" type="hidden">
                 </div>
             </div>
 
@@ -684,6 +721,7 @@
                 try {
                     await Promise.all([nactiPiva(), loadUserData()]);
                     initMap();
+                    nactiGlobalniLog();
                 } catch (e) { console.error("Start error:", e); }
             } else {
                 currentUser = null;
@@ -1026,11 +1064,9 @@
                 .then(r => r.json())
                 .then(data => {
                     data.elements.forEach(h => {
-                        // node má lat/lon přímo, way/relation mají center
                         const hLat = h.lat ?? h.center?.lat;
                         const hLon = h.lon ?? h.center?.lon;
                         if (!hLat || !hLon) return;
-
                         const n = h.tags.name || 'Krčma';
                         const p = (userData.dungeony && userData.dungeony[n]) || 0;
                         const b = p >= 5 ? '🟢' : p > 0 ? '🟠' : '🔴';
@@ -1065,14 +1101,21 @@
 
         window.pickPub = (n, lat, lng) => {
             $('pub-name-input').value = n;
+            $('beer-modal-pub-name').textContent = n;
             currentPubLatLng = L.latLng(lat, lng);
             map.closePopup();
             // Nová hospoda = nová seance
             if (!currentPubSession || currentPubSession.pubName !== n) {
                 currentPubSession = { pubName: n, navstevaPocitana: false };
-                notify('📍 Hospoda vybrána: ' + n + ' — první pivo zapíše návštěvu.');
             }
+            // Otevři beer modal
+            $('beer-modal').classList.remove('hidden');
+            $('beer-name-input').focus();
         };
+
+        $('btn-zavrit-beer-modal').addEventListener('click', () => {
+            $('beer-modal').classList.add('hidden');
+        });
 
         // ─── CLAIM XP ─────────────────────────────────────────────────────────
         $('btn-claim').addEventListener('click', async () => {
@@ -1101,6 +1144,16 @@
                 const logRef = doc(collection(db, "hraci", currentUser.uid, "log_piv"));
                 batch.set(logRef, {
                     pivo: bN, hospoda: pN, cas: serverTimestamp()
+                });
+
+                // Globální log aktivit
+                const gLogRef = doc(collection(db, "global_log"));
+                batch.set(gLogRef, {
+                    pivo: bN,
+                    hospoda: pN,
+                    hrac_uid: currentUser.uid,
+                    hrac_prezdivka: userData.prezdivka || '—',
+                    cas: serverTimestamp()
                 });
 
                 // Aktualizace hráče — dungeony klíč nesmí obsahovat tečky (Firestore to bere jako cestu)
@@ -1214,7 +1267,9 @@
                 }
 
                 $('beer-name-input').value = '';
+                $('beer-modal').classList.add('hidden');
                 await loadUserData();
+                nactiGlobalniLog(); // refresh live feed
             } catch (e) {
                 notify('Chyba: ' + e.message);
             } finally {
@@ -1251,6 +1306,7 @@
             $(`tab-${tabName}`).classList.add('active');
             $(`obsah-${tabName}`).classList.remove('hidden');
             if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
+            if (tabName === 'mapa') nactiGlobalniLog();
             if (tabName === 'denik') { vykresliDenicek(); vykresliEditProfil(); nactiSledovane(); }
             if (tabName === 'cech') nactiVseOkoloCechu();
             if (tabName === 'kralovstvi') nactiKralovstvi();
@@ -1312,9 +1368,10 @@
             const jeZakladatel = cech.zakladatel === currentUser.uid;
             $('cech-role-display').textContent = jeZakladatel ? '👑 Zakladatel cechu' : '⚔️ Člen cechu';
 
-            // Tlačítko rozpustit jen pro zakladatele
+            // Tlačítko rozpustit jen pro zakladatele, pozvat také jen pro zakladatele
             if (jeZakladatel) { show('btn-rozpustit-cech'); show('panel-pozvat'); }
             else              { hide('btn-rozpustit-cech'); hide('panel-pozvat'); }
+            // Panel vyhlásit válku vidí všichni členové cechu (řídí se stavem aktivních válek)
 
             // Žebříček členů
             await nactiClenyCechu();
@@ -1506,8 +1563,7 @@
             const aktivni = valky.filter(v => v.stav === 'aktivni');
             const cekajici = valky.filter(v => v.stav === 'ceka');
 
-            // Ukážeme selector pro vyhlášení války, pokud nemáme aktivní válku
-            const panelVyhlasit = $('panel-vyhlasit-valku');
+            // Ukážeme selector pro vyhlášení války, pokud nemáme aktivní válku — pro VŠECHNY členy cechu
             if (aktivni.length === 0) {
                 show('panel-vyhlasit-valku');
                 await nactiCechyProValku(cechId);
@@ -1538,6 +1594,8 @@
 
                 const card = document.createElement('div');
                 card.className = 'war-card fade-in';
+                // Tlačítko přijmout výzvu vidí jakýkoliv člen obranného cechu
+                const muzePrijmout = v.stav === 'ceka' && v.mujSmer === 'obrance';
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-orange-400 font-bold">⚔️ vs. ${soupeřNazev}</span>
@@ -1557,7 +1615,7 @@
                     </div>
                     <div class="text-[10px] text-gray-600 mt-1">Konec: ${konecStr}</div>
                     ` : ''}
-                    ${v.stav === 'ceka' && v.mujSmer === 'obrance' ? `
+                    ${muzePrijmout ? `
                     <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${v.id}">⚔️ Přijmout výzvu</button>
                     ` : ''}
                 `;
@@ -1776,7 +1834,66 @@
 
 
 
-        // ─── ZOPAKOVAT ZÁPIS ──────────────────────────────────────────────────
+        // ─── GLOBÁLNÍ LOG ─────────────────────────────────────────────────────
+        function formatGlobalLogItem(d) {
+            const z = d.data();
+            const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+            const casStr = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) + ' · ' + casObj.toLocaleDateString('cs-CZ') : '—';
+            const jmeno = z.hrac_uid === currentUser?.uid
+                ? `<span class="text-yellow-400 font-bold">${z.hrac_prezdivka}</span>`
+                : `<span class="profil-link" onclick="otevritProfil('${z.hrac_uid}')">${z.hrac_prezdivka}</span>`;
+            return `<div class="glog-item">
+                ${jmeno} <span class="text-gray-400">vypil</span> <span class="text-orange-300 font-bold">🍺 ${z.pivo || '—'}</span>
+                <span class="text-gray-500"> @ ${z.hospoda || '—'}</span>
+                <span class="block text-gray-600 text-[10px] mt-0.5">${casStr}</span>
+            </div>`;
+        }
+
+        async function nactiGlobalniLog() {
+            const box = $('global-log-box');
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "global_log"),
+                    orderBy("cas", "desc"),
+                    limit(5)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Zatím nikdo nic nevypil.</div>';
+                    return;
+                }
+                box.innerHTML = snap.docs.map(formatGlobalLogItem).join('');
+            } catch(e) {
+                box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Nelze načíst log.</div>';
+            }
+        }
+
+        async function nactiGlobalniLogFull() {
+            const box = $('global-log-modal-box');
+            box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Načítám...</div>';
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "global_log"),
+                    orderBy("cas", "desc"),
+                    limit(100)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Zatím nikdo nic nevypil.</div>';
+                    return;
+                }
+                box.innerHTML = snap.docs.map(formatGlobalLogItem).join('');
+            } catch(e) {
+                box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + e.message + '</div>';
+            }
+        }
+
+        $('btn-global-log-vice').addEventListener('click', () => {
+            $('global-log-modal').classList.remove('hidden');
+            nactiGlobalniLogFull();
+        });
+
+        $('btn-zavrit-global-log').addEventListener('click', () => {
+            $('global-log-modal').classList.add('hidden');
+        });
         window.zopakovatzapis = async (pivo, hospoda, posledniId) => {
             if (!pivo || !hospoda) { notify('Chybí data záznamu!'); return; }
             if (!userLatLng) { notify('Nejprve zjisti polohu na záložce Mapa.'); return; }
@@ -1804,6 +1921,14 @@
                 const batch = writeBatch(db);
                 const logRef = doc(collection(db, "hraci", currentUser.uid, "log_piv"));
                 batch.set(logRef, { pivo, hospoda, cas: serverTimestamp() });
+                const gLogRef2 = doc(collection(db, "global_log"));
+                batch.set(gLogRef2, {
+                    pivo,
+                    hospoda,
+                    hrac_uid: currentUser.uid,
+                    hrac_prezdivka: userData.prezdivka || '—',
+                    cas: serverTimestamp()
+                });
                 const bezTecky = hospoda.replace(/\./g, '_');
                 batch.update(doc(db, "hraci", currentUser.uid), {
                     xp: increment(100),
