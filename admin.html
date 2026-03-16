@@ -75,6 +75,18 @@
         </div>
     </div>
 
+
+    <!-- Globální log aktivit -->
+    <div class="glass-card p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">🍺 Globální log aktivit (posledních 50)</h2>
+            <button id="btn-refresh-global-log" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
+        </div>
+        <div id="admin-global-log" class="space-y-1 text-xs max-h-80 overflow-y-auto">
+            <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
+        </div>
+    </div>
+
     <!-- Žebříček hráčů -->
     <div class="glass-card p-6 mb-6">
         <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide mb-4">🏆 Top hráči (XP)</h2>
@@ -184,6 +196,19 @@
                 <div id="migrace-spolecne-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
             </div>
 
+
+            <!-- Sestavit global_log z historickych logu -->
+            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
+                <div class="flex justify-between items-start gap-4">
+                    <div>
+                        <div class="text-sm font-bold text-orange-300 mb-1">🍺 Sestavit global_log z historických logů</div>
+                        <div class="text-xs text-gray-400">Projde <code class="text-yellow-600">log_piv</code> všech hráčů a doplní kolekci <code class="text-yellow-600">global_log</code>. Nutné pro historická data před zavedením global_logu. Nová data se přidávají automaticky.</div>
+                    </div>
+                    <button id="btn-sestavit-global-log" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Sestavit</button>
+                </div>
+                <div id="sestavit-global-log-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+            </div>
+
             <!-- Reset statistik -->
             <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
                 <div class="flex justify-between items-start gap-4">
@@ -262,7 +287,7 @@
         hide('login-screen');
         show('admin-panel');
         $('admin-info').textContent = `Přihlášen: ${user.email}`;
-        await Promise.all([nactiNavrhy(), nactiValky(), nactiZebricek()]);
+        await Promise.all([nactiNavrhy(), nactiValky(), nactiZebricek(), nactiAdminGlobalLog()]);
     });
 
     $('btn-admin-login').addEventListener('click', async () => {
@@ -280,6 +305,41 @@
 
     $('btn-refresh').addEventListener('click', nactiNavrhy);
     $('btn-refresh-valky').addEventListener('click', nactiValky);
+    $('btn-refresh-global-log').addEventListener('click', nactiAdminGlobalLog);
+
+    // ─── GLOBÁLNÍ LOG (ADMIN) ─────────────────────────────────────────────
+    async function nactiAdminGlobalLog() {
+        const box = $('admin-global-log');
+        box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>';
+        try {
+            const snap = await getDocs(query(
+                collection(db, "global_log"),
+                orderBy("cas", "desc"),
+                limit(50)
+            ));
+            if (snap.empty) {
+                box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Zatím žádné záznamy v global_log.</div>';
+                return;
+            }
+            box.innerHTML = snap.docs.map(d => {
+                const z = d.data();
+                const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+                const casStr = casObj
+                    ? casObj.toLocaleDateString('cs-CZ') + ' ' + casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'})
+                    : '—';
+                return `<div class="flex justify-between items-center border-b border-gray-800 py-1">
+                    <span>
+                        <span class="text-yellow-400 font-bold">${escapeHtml(z.hrac_prezdivka || '—')}</span>
+                        <span class="text-gray-400"> · 🍺 ${escapeHtml(z.pivo || '—')}</span>
+                        <span class="text-gray-500"> @ ${escapeHtml(z.hospoda || '—')}</span>
+                    </span>
+                    <span class="text-gray-600 text-[10px] ml-2 flex-shrink-0">${casStr}</span>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + e.message + '</div>';
+        }
+    }
 
     // ─── NÁVRHY PIV ───────────────────────────────────────────────────────
     async function nactiNavrhy() {
@@ -1003,6 +1063,93 @@
         }
     });
 
+
+    // ── Sestavit global_log z historických logů ──────────────────────────
+    $('btn-sestavit-global-log').addEventListener('click', async () => {
+        const logId = 'sestavit-global-log-log';
+        const logEl = $(logId);
+        logEl.classList.remove('hidden');
+        logEl.innerHTML = '';
+        $('btn-sestavit-global-log').disabled = true;
+
+        const log = (msg, color) => {
+            const d = document.createElement('div');
+            d.textContent = msg;
+            if (color) d.style.color = color;
+            logEl.appendChild(d);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+
+        try {
+            log('Načítám hráče...');
+            const hraciSnap = await getDocs(collection(db, "hraci"));
+            log('Nalezeno ' + hraciSnap.size + ' hráčů.');
+
+            // Načti existující global_log záznamy (abychom neduplikovali)
+            log('Načítám existující global_log...');
+            const existSnap = await getDocs(collection(db, "global_log"));
+            // Klíč: uid+cas jako string pro dedup
+            const existKlice = new Set();
+            existSnap.forEach(d => {
+                const z = d.data();
+                const casMs = z.cas?.toMillis ? z.cas.toMillis() : 0;
+                existKlice.add(z.hrac_uid + '_' + casMs);
+            });
+            log('Existujících záznamů: ' + existSnap.size);
+
+            let celkem = 0;
+            let preskoceno = 0;
+            let zapsano = 0;
+            const BATCH_SIZE = 400;
+            let batch = writeBatch(db);
+            let batchCount = 0;
+
+            for (const hracDoc of hraciSnap.docs) {
+                const h = hracDoc.data();
+                const logSnap = await getDocs(query(
+                    collection(db, "hraci", hracDoc.id, "log_piv"),
+                    orderBy("cas", "asc")
+                ));
+                celkem += logSnap.size;
+
+                for (const ld of logSnap.docs) {
+                    const z = ld.data();
+                    const casMs = z.cas?.toMillis ? z.cas.toMillis() : 0;
+                    const klic = hracDoc.id + '_' + casMs;
+
+                    if (existKlice.has(klic)) { preskoceno++; continue; }
+
+                    const gRef = doc(collection(db, "global_log"));
+                    batch.set(gRef, {
+                        pivo: z.pivo || '—',
+                        hospoda: z.hospoda || '—',
+                        hrac_uid: hracDoc.id,
+                        hrac_prezdivka: h.prezdivka || '—',
+                        cas: z.cas
+                    });
+                    existKlice.add(klic);
+                    batchCount++;
+                    zapsano++;
+
+                    if (batchCount >= BATCH_SIZE) {
+                        await batch.commit();
+                        log('Zapsán batch ' + zapsano + ' záznamů...');
+                        batch = writeBatch(db);
+                        batchCount = 0;
+                    }
+                }
+            }
+
+            if (batchCount > 0) await batch.commit();
+
+            log('✅ Hotovo! Celkem logů: ' + celkem + ', zapsáno: ' + zapsano + ', přeskočeno (duplicity): ' + preskoceno, '#34d399');
+            await nactiAdminGlobalLog();
+        } catch(e) {
+            log('❌ Chyba: ' + e.message, '#f87171');
+        } finally {
+            $('btn-sestavit-global-log').disabled = false;
+        }
+    });
 
 </script>
 ```
