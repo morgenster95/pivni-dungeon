@@ -1,1158 +1,2532 @@
 <!DOCTYPE html>
-
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Velmistrův Panel – Pivní Dungeon</title>
+    <title>Pivní Dungeon</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Google Maps Places API — nahraď YOUR_GOOGLE_API_KEY -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_API_KEY&libraries=places" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@400;700&display=swap');
-        :root { --bg: #0d0a14; --card: rgba(22,14,32,0.97); --border: #8b4513; --accent: #f6e05e; }
-        body { background: var(--bg); color: #eee; font-family: 'Cinzel', serif; min-height: 100vh; }
+
+        :root {
+            --bg: #0d0a14;
+            --card: rgba(22, 14, 32, 0.97);
+            --border: #8b4513;
+            --accent: #f6e05e;
+            --orange: #ed8936;
+            --green: #276749;
+            --red: #9b2c2c;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(139,69,19,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(90,20,10,0.1) 0%, transparent 50%);
+            color: #eee;
+            font-family: 'Cinzel', serif;
+            min-height: 100vh;
+        }
         .fantasy-font { font-family: 'Bangers', cursive; text-shadow: 2px 2px 6px #000; letter-spacing: 2px; }
-        .glass-card { background: var(--card); border: 1px solid rgba(139,69,19,0.6); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        .glass-card {
+            background: var(--card);
+            border: 1px solid rgba(139,69,19,0.6);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .tab-btn {
+            background: rgba(15,10,22,0.8);
+            color: #6b7280;
+            border-radius: 10px 10px 0 0;
+            padding: 10px 4px;
+            font-weight: bold;
+            font-size: 0.78rem;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            border: 1px solid rgba(139,69,19,0.3);
+            border-bottom: none;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--card);
+            color: var(--accent);
+            border-color: rgba(139,69,19,0.7);
+            border-bottom: 1px solid var(--card);
+        }
+        #map { height: 340px; width: 100%; border-radius: 8px; border: 1px solid #5d2e0a; z-index: 1; }
         .hidden { display: none !important; }
-        input { background: rgba(0,0,0,0.7); border: 1px solid rgba(139,69,19,0.5); border-radius: 8px; color: #fff; font-family: 'Cinzel', serif; outline: none; }
-        .btn { border-radius: 8px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: filter 0.2s; border: none; }
-        .btn:hover { filter: brightness(1.15); }
-        .btn-green { background: linear-gradient(135deg, #276749, #1a4731); color: #fff; border: 1px solid #2f7a54; }
-        .btn-red   { background: linear-gradient(135deg, #9b2c2c, #6b1f1f); color: #fff; border: 1px solid #c53030; }
-        .btn-blue  { background: linear-gradient(135deg, #2b5fa0, #1a3a6b); color: #fff; border: 1px solid #3b7dd8; }
-        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2d3748; color: #fff; padding: 10px 20px; border-radius: 10px; z-index: 9999; font-size: 0.85rem; border: 1px solid #8b4513; transition: opacity 0.3s; }
+        #modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 999;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        /* ── Fantasy map markers ── */
+        .dungeon-marker { width: 44px; height: 52px; position: relative; cursor: pointer; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.8)); transition: transform 0.15s; }
+        .dungeon-marker:hover { transform: scale(1.15); }
+        /* Search bar na mapě */
+        .map-search-wrap { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500; width: calc(100% - 32px); max-width: 340px; display: flex; gap: 6px; }
+        .map-search-input { flex: 1; padding: 8px 12px; background: rgba(13,10,20,0.92); border: 1px solid #8b4513; border-radius: 8px; color: #fff; font-family: 'Cinzel', serif; font-size: 0.8rem; outline: none; }
+        .map-search-input:focus { border-color: #f6e05e; }
+        .map-search-btn { padding: 8px 12px; background: linear-gradient(135deg, #b7791f, #975a16); color: #fefcbf; border: 1px solid #d69e2e; border-radius: 8px; font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .map-search-btn:hover { filter: brightness(1.2); }
+        /* Fantasy map tile filter */
+        .leaflet-tile-pane { filter: sepia(0.4) hue-rotate(10deg) saturate(0.7) brightness(0.75); }
 
-```
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .fade-in { animation: fadeIn 0.3s ease forwards; }
-</style>
-```
+        .btn-primary { background: linear-gradient(135deg, #276749, #1a4731); color: #fff; border: 1px solid #2f7a54; border-radius: 10px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { filter: brightness(1.2); }
+        .btn-danger { background: linear-gradient(135deg, #9b2c2c, #6b1f1f); color: #fff; border: 1px solid #c53030; border-radius: 10px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-danger:hover { filter: brightness(1.2); }
+        .btn-gold { background: linear-gradient(135deg, #b7791f, #975a16); color: #fefcbf; border: 1px solid #d69e2e; border-radius: 10px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-gold:hover { filter: brightness(1.2); }
+        .btn-war { background: linear-gradient(135deg, #7b341e, #9c4221); color: #fed7aa; border: 1px solid #c05621; border-radius: 10px; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-war:hover { filter: brightness(1.2); }
 
+        input, select {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(139,69,19,0.5);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Cinzel', serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--orange); }
+        input::placeholder { color: #6b7280; font-size: 0.85rem; }
+
+        .xp-bar-outer { background: rgba(0,0,0,0.5); border: 1px solid #4a3010; border-radius: 4px; height: 6px; overflow: hidden; }
+        .xp-bar-inner { background: linear-gradient(90deg, #d69e2e, #f6e05e); height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        .log-item { background: rgba(0,0,0,0.4); border-left: 2px solid var(--border); border-radius: 0 6px 6px 0; padding: 6px 10px; font-size: 0.75rem; }
+        .log-akce { display: flex; gap: 4px; margin-top: 4px; }
+        .log-btn { font-size: 0.65rem; padding: 2px 7px; border-radius: 5px; border: none; cursor: pointer; font-family: Cinzel,serif; font-weight: 700; transition: filter 0.15s; }
+        .log-btn:hover { filter: brightness(1.3); }
+        .log-btn-repeat { background: rgba(39,103,73,0.5); color: #68d391; border: 1px solid #276749; }
+        .log-btn-delete { background: rgba(155,44,44,0.4); color: #fc8181; border: 1px solid #9b2c2c; }
+
+        .war-card { background: rgba(90,30,10,0.3); border: 1px solid #c05621; border-radius: 8px; padding: 10px; }
+        .war-progress-bar { background: rgba(0,0,0,0.5); border-radius: 4px; height: 8px; overflow: hidden; display: flex; }
+        .war-bar-left { background: linear-gradient(90deg, #f6e05e, #d69e2e); height: 100%; transition: width 0.5s; }
+        .war-bar-right { background: linear-gradient(90deg, #fc8181, #e53e3e); height: 100%; transition: width 0.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+        .rank-badge { display: inline-block; font-size: 0.6rem; padding: 1px 5px; border-radius: 4px; font-weight: bold; margin-left: 4px; vertical-align: middle; }
+        .rank-zakladatel { background: #b7791f; color: #fefcbf; }
+        .rank-clen { background: #2d3748; color: #a0aec0; }
+
+        /* Graf */
+        .chart-toggle { background: rgba(0,0,0,0.5); border: 1px solid rgba(139,69,19,0.4); border-radius: 8px; padding: 2px; display: inline-flex; gap: 2px; }
+        .chart-toggle button { border-radius: 6px; padding: 4px 12px; font-size: 0.7rem; font-family: 'Cinzel', serif; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; color: #9ca3af; background: transparent; }
+        .chart-toggle button.active { background: rgba(139,69,19,0.6); color: #f6e05e; }
+
+        /* Síň slávy */
+        .sin-card { background: rgba(0,0,0,0.45); border: 1px solid rgba(139,69,19,0.35); border-radius: 8px; padding: 10px 12px; }
+        .sin-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.78rem; }
+        .sin-row:last-child { border-bottom: none; }
+        .sin-row.me { color: #f6e05e; font-weight: bold; }
+        .sin-section-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; font-weight: bold; margin-bottom: 6px; margin-top: 14px; }
+        .sin-section-title:first-child { margin-top: 0; }
+
+        .profil-link { cursor:pointer; text-decoration:underline; color:#f6e05e; }
+        .profil-link:hover { color:#ed8936; }
+        .glog-item { background: rgba(0,0,0,0.4); border-left: 2px solid #c05621; border-radius: 0 6px 6px 0; padding: 5px 8px; font-size: 0.72rem; line-height: 1.4; }
+        .spolecne-badge { display:inline-block; background:rgba(39,103,73,0.5); border:1px solid #276749; border-radius:4px; padding:1px 6px; font-size:0.65rem; color:#68d391; margin-left:4px; }
+
+        .kraj-card { background: rgba(0,0,0,0.45); border: 1px solid rgba(139,69,19,0.35); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+        .kraj-bar-outer { background: rgba(0,0,0,0.5); border-radius: 4px; height: 10px; overflow: hidden; margin-top: 4px; }
+        .kraj-bar-inner { background: linear-gradient(90deg, #d69e2e, #f6e05e); height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+        .avatar-option { font-size: 1.8rem; cursor: pointer; padding: 6px; border-radius: 8px; border: 2px solid transparent; transition: all 0.15s; }
+        .avatar-option:hover { background: rgba(139,69,19,0.3); }
+        .avatar-option.selected { border-color: #f6e05e; background: rgba(139,69,19,0.4); }
+        .follow-btn { font-size: 0.7rem; padding: 3px 10px; border-radius: 6px; font-family: Cinzel,serif; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+        .follow-btn.sleduju { background: rgba(39,103,73,0.5); color: #68d391; border: 1px solid #276749; }
+        .follow-btn.nesleduju { background: rgba(139,69,19,0.4); color: #f6e05e; border: 1px solid #8b4513; }
+    </style>
 </head>
-<body class="p-4 flex flex-col items-center">
+<body class="p-2 flex flex-col items-center text-center">
 
-```
-<!-- Přihlašovací formulář -->
-<div id="login-screen" class="w-full max-w-sm mt-16">
-    <h1 class="text-4xl mb-6 text-yellow-500 fantasy-font text-center">⚔️ VELMISTRŮV PANEL ⚔️</h1>
-    <div class="glass-card p-6">
-        <p class="text-orange-400 text-sm mb-4 text-center">Přístup jen pro velmistra</p>
-        <input id="admin-email"    type="email"    placeholder="E-mail" class="w-full p-3 mb-3">
-        <input id="admin-password" type="password" placeholder="Heslo"  class="w-full p-3 mb-4">
-        <button id="btn-admin-login" class="btn btn-blue w-full py-3 uppercase text-sm">Vstoupit do panelu</button>
-        <div id="login-error" class="text-red-400 text-xs mt-3 text-center font-bold"></div>
-    </div>
-</div>
+    <h1 class="text-5xl my-4 text-yellow-500 fantasy-font tracking-wider">🍻 PIVNÍ DUNGEON</h1>
 
-<!-- Hlavní panel -->
-<div id="admin-panel" class="hidden w-full max-w-3xl">
-    <div class="flex justify-between items-center my-6">
-        <h1 class="text-4xl text-yellow-500 fantasy-font">⚔️ VELMISTRŮV PANEL ⚔️</h1>
-        <div class="text-right">
-            <div id="admin-info" class="text-xs text-gray-400 mb-1"></div>
-            <button id="btn-admin-logout" class="text-red-500 text-xs underline">Odhlásit</button>
+    <!-- MODAL: Návrh nového piva -->
+    <div id="modal-overlay" class="hidden">
+        <div class="glass-card w-full max-w-sm p-6 border border-orange-600">
+            <h3 class="text-2xl text-orange-400 fantasy-font mb-1">Chybí mok?</h3>
+            <p class="text-xs text-gray-400 mb-4">Navrhni nové pivo – velmistr ho posoudí a ty získáš odměnu.</p>
+            <input id="navrh-piva-input" type="text" placeholder="Název piva..." class="w-full p-3 mb-4">
+            <div class="flex gap-2">
+                <button id="btn-odeslat-navrh" class="btn-primary flex-grow py-3 text-xs uppercase">⚔️ Navrhnout</button>
+                <button onclick="zavritModal()" class="btn-danger px-4 py-3 text-xs">✕</button>
+            </div>
         </div>
     </div>
 
-    <!-- Schvalování piv -->
-    <div class="glass-card p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">📜 Návrhy piv ke schválení</h2>
-            <button id="btn-refresh" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
-        </div>
-        <div id="seznam-navrhu" class="space-y-3">
-            <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
-        </div>
+    <!-- PŘIHLÁŠENÍ -->
+    <div id="auth-screen" class="glass-card w-full max-w-md p-6 mt-2">
+        <h2 class="text-3xl text-orange-400 fantasy-font mb-6">Vstup do Krčmy</h2>
+        <input id="auth-nickname" type="text" placeholder="Přezdívka hrdiny (jen pro nové)" class="w-full p-3 mb-3">
+        <input id="auth-email" type="email" placeholder="E-mail" class="w-full p-3 mb-3">
+        <input id="auth-password" type="password" placeholder="Heslo" class="w-full p-3 mb-5">
+        <button id="btn-login" class="btn-primary w-full mb-3 py-3 uppercase text-sm">Přihlásit se</button>
+        <button id="btn-register" class="btn-gold w-full py-3 uppercase text-xs">⚔️ Založit hrdinu</button>
+        <div id="auth-error" class="text-red-400 text-xs mt-3 font-bold"></div>
     </div>
 
-    <!-- Správa válečných záznamů -->
-    <div class="glass-card p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">⚔️ Aktivní cechovní války</h2>
-            <button id="btn-refresh-valky" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
-        </div>
-        <div id="seznam-valek" class="space-y-3">
-            <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
-        </div>
-    </div>
+    <!-- HLAVNÍ APLIKACE -->
+    <div id="app-screen" class="hidden w-full max-w-md flex-col items-center">
 
-
-    <!-- Globální log aktivit -->
-    <div class="glass-card p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide">🍺 Globální log aktivit (posledních 50)</h2>
-            <button id="btn-refresh-global-log" class="btn btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
-        </div>
-        <div id="admin-global-log" class="space-y-1 text-xs max-h-80 overflow-y-auto">
-            <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
-        </div>
-    </div>
-
-    <!-- Žebříček hráčů -->
-    <div class="glass-card p-6 mb-6">
-        <h2 class="text-xl text-orange-400 font-bold uppercase tracking-wide mb-4">🏆 Top hráči (XP)</h2>
-        <div id="zebricek-hracu" class="space-y-1 text-sm"></div>
-    </div>
-
-
-    <!-- 🗑️ Mazání piv hráče -->
-    <div class="glass-card p-6 mb-6 border border-red-900">
-        <h2 class="text-xl text-red-400 font-bold uppercase tracking-wide mb-1">🗑️ Správa zápisů hráče</h2>
-        <p class="text-xs text-gray-500 mb-4">Vyhledej hráče a smaž mu konkrétní záznamy (podvádění apod.).</p>
-
-        <div class="flex gap-2 mb-4">
-            <input id="admin-hrac-email" type="email" placeholder="E-mail hráče..." class="flex-grow p-2 text-sm bg-black bg-opacity-70 border border-gray-700 rounded text-white font-mono">
-            <button id="btn-hledat-hrace" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">🔍 Hledat</button>
+        <!-- Header -->
+        <div class="glass-card w-full p-4 mb-3 flex justify-between items-center">
+            <div class="text-left">
+                <div class="flex items-center gap-2">
+                    <span id="user-avatar-display" class="text-2xl">⚔️</span>
+                    <span id="user-nickname-display" class="text-yellow-400 font-bold text-xl fantasy-font tracking-wide">Hrdina</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1"><span id="user-xp-display" class="text-yellow-300 font-bold">0</span> XP</div>
+                <div class="xp-bar-outer w-40 mt-1"><div id="xp-bar" class="xp-bar-inner" style="width:0%"></div></div>
+            </div>
+            <button id="btn-logout" class="text-red-500 text-xs font-bold underline">Odhlásit</button>
         </div>
 
-        <div id="admin-hrac-info" class="hidden mb-3 bg-black bg-opacity-50 rounded p-3 text-sm border border-gray-700">
-            <span class="text-yellow-400 font-bold" id="admin-hrac-prezdivka">—</span>
-            <span class="text-gray-400 ml-2" id="admin-hrac-xp">0 XP</span>
-            <span class="text-gray-600 ml-2 text-xs" id="admin-hrac-uid"></span>
+        <!-- Tabs -->
+        <div class="flex w-full mb-[-1px] z-10 justify-between">
+            <button id="tab-mapa"      onclick="switchTab('mapa')"      class="tab-btn active w-[19%]" style="font-size:0.68rem">🗺️ Mapa</button>
+            <button id="tab-denik"     onclick="switchTab('denik')"     class="tab-btn w-[19%]" style="font-size:0.68rem">📜 Deník</button>
+            <button id="tab-cech"      onclick="switchTab('cech')"      class="tab-btn w-[19%]" style="font-size:0.68rem">🛡️ Cech</button>
+            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn w-[19%]" style="font-size:0.68rem">👑 Kraj</button>
+            <button id="tab-sin"       onclick="switchTab('sin')"       class="tab-btn w-[19%]" style="font-size:0.68rem">🏆 Síň</button>
         </div>
 
-        <div id="admin-logy-box" class="hidden">
-            <div class="text-xs text-gray-400 uppercase font-bold mb-2">Posledních 50 zápisů</div>
-            <div id="admin-logy-seznam" class="space-y-1 max-h-96 overflow-y-auto bg-black bg-opacity-40 rounded p-2 border border-gray-800"></div>
-        </div>
-        <div id="admin-logy-loading" class="hidden text-gray-500 italic text-sm text-center py-4">Načítám...</div>
-    </div>
+        <div class="glass-card w-full p-4 rounded-tl-none">
 
-    <!-- Migrace databáze -->
-    <div class="glass-card p-6 mb-6 border border-yellow-900">
-        <h2 class="text-xl text-yellow-500 font-bold uppercase tracking-wide mb-1">🔧 Správa & Migrace</h2>
-        <p class="text-xs text-gray-500 mb-5">Nástroje pro údržbu databáze. Spouštěj jen když víš co děláš.</p>
-
-        <div class="space-y-4">
-
-            <!-- Migrace statistik -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-orange-300 mb-1">📊 Přepočítat statistiky piv & hospod</div>
-                        <div class="text-xs text-gray-400">Projde logy všech hráčů a znovu sestaví <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code>. Nutné po přidání Síně slávy.</div>
+            <!-- TAB: MAPA -->
+            <div id="obsah-mapa">
+                <div style="position:relative;">
+                    <div id="map"></div>
+                    <div class="map-search-wrap">
+                        <input id="map-search-input" class="map-search-input" placeholder="🔍 Hledat hospodu..." autocomplete="off">
+                        <button id="map-search-btn" class="map-search-btn">Hledat</button>
                     </div>
-                    <button id="btn-migrace-statistiky" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
                 </div>
-                <div id="migrace-statistiky-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
+                <button id="btn-hledej" class="btn-primary w-full py-3 uppercase text-sm mt-3 mb-4">🔍 Najít dungeony v okolí</button>
+
+                <!-- Globální log aktivit -->
+                <div class="mb-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="sin-section-title" style="margin:0">🍺 Poslední akce hráčů</div>
+                        <button id="btn-global-log-vice" class="text-xs text-orange-400 underline">Celý log →</button>
+                    </div>
+                    <div id="global-log-box" class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 space-y-1 text-xs">
+                        <div class="text-gray-600 italic text-center py-2">Načítám...</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Migrace schémat hráčů -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-orange-300 mb-1">👤 Doplnit chybějící pole hráčů</div>
-                        <div class="text-xs text-gray-400">Projde všechny hráče a doplní nová pole která jim chybí (<code class="text-yellow-600">cech_zakladatel</code>, <code class="text-yellow-600">verze_schematu</code> atd.). Odstraní rozdíl mezi starými a novými účty.</div>
+            <!-- MODAL: Celý globální log -->
+            <div id="global-log-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+                <div class="glass-card w-full max-w-sm p-4 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xl text-yellow-400 fantasy-font">📜 Kronika Dungeonu</h3>
+                        <button id="btn-zavrit-global-log" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
                     </div>
-                    <button id="btn-migrace-hraci" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    <div id="global-log-modal-box" class="space-y-1 text-xs">
+                        <div class="text-gray-600 italic text-center py-4">Načítám...</div>
+                    </div>
                 </div>
-                <div id="migrace-hraci-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
             </div>
 
-            <!-- Přepočítat krajské války -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-yellow-800">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-yellow-300 mb-1">👑 Přepočítat Království z logů</div>
-                        <div class="text-xs text-gray-400">Projde log_piv všech hráčů pro aktuální měsíc a znovu sestaví kolekce <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>. Použij když jsou data prázdná nebo nesprávná.</div>
-                    </div>
-                    <button id="btn-prepocitat-kralovstvi" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Přepočítat</button>
-                </div>
-                <div id="prepocitat-kralovstvi-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
-            </div>
-
-            <!-- Smazat prázdné cechy -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-red-300 mb-1">🛡️ Smazat prázdné cechy</div>
-                        <div class="text-xs text-gray-400">Najde a smaže všechny cechy, které nemají žádného člena.</div>
-                    </div>
-                    <button id="btn-smazat-prazdne-cechy" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
-                </div>
-                <div id="prazdne-cechy-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-32 overflow-y-auto"></div>
-            </div>
-
-            <!-- Reset krajové války -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-orange-300 mb-1">👑 Ruční reset Království</div>
-                        <div class="text-xs text-gray-400">Smaže výsledky aktuálního měsíce z kolekcí <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>. Reset jinak probíhá automaticky každý měsíc.</div>
-                    </div>
-                    <button id="btn-reset-kralovstvi" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
-                </div>
-                <div id="reset-kralovstvi-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
-            </div>
-
-            <!-- Spárování společného pití -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-orange-300 mb-1">🍻 Spárovat záznamy společného pití</div>
-                        <div class="text-xs text-gray-400">Projde logy všech hráčů a zpětně spáruje záznamy ze stejné hospody do 5 minut od sebe. Doplní pole <code class="text-yellow-600">spolecne_s</code> u historických záznamů.</div>
-                    </div>
-                    <button id="btn-migrace-spolecne" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
-                </div>
-                <div id="migrace-spolecne-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
-            </div>
-
-
-            <!-- Sestavit global_log z historickych logu -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-gray-700">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-orange-300 mb-1">🍺 Sestavit global_log z historických logů</div>
-                        <div class="text-xs text-gray-400">Projde <code class="text-yellow-600">log_piv</code> všech hráčů a doplní kolekci <code class="text-yellow-600">global_log</code>. Nutné pro historická data před zavedením global_logu. Nová data se přidávají automaticky.</div>
-                    </div>
-                    <button id="btn-sestavit-global-log" class="btn btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Sestavit</button>
-                </div>
-                <div id="sestavit-global-log-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
-            </div>
-
-            <!-- Reset statistik -->
-            <div class="bg-black bg-opacity-50 rounded-lg p-4 border border-red-900">
-                <div class="flex justify-between items-start gap-4">
-                    <div>
-                        <div class="text-sm font-bold text-red-400 mb-1">🗑️ Vymazat a přepočítat statistiky</div>
-                        <div class="text-xs text-gray-400">Smaže <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code> a sestaví je od nuly. Použij pokud jsou data poškozená nebo zduplikovaná.</div>
-                    </div>
-                    <button id="btn-reset-statistiky" class="btn btn-red px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
-                </div>
-                <div id="reset-statistiky-log" class="hidden mt-3 bg-black rounded p-3 text-xs text-green-400 font-mono max-h-40 overflow-y-auto"></div>
-            </div>
-
-        </div>
-    </div>
-
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-        from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, collectionGroup, getDocs, doc, deleteDoc, updateDoc,
-             increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where, Timestamp }
-        from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    // ─── CONFIG ──────────────────────────────────────────────────────────
-    const firebaseConfig = {
-        apiKey: "AIzaSyCrtK_99uh1SGyj2KhA2ljH3aAhynDnhqI",
-        authDomain: "pivnidungeon.firebaseapp.com",
-        projectId: "pivnidungeon",
-        storageBucket: "pivnidungeon.firebasestorage.app",
-        messagingSenderId: "174543526039",
-        appId: "1:174543526039:web:be6092c458e376c306b1d2"
-    };
-
-    // ─── SEZNAM ADMIN UID (přidej svá UID sem) ───────────────────────────
-    // Jak získat UID: přihlas se do Firebase console → Authentication → Users
-    const ADMIN_UIDS = [
-        // "VLOZ_SEM_SVUJ_FIREBASE_UID_1",
-        // "VLOZ_SEM_SVUJ_FIREBASE_UID_2",
-    ];
-
-    const app  = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-
-    // ─── HELPERS ─────────────────────────────────────────────────────────
-    function $(id) { return document.getElementById(id); }
-    function show(id) { $(id).classList.remove('hidden'); }
-    function hide(id) { $(id).classList.add('hidden'); }
-
-    function notify(msg, color = '#2d3748') {
-        const t = document.createElement('div');
-        t.className = 'toast';
-        t.textContent = msg;
-        t.style.background = color;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
-    }
-
-    // ─── AUTH ─────────────────────────────────────────────────────────────
-    onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-            show('login-screen');
-            hide('admin-panel');
-            return;
-        }
-
-        // Pokud je seznam ADMIN_UIDS prázdný, povolíme kohokoli (dev mode)
-        if (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(user.uid)) {
-            notify('⛔ Nemáš přístup do velmistrova panelu!', '#7b341e');
-            await signOut(auth);
-            return;
-        }
-
-        hide('login-screen');
-        show('admin-panel');
-        $('admin-info').textContent = `Přihlášen: ${user.email}`;
-        await Promise.all([nactiNavrhy(), nactiValky(), nactiZebricek(), nactiAdminGlobalLog()]);
-    });
-
-    $('btn-admin-login').addEventListener('click', async () => {
-        const email = $('admin-email').value.trim();
-        const pass  = $('admin-password').value;
-        $('login-error').textContent = '';
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-        } catch(e) {
-            $('login-error').textContent = 'Nesprávné přihlašovací údaje.';
-        }
-    });
-
-    $('btn-admin-logout').addEventListener('click', () => signOut(auth));
-
-    $('btn-refresh').addEventListener('click', nactiNavrhy);
-    $('btn-refresh-valky').addEventListener('click', nactiValky);
-    $('btn-refresh-global-log').addEventListener('click', nactiAdminGlobalLog);
-
-    // ─── GLOBÁLNÍ LOG (ADMIN) ─────────────────────────────────────────────
-    async function nactiAdminGlobalLog() {
-        const box = $('admin-global-log');
-        box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>';
-        try {
-            const snap = await getDocs(query(
-                collection(db, "global_log"),
-                orderBy("cas", "desc"),
-                limit(50)
-            ));
-            if (snap.empty) {
-                box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Zatím žádné záznamy v global_log.</div>';
-                return;
-            }
-            box.innerHTML = snap.docs.map(d => {
-                const z = d.data();
-                const casObj = z.cas?.toDate ? z.cas.toDate() : null;
-                const casStr = casObj
-                    ? casObj.toLocaleDateString('cs-CZ') + ' ' + casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'})
-                    : '—';
-                return `<div class="flex justify-between items-center border-b border-gray-800 py-1">
-                    <span>
-                        <span class="text-yellow-400 font-bold">${escapeHtml(z.hrac_prezdivka || '—')}</span>
-                        <span class="text-gray-400"> · 🍺 ${escapeHtml(z.pivo || '—')}</span>
-                        <span class="text-gray-500"> @ ${escapeHtml(z.hospoda || '—')}</span>
-                    </span>
-                    <span class="text-gray-600 text-[10px] ml-2 flex-shrink-0">${casStr}</span>
-                </div>`;
-            }).join('');
-        } catch(e) {
-            box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + e.message + '</div>';
-        }
-    }
-
-    // ─── NÁVRHY PIV ───────────────────────────────────────────────────────
-    async function nactiNavrhy() {
-        const list = $('seznam-navrhu');
-        list.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám návrhy...</p>';
-
-        const snap = await getDocs(collection(db, "navrhy_piv"));
-
-        if (snap.empty) {
-            list.innerHTML = '<p class="text-green-500 text-sm text-center py-4">✓ Žádné čekající návrhy. Sudy jsou v pořádku.</p>';
-            return;
-        }
-
-        list.innerHTML = '';
-        snap.forEach(d => {
-            const p = d.data();
-            const card = document.createElement('div');
-            card.className = 'bg-black bg-opacity-60 p-4 rounded-lg border border-gray-700 flex justify-between items-center fade-in';
-
-            const info = document.createElement('div');
-            info.innerHTML = `
-                <div class="text-yellow-400 font-bold text-base">${escapeHtml(p.nazev_piva)}</div>
-                <div class="text-xs text-gray-400 mt-1">
-                    Navrhl: <span class="text-orange-400">${escapeHtml(p.navrhl ?? '—')}</span>
-                    &nbsp;·&nbsp; Hospoda: <span class="text-gray-300">${escapeHtml(p.hospoda ?? '—')}</span>
-                </div>
-            `;
-
-            const btns = document.createElement('div');
-            btns.className = 'flex gap-2 ml-4 flex-shrink-0';
-
-            const btnSchvalit = document.createElement('button');
-            btnSchvalit.className = 'btn btn-green px-4 py-2 text-xs uppercase';
-            btnSchvalit.textContent = '✓ Schválit';
-            btnSchvalit.addEventListener('click', () => schvalit(d.id, p));
-
-            const btnZamitnout = document.createElement('button');
-            btnZamitnout.className = 'btn btn-red px-3 py-2 text-xs uppercase';
-            btnZamitnout.textContent = '✕';
-            btnZamitnout.addEventListener('click', () => zamitnout(d.id, p.nazev_piva));
-
-            btns.appendChild(btnSchvalit);
-            btns.appendChild(btnZamitnout);
-            card.appendChild(info);
-            card.appendChild(btns);
-            list.appendChild(card);
-        });
-    }
-
-    async function schvalit(id, navrh) {
-        const nazev = navrh.nazev_piva;
-        const hracUid = navrh.navrhl_uid;
-        const hospoda = navrh.hospoda || 'Nezadáno';
-        const casNavrhu = navrh.cas || null; // Timestamp z odeslání návrhu = čas pití
-
-        try {
-            // 1. Přidat pivo do globální databáze
-            await addDoc(collection(db, "vsechna_piva"), { nazev });
-
-            // 2. Odměnit hráče + zapsat log + dungeony (jen pokud UID existuje)
-            if (hracUid) {
-                const hracRef = doc(db, "hraci", hracUid);
-                const hracSnap = await getDoc(hracRef);
-                if (hracSnap.exists()) {
-                    const bezTecky = hospoda.replace(/\./g, '_');
-                    // XP + dungeony
-                    await updateDoc(hracRef, {
-                        xp: increment(100),
-                        [`dungeony.${bezTecky}`]: increment(1)
-                    });
-                    // Log_piv záznam
-                    await addDoc(collection(db, "hraci", hracUid, "log_piv"), {
-                        pivo: nazev,
-                        hospoda: hospoda,
-                        cas: casNavrhu,
-                        schvaleno: true
-                    });
-                }
-            }
-
-            // 3. Smazat návrh
-            await deleteDoc(doc(db, "navrhy_piv", id));
-
-            // 4. Globální statistiky (mimo batch — increment nefunguje v batch.set)
-            if (hracUid) {
-                try {
-                    await setDoc(doc(db, "statistiky_piv", nazev), { pocet: increment(1) }, { merge: true });
-                } catch(e) {
-                    await setDoc(doc(db, "statistiky_piv", nazev), { pocet: 1 });
-                }
-                const bezTecky = hospoda.replace(/\./g, '_');
-                try {
-                    await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: hospoda }, { merge: true });
-                } catch(e) {
-                    await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: 1, nazev: hospoda });
-                }
-            }
-
-            notify(`✓ Mok "${nazev}" přidán! Hrdina odměněn +100 XP a záznam zapsán do deníčku s původním datem.`, '#276749');
-            nactiNavrhy();
-        } catch (e) { notify('Chyba: ' + e.message, '#9b2c2c'); }
-    }
-
-    async function zamitnout(id, nazev) {
-        if (!confirm(`Opravdu zamítnout návrh "${nazev}"?`)) return;
-        try {
-            await deleteDoc(doc(db, "navrhy_piv", id));
-            notify(`✕ Návrh "${nazev}" zamítnut.`);
-            nactiNavrhy();
-        } catch (e) { notify('Chyba: ' + e.message, '#9b2c2c'); }
-    }
-
-    // ─── VÁLEČNÉ ZÁZNAMY ──────────────────────────────────────────────────
-    async function nactiValky() {
-        const box = $('seznam-valek');
-        box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>';
-
-        const snap = await getDocs(collection(db, "valky"));
-
-        if (snap.empty) {
-            box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Žádné záznamy o válkách.</p>';
-            return;
-        }
-
-        box.innerHTML = '';
-        for (const d of snap.docs) {
-            const v = d.data();
-
-            const [uSnap, oSnap] = await Promise.all([
-                getDoc(doc(db, "cechy", v.utocnik_id)),
-                getDoc(doc(db, "cechy", v.obrance_id))
-            ]);
-            const uNazev = uSnap.exists() ? uSnap.data().nazev : 'Zrušený cech';
-            const oNazev = oSnap.exists() ? oSnap.data().nazev : 'Zrušený cech';
-
-            const stavBadge = {
-                'aktivni': '<span class="text-green-400 font-bold">🔥 Aktivní</span>',
-                'ceka':    '<span class="text-yellow-400 font-bold">⏳ Čeká na přijetí</span>',
-                'skoncila':'<span class="text-gray-400">✓ Ukončena</span>'
-            }[v.stav] ?? v.stav;
-
-            const card = document.createElement('div');
-            card.className = 'bg-black bg-opacity-60 p-4 rounded-lg border border-orange-900 fade-in';
-            card.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div>
-                        <div class="text-orange-300 font-bold text-sm mb-1">
-                            ${escapeHtml(uNazev)} <span class="text-gray-500">⚔️</span> ${escapeHtml(oNazev)}
+            <!-- MODAL: Zápis piva (overlay po kliknutí na hospodu) -->
+            <div id="beer-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1001;display:flex;align-items:flex-end;justify-content:center;padding:0;">
+                <div class="glass-card w-full max-w-md p-5 border border-orange-700 rounded-b-none" style="border-radius:16px 16px 0 0;">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <div class="text-xs text-gray-400 uppercase font-bold mb-1">Vybraná hospoda</div>
+                            <div id="beer-modal-pub-name" class="text-yellow-400 font-bold text-lg fantasy-font">—</div>
                         </div>
-                        <div class="text-xs text-gray-400">Stav: ${stavBadge}</div>
-                        <div class="text-xs text-gray-500 mt-1">
-                            Skóre: <span class="text-yellow-400">${v.utocnik_bodu ?? 0}</span>
-                             : <span class="text-red-400">${v.obrance_bodu ?? 0}</span>
-                            (cíl: ${v.cil_bodu ?? 50})
+                        <button id="btn-zavrit-beer-modal" class="text-gray-500 hover:text-white text-2xl leading-none">✕</button>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input id="beer-name-input" list="seznam-piv" placeholder="Vyber nebo napiš pivo..." class="flex-grow p-3">
+                        <datalist id="seznam-piv"></datalist>
+                        <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" title="Navrhnout chybějící pivo" class="btn-gold px-3 rounded text-lg">❗</button>
+                    </div>
+                    <button id="btn-claim" class="btn-primary w-full py-4 text-xl font-black uppercase shadow-lg">🍺 Zapsat pivo (+100 XP)</button>
+                    <!-- Skryté inputy pro kompatibilitu -->
+                    <input id="pub-name-input" type="hidden">
+                </div>
+            </div>
+
+            <!-- TAB: DENÍČEK -->
+            <div id="obsah-denik" class="hidden">
+                <h3 class="text-orange-400 fantasy-font text-xl mb-3">Kronika Hrdiny</h3>
+
+                <!-- Editace profilu -->
+                <div class="glass-card p-4 mb-4 border border-orange-900 text-left">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="sin-section-title" style="margin:0">⚙️ Můj profil</div>
+                        <button id="btn-profil-toggle" onclick="toggleEditProfil()" class="text-xs text-orange-400 underline">Upravit</button>
+                    </div>
+                    <!-- Zobrazení -->
+                    <div id="profil-zobrazeni" class="flex items-center gap-3">
+                        <div class="text-3xl" id="muj-avatar-display">⚔️</div>
+                        <div>
+                            <div class="text-yellow-400 font-bold" id="muj-nick-display">—</div>
+                            <div class="text-xs text-gray-400" id="muj-bio-display"></div>
+                            <div class="text-xs text-orange-400" id="muj-kraj-display"></div>
                         </div>
                     </div>
-                    ${v.stav !== 'skoncila' ? `
-                    <button class="btn btn-red px-3 py-1 text-xs uppercase" data-vid="${d.id}">Ukončit</button>
-                    ` : ''}
+                    <!-- Editace (skrytá) -->
+                    <div id="profil-editace" class="hidden mt-3 space-y-3">
+                        <!-- Avatar výběr -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-2">Avatar</div>
+                            <div id="avatar-vyber" class="flex flex-wrap gap-1">
+                                <span class="avatar-option" data-avatar="⚔️">⚔️</span>
+                                <span class="avatar-option" data-avatar="🍺">🍺</span>
+                                <span class="avatar-option" data-avatar="🛡️">🛡️</span>
+                                <span class="avatar-option" data-avatar="🏰">🏰</span>
+                                <span class="avatar-option" data-avatar="🐉">🐉</span>
+                                <span class="avatar-option" data-avatar="🦅">🦅</span>
+                                <span class="avatar-option" data-avatar="🌙">🌙</span>
+                                <span class="avatar-option" data-avatar="⚡">⚡</span>
+                                <span class="avatar-option" data-avatar="🔥">🔥</span>
+                                <span class="avatar-option" data-avatar="💀">💀</span>
+                                <span class="avatar-option" data-avatar="🌟">🌟</span>
+                                <span class="avatar-option" data-avatar="🎯">🎯</span>
+                            </div>
+                        </div>
+                        <!-- Přezdívka -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Přezdívka</div>
+                            <input id="edit-prezdivka" type="text" class="w-full p-2 text-sm" placeholder="Přezdívka hrdiny...">
+                        </div>
+                        <!-- Bio -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Bio</div>
+                            <input id="edit-bio" type="text" class="w-full p-2 text-sm" placeholder="Pár slov o tobě..." maxlength="80">
+                        </div>
+                        <!-- Kraj -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Domovský kraj <span class="text-red-400">(změna vymaže body v aktuální krajské válce!)</span></div>
+                            <select id="edit-kraj" class="w-full p-2 text-sm">
+                                <option value="">— Nevybráno —</option>
+                                <option value="Praha">Praha</option>
+                                <option value="Středočeský">Středočeský kraj</option>
+                                <option value="Jihočeský">Jihočeský kraj</option>
+                                <option value="Plzeňský">Plzeňský kraj</option>
+                                <option value="Karlovarský">Karlovarský kraj</option>
+                                <option value="Ústecký">Ústecký kraj</option>
+                                <option value="Liberecký">Liberecký kraj</option>
+                                <option value="Královéhradecký">Královéhradecký kraj</option>
+                                <option value="Pardubický">Pardubický kraj</option>
+                                <option value="Olomoucký">Olomoucký kraj</option>
+                                <option value="Moravskoslezský">Moravskoslezský kraj</option>
+                                <option value="Jihomoravský">Jihomoravský kraj</option>
+                                <option value="Zlínský">Zlínský kraj</option>
+                                <option value="Vysočina">Kraj Vysočina</option>
+                            </select>
+                        </div>
+                        <!-- Heslo -->
+                        <div>
+                            <div class="text-xs text-gray-400 mb-1">Změna hesla (volitelné)</div>
+                            <input id="edit-heslo-soucasne" type="password" class="w-full p-2 text-sm mb-2" placeholder="Současné heslo...">
+                            <input id="edit-heslo-nove" type="password" class="w-full p-2 text-sm" placeholder="Nové heslo (min. 6 znaků)...">
+                        </div>
+                        <button id="btn-ulozit-profil" class="btn-primary w-full py-2 text-sm uppercase">💾 Uložit profil</button>
+                    </div>
                 </div>
-            `;
 
-            const delBtn = card.querySelector('[data-vid]');
-            if (delBtn) {
-                delBtn.addEventListener('click', async () => {
-                    if (!confirm('Ukončit a smazat tuto válku?')) return;
-                    await deleteDoc(doc(db, "valky", d.id));
-                    notify('Válka ukončena.');
-                    nactiValky();
-                });
-            }
+                <!-- Sledovaní hráči -->
+                <div class="mb-4">
+                    <div class="sin-section-title">👥 Sleduji hráče</div>
+                    <div id="seznam-sledovanych" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 text-xs space-y-1 max-h-36 overflow-y-auto"></div>
+                </div>
 
-            box.appendChild(card);
+                <!-- Graf piv -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="sin-section-title" style="margin:0">Má oblíbená piva</div>
+                        <div class="chart-toggle">
+                            <button id="btn-graf-bar" class="active" onclick="prepnoutGraf('bar')">📊 Bar</button>
+                            <button id="btn-graf-pie" onclick="prepnoutGraf('pie')">🥧 Pie</button>
+                        </div>
+                    </div>
+                    <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-3" style="position:relative;height:220px;">
+                        <canvas id="graf-piv"></canvas>
+                        <div id="graf-prazdny" class="hidden text-gray-600 italic text-xs text-center pt-16">Zatím žádná piva nezapsána.</div>
+                    </div>
+                </div>
+
+                <!-- Navštívené dungeony -->
+                <div class="text-left mb-4">
+                    <div class="sin-section-title">Navštívené dungeony</div>
+                    <div id="seznam-dungeonu" class="bg-black bg-opacity-50 rounded p-3 max-h-36 overflow-y-auto border border-gray-800 text-xs space-y-1"></div>
+                </div>
+
+                <!-- Log zápisů -->
+                <div class="text-left">
+                    <div class="sin-section-title">Posledních 20 zápisů</div>
+                    <div id="seznam-piv-log" class="bg-black bg-opacity-50 rounded p-3 max-h-64 overflow-y-auto border border-gray-800 space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- TAB: CECH -->
+            <div id="obsah-cech" class="hidden">
+
+                <!-- Pozvánky -->
+                <div id="panel-pozvanek" class="hidden mb-4"></div>
+
+                <!-- Není v cechu -->
+                <div id="cech-neexistuje">
+                    <h3 class="text-orange-400 fantasy-font text-xl mb-3">Bez cechu jsi pouhý tulák</h3>
+                    <p class="text-xs text-gray-400 mb-4">Založ vlastní cech nebo počkej na pozvánku od jiných hrdinů.</p>
+                    <input id="novy-cech-nazev" type="text" placeholder="Název cechu..." class="w-full p-2 mb-2">
+                    <button id="btn-zalozit-cech" class="btn-gold w-full py-2 uppercase text-sm mb-2">⚔️ Založit Cech</button>
+                </div>
+
+                <!-- Je v cechu -->
+                <div id="cech-existuje" class="hidden">
+                    <div class="flex items-center justify-center gap-2 mb-1">
+                        <h2 id="cech-nazev-zobrazeni" class="text-3xl text-yellow-500 fantasy-font">...</h2>
+                    </div>
+                    <p class="text-orange-400 text-sm mb-1">Skóre cechu: <span id="cech-skore-zobrazeni" class="text-white font-bold">0</span> 🍺</p>
+                    <div id="cech-role-display" class="text-xs text-gray-400 mb-4"></div>
+
+                    <!-- Žebříček členů cechu -->
+                    <div class="text-left mb-4">
+                        <div class="text-xs text-gray-400 uppercase font-bold mb-2">Členové cechu</div>
+                        <div id="cech-zebricek" class="bg-black bg-opacity-50 rounded p-2 text-xs space-y-1 max-h-36 overflow-y-auto border border-gray-800"></div>
+                    </div>
+
+                    <!-- Pozvat hráče (jen zakladatel) -->
+                    <div id="panel-pozvat" class="hidden mb-4">
+                        <div class="text-xs text-gray-400 uppercase font-bold mb-2">Pozvat hrdinu</div>
+                        <div class="flex gap-2">
+                            <input id="pozvanky-email-input" type="email" placeholder="E-mail hráče..." class="flex-grow p-2 text-sm">
+                            <button id="btn-poslat-pozvanku" class="btn-gold px-3 text-xs uppercase">Pozvat</button>
+                        </div>
+                    </div>
+
+                    <!-- Cechovní války -->
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 uppercase font-bold mb-2">⚔️ Cechovní Války</div>
+                        <div id="panel-valky" class="space-y-2 text-xs"></div>
+                        <div id="panel-vyhlasit-valku" class="hidden mt-2">
+                            <select id="select-rival-cech" class="w-full p-2 text-sm mb-2">
+                                <option value="">— Vyber soupeře —</option>
+                            </select>
+                            <button id="btn-vyhlasit-valku" class="btn-war w-full py-2 uppercase text-xs">⚔️ Vyhlásit válku</button>
+                        </div>
+                    </div>
+
+                    <!-- Akce -->
+                    <div class="flex gap-2 text-xs">
+                        <button id="btn-opustit-cech" class="btn-danger flex-grow py-2 uppercase">Opustit cech</button>
+                        <button id="btn-rozpustit-cech" class="hidden btn-danger flex-grow py-2 uppercase border border-red-400">💀 Rozpustit cech</button>
+                    </div>
+                </div>
+
+                <!-- Globální žebříček cechovní přesunut do Síně slávy -->
+
+            </div>
+
+            <!-- TAB: KRÁLOVSTVÍ -->
+            <div id="obsah-kralovstvi" class="hidden">
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">👑 Království</h3>
+                <p class="text-xs text-gray-500 mb-1">Krajská válka — piješ za svůj kraj</p>
+                <div id="kral-reset-info" class="text-xs text-orange-400 mb-4 text-center"></div>
+
+                <!-- Nemá zvolený kraj -->
+                <div id="kral-bez-kraje" class="hidden text-center py-6">
+                    <div class="text-4xl mb-3">🏴</div>
+                    <p class="text-gray-400 text-sm mb-2">Nemáš zvolený domovský kraj.</p>
+                    <p class="text-xs text-gray-500">Jdi do záložky <strong class="text-orange-400">Deník → Můj profil</strong> a zvol svůj kraj.</p>
+                </div>
+
+                <!-- Má kraj -->
+                <div id="kral-obsah" class="hidden">
+                    <!-- Můj kraj -->
+                    <div class="kraj-card border-yellow-700 mb-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-yellow-400 font-bold text-sm" id="kral-muj-kraj">—</span>
+                            <span class="text-yellow-500 font-bold" id="kral-moje-piva">0 🍺</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Tvůj příspěvek: <span id="kral-muj-prispevek" class="text-white">0 piv</span></div>
+                    </div>
+
+                    <!-- Žebříček krajů -->
+                    <div class="sin-section-title">⚔️ Pořadí krajů (aktuální kolo)</div>
+                    <div id="kral-zebricek" class="space-y-2 mb-4"></div>
+
+                    <!-- SVG mapa ČR -->
+                    <div class="sin-section-title">🗺️ Mapa Království</div>
+                    <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 mb-4">
+                        <svg id="mapa-cr" viewBox="0 0 800 480" style="width:100%;height:auto;">
+                            <!-- Zjednodušené kraje ČR jako obdélníky/mnohoúhelníky -->
+                            <!-- Karlovarský -->
+                            <g class="kraj-svg" data-kraj="Karlovarský" onclick="kliknoutKraj('Karlovarský')">
+                                <rect x="30" y="80" width="110" height="80" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="85" y="115" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Karlovarský</text>
+                                <text x="85" y="130" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Karlovarský">0 🍺</text>
+                            </g>
+                            <!-- Ústecký -->
+                            <g class="kraj-svg" data-kraj="Ústecký" onclick="kliknoutKraj('Ústecký')">
+                                <rect x="145" y="40" width="130" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="210" y="80" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Ústecký</text>
+                                <text x="210" y="95" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Ústecký">0 🍺</text>
+                            </g>
+                            <!-- Liberecký -->
+                            <g class="kraj-svg" data-kraj="Liberecký" onclick="kliknoutKraj('Liberecký')">
+                                <rect x="280" y="40" width="110" height="75" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="335" y="73" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Liberecký</text>
+                                <text x="335" y="88" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Liberecký">0 🍺</text>
+                            </g>
+                            <!-- Královéhradecký -->
+                            <g class="kraj-svg" data-kraj="Královéhradecký" onclick="kliknoutKraj('Královéhradecký')">
+                                <rect x="395" y="40" width="130" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="460" y="76" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">Královéhradecký</text>
+                                <text x="460" y="91" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Královéhradecký">0 🍺</text>
+                            </g>
+                            <!-- Pardubický -->
+                            <g class="kraj-svg" data-kraj="Pardubický" onclick="kliknoutKraj('Pardubický')">
+                                <rect x="395" y="135" width="130" height="80" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="460" y="170" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Pardubický</text>
+                                <text x="460" y="185" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Pardubický">0 🍺</text>
+                            </g>
+                            <!-- Plzeňský -->
+                            <g class="kraj-svg" data-kraj="Plzeňský" onclick="kliknoutKraj('Plzeňský')">
+                                <rect x="30" y="165" width="120" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="90" y="210" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Plzeňský</text>
+                                <text x="90" y="225" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Plzeňský">0 🍺</text>
+                            </g>
+                            <!-- Středočeský -->
+                            <g class="kraj-svg" data-kraj="Středočeský" onclick="kliknoutKraj('Středočeský')">
+                                <rect x="155" y="130" width="235" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="272" y="175" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Středočeský</text>
+                                <text x="272" y="190" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Středočeský">0 🍺</text>
+                            </g>
+                            <!-- Praha -->
+                            <g class="kraj-svg" data-kraj="Praha" onclick="kliknoutKraj('Praha')">
+                                <circle cx="247" cy="160" r="22" fill="#2d1a0e" stroke="#d69e2e" stroke-width="2"/>
+                                <text x="247" y="156" text-anchor="middle" fill="#f6e05e" font-size="9" font-family="Cinzel,serif">Praha</text>
+                                <text x="247" y="169" text-anchor="middle" fill="#f6e05e" font-size="10" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Praha">0🍺</text>
+                            </g>
+                            <!-- Jihočeský -->
+                            <g class="kraj-svg" data-kraj="Jihočeský" onclick="kliknoutKraj('Jihočeský')">
+                                <rect x="80" y="270" width="200" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="180" y="320" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Jihočeský</text>
+                                <text x="180" y="335" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Jihočeský">0 🍺</text>
+                            </g>
+                            <!-- Vysočina -->
+                            <g class="kraj-svg" data-kraj="Vysočina" onclick="kliknoutKraj('Vysočina')">
+                                <rect x="285" y="235" width="145" height="100" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="357" y="280" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Vysočina</text>
+                                <text x="357" y="295" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Vysočina">0 🍺</text>
+                            </g>
+                            <!-- Jihomoravský -->
+                            <g class="kraj-svg" data-kraj="Jihomoravský" onclick="kliknoutKraj('Jihomoravský')">
+                                <rect x="435" y="270" width="155" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="512" y="320" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Jihomoravský</text>
+                                <text x="512" y="335" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Jihomoravský">0 🍺</text>
+                            </g>
+                            <!-- Olomoucký -->
+                            <g class="kraj-svg" data-kraj="Olomoucký" onclick="kliknoutKraj('Olomoucký')">
+                                <rect x="530" y="155" width="130" height="110" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="595" y="205" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Olomoucký</text>
+                                <text x="595" y="220" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Olomoucký">0 🍺</text>
+                            </g>
+                            <!-- Zlínský -->
+                            <g class="kraj-svg" data-kraj="Zlínský" onclick="kliknoutKraj('Zlínský')">
+                                <rect x="595" y="270" width="110" height="90" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="650" y="312" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="Cinzel,serif">Zlínský</text>
+                                <text x="650" y="327" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Zlínský">0 🍺</text>
+                            </g>
+                            <!-- Moravskoslezský -->
+                            <g class="kraj-svg" data-kraj="Moravskoslezský" onclick="kliknoutKraj('Moravskoslezský')">
+                                <rect x="665" y="100" width="120" height="165" rx="4" fill="#1a1a2e" stroke="#8b4513" stroke-width="1.5"/>
+                                <text x="725" y="175" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">Moravsko-</text>
+                                <text x="725" y="188" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Cinzel,serif">slezský</text>
+                                <text x="725" y="203" text-anchor="middle" fill="#f6e05e" font-size="12" font-family="Cinzel,serif" class="kraj-piva-text" data-kraj="Moravskoslezský">0 🍺</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <!-- Info o resetu -->
+                    <div class="text-center text-xs text-gray-500 pb-2">
+                        Výsledky se resetují každý měsíc. Statistiky hráčů zůstávají.
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: SÍŇ SLÁVY -->
+            <div id="obsah-sin" class="hidden">
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🏆 Síň Slávy</h3>
+                <p class="text-xs text-gray-500 mb-4">Největší hrdinové Pivního Dungeonu</p>
+
+                <div id="sin-loading" class="text-gray-500 italic text-sm text-center py-6">Načítám anály...</div>
+
+                <div id="sin-obsah" class="hidden space-y-3">
+
+                    <!-- Top hráči -->
+                    <div class="sin-card">
+                        <div class="sin-section-title">⚔️ Největší pijaři (XP)</div>
+                        <div id="sin-hraci"></div>
+                    </div>
+
+                    <!-- Top cechy -->
+                    <div class="sin-card">
+                        <div class="sin-section-title">🛡️ Nejmocnější cechy</div>
+                        <div id="sin-cechy"></div>
+                    </div>
+
+                    <!-- Top piva -->
+                    <div class="sin-card">
+                        <div class="sin-section-title">🍺 Nejpitější moky (globálně)</div>
+                        <div id="sin-piva"></div>
+                    </div>
+
+                    <!-- Top hospody -->
+                    <div class="sin-card">
+                        <div class="sin-section-title">🏰 Nejnavštěvovanější dungeony</div>
+                        <div id="sin-hospody"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div><!-- /app-screen -->
+
+
+    <!-- MODAL: Hráčský profil -->
+    <div id="profil-modal-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+        <div class="glass-card w-full max-w-sm p-5 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-2xl text-yellow-400 fantasy-font" id="profil-nazev">—</h3>
+                <button onclick="zavritProfilModal()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div class="text-center mb-4">
+                <div class="text-4xl mb-1" id="profil-avatar">⚔️</div>
+                <div class="text-xs text-gray-400" id="profil-level">Úroveň —</div>
+                <div class="xp-bar-outer w-32 mx-auto mt-2"><div id="profil-xp-bar" class="xp-bar-inner" style="width:0%"></div></div>
+                <div class="text-xs text-yellow-300 mt-1" id="profil-xp">0 XP</div>
+            </div>
+            <div id="profil-cech-badge" class="text-xs text-center text-orange-400 mb-3 hidden"></div>
+            <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                <div class="bg-black bg-opacity-50 rounded p-2">
+                    <div class="text-yellow-400 font-bold text-lg" id="profil-pocet-piv">—</div>
+                    <div class="text-[10px] text-gray-500">Piv zapsáno</div>
+                </div>
+                <div class="bg-black bg-opacity-50 rounded p-2">
+                    <div class="text-yellow-400 font-bold text-lg" id="profil-pocet-hospod">—</div>
+                    <div class="text-[10px] text-gray-500">Hospod</div>
+                </div>
+                <div class="bg-black bg-opacity-50 rounded p-2">
+                    <div class="text-yellow-400 font-bold text-lg" id="profil-level-num">—</div>
+                    <div class="text-[10px] text-gray-500">Úroveň</div>
+                </div>
+            </div>
+            <div class="text-left mb-3">
+                <div class="sin-section-title">Oblíbené pivo</div>
+                <div class="text-sm text-yellow-300 font-bold" id="profil-oblibene-pivo">—</div>
+            </div>
+            <div class="text-left mb-3">
+                <div class="sin-section-title">Oblíbená hospoda</div>
+                <div class="text-sm text-yellow-300 font-bold" id="profil-oblibena-hospoda">—</div>
+            </div>
+            <div class="text-left mb-2">
+                <div class="sin-section-title">Bio</div>
+                <div class="text-xs text-gray-300" id="profil-bio">—</div>
+            </div>
+            <div class="text-left mb-3">
+                <div class="sin-section-title">Kraj</div>
+                <div class="text-xs text-orange-400" id="profil-kraj">—</div>
+            </div>
+            <div id="profil-akce" class="mt-4 space-y-2 hidden">
+                <button id="profil-btn-follow" class="follow-btn nesleduju w-full py-2 hidden">➕ Sledovat</button>
+                <button id="profil-btn-pozvat" class="btn-gold w-full py-2 text-xs uppercase hidden">📬 Pozvat do cechu</button>
+            </div>
+            <div id="profil-loading" class="text-gray-500 italic text-sm text-center py-4">Načítám...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, collectionGroup,
+                 addDoc, query, where, getDocs, orderBy, limit, deleteDoc, writeBatch, serverTimestamp, Timestamp }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ─── FIREBASE CONFIG ──────────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrtK_99uh1SGyj2KhA2ljH3aAhynDnhqI",
+            authDomain: "pivnidungeon.firebaseapp.com",
+            projectId: "pivnidungeon",
+            storageBucket: "pivnidungeon.firebasestorage.app",
+            messagingSenderId: "174543526039",
+            appId: "1:174543526039:web:be6092c458e376c306b1d2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // ─── KONSTANTY ────────────────────────────────────────────────────────
+        const ZAKLAD_PIV = [
+            "Pilsner Urquell", "Gambrinus 12°", "Kozel 11°", "Radegast 12°",
+            "Budvar 12°", "Bernard 11°", "Birell", "Kofola", "Staropramen 12°",
+            "Zlatopramen 11°", "Rohozec 11°", "Platan 11°", "Krušovice 12°"
+        ];
+        const VALKA_TRVANI_DNI = 7;
+        const VALKA_CIL_BODU = 50;
+
+        // Zvyšuj při každé nové funkci která přidává pole do hráčova dokumentu.
+        // Hráč s nižší verzi bude automaticky upgradován při příštím přihlášení.
+        const SCHEMA_VERZE = 4;
+
+        // Co každá verze přidává:
+        // v1 → email, prezdivka, xp, dungeony, cech_id
+        // v2 → cech_zakladatel
+        // v3 → registraci_cas
+        // v4 → avatar, bio, kraj, sledovani
+        // ← sem přidávej nové verze
+
+        // ─── STAV ─────────────────────────────────────────────────────────────
+        let map = null, userLatLng = null, currentPubLatLng = null;
+        let currentUser = null, userData = {};
+
+        // ─── HELPERS ──────────────────────────────────────────────────────────
+        function $(id) { return document.getElementById(id); }
+        function show(id) { $(id).classList.remove('hidden'); }
+        function hide(id) { $(id).classList.add('hidden'); }
+        function setHtml(id, html) { $(id).innerHTML = html; }
+        function notify(msg) {
+            // Jednoduchý toast místo alert()
+            const t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:10px 20px;border-radius:10px;z-index:9999;font-size:0.85rem;border:1px solid #8b4513;font-family:Cinzel,serif;max-width:90%;text-align:center;';
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
         }
-    }
+        function zavritModal() { $('modal-overlay').classList.add('hidden'); $('navrh-piva-input').value = ''; }
+        window.zavritModal = zavritModal;
 
-    // ─── ŽEBŘÍČEK HRÁČŮ ──────────────────────────────────────────────────
-    async function nactiZebricek() {
-        const q = query(collection(db, "hraci"), orderBy("xp", "desc"), limit(20));
-        const snap = await getDocs(q);
-        $('zebricek-hracu').innerHTML = snap.docs.map((d, i) => {
-            const h = d.data();
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-            return `<div class="flex justify-between items-center border-b border-gray-800 py-1">
-                <span>${medal} <span class="text-yellow-400">${escapeHtml(h.prezdivka ?? h.email ?? '—')}</span></span>
-                <span class="text-yellow-500 text-xs">${h.xp ?? 0} XP</span>
-            </div>`;
-        }).join('') || '<div class="text-gray-600 text-sm">Žádní hráči.</div>';
-    }
+        // XP level (každých 1000 XP = 1 level)
+        function xpLevel(xp) {
+            const lvl = Math.floor(xp / 1000) + 1;
+            const prog = (xp % 1000) / 1000 * 100;
+            return { lvl, prog };
+        }
 
-    // ─── MAZÁNÍ ZÁPISŮ HRÁČE ─────────────────────────────────────────────
-    let adminVybranyHracUid = null;
-
-    document.getElementById('btn-hledat-hrace').addEventListener('click', async () => {
-        const email = document.getElementById('admin-hrac-email').value.trim().toLowerCase();
-        if (!email) { notify('Zadej e-mail hráče!'); return; }
-
-        document.getElementById('admin-hrac-info').classList.add('hidden');
-        document.getElementById('admin-logy-box').classList.add('hidden');
-        document.getElementById('admin-logy-loading').classList.remove('hidden');
-
-        try {
-            const q = query(collection(db, "hraci"), where("email", "==", email));
-            const snap = await getDocs(q);
-            if (snap.empty) { notify('Hráč s tímto e-mailem nenalezen.'); document.getElementById('admin-logy-loading').classList.add('hidden'); return; }
-
-            const d = snap.docs[0];
-            const h = d.data();
-            adminVybranyHracUid = d.id;
-
-            document.getElementById('admin-hrac-prezdivka').textContent = h.prezdivka || '—';
-            document.getElementById('admin-hrac-xp').textContent = (h.xp || 0) + ' XP';
-            document.getElementById('admin-hrac-uid').textContent = d.id;
-            document.getElementById('admin-hrac-info').classList.remove('hidden');
-
-            // Načti logy
-            const logySnap = await getDocs(query(
-                collection(db, "hraci", d.id, "log_piv"),
-                orderBy("cas", "desc"),
-                limit(50)
-            ));
-
-            const seznam = document.getElementById('admin-logy-seznam');
-            if (logySnap.empty) {
-                seznam.innerHTML = '<div class="text-gray-600 italic text-xs text-center py-3">Žádné záznamy.</div>';
+        // ─── AUTH ─────────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                hide('auth-screen');
+                const el = $('app-screen');
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+                el.classList.add('flex-col', 'items-center');
+                try {
+                    await Promise.all([nactiPiva(), loadUserData()]);
+                    initMap();
+                    nactiGlobalniLog();
+                } catch (e) { console.error("Start error:", e); }
             } else {
-                seznam.innerHTML = logySnap.docs.map(ld => {
-                    const z = ld.data();
-                    const casObj = z.cas?.toDate ? z.cas.toDate() : null;
-                    const datum = casObj ? casObj.toLocaleDateString('cs-CZ') + ' ' + casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'}) : '—';
-                    return `<div class="flex justify-between items-center border-b border-gray-800 py-1 text-xs" id="logrow-${ld.id}">
-                        <span>
-                            <span class="text-yellow-400 font-bold">${escapeHtml(z.pivo || '—')}</span>
-                            <span class="text-gray-400"> @ ${escapeHtml(z.hospoda || '—')}</span>
-                            <span class="text-gray-600 ml-1">${datum}</span>
-                        </span>
-                        <button onclick="adminSmazatZapis('${ld.id}', '${escapeHtml(z.pivo||'')}', '${escapeHtml(z.hospoda||'')}')"
-                            class="btn btn-red px-2 py-0.5 text-xs ml-2 flex-shrink-0">🗑️ Smazat</button>
-                    </div>`;
-                }).join('');
+                currentUser = null;
+                userData = {};
+                const el = $('app-screen');
+                el.classList.add('hidden');
+                el.style.display = '';
+                show('auth-screen');
             }
+        });
 
-            document.getElementById('admin-logy-box').classList.remove('hidden');
-        } catch(e) {
-            notify('Chyba: ' + e.message);
-        } finally {
-            document.getElementById('admin-logy-loading').classList.add('hidden');
-        }
-    });
+        $('btn-login').addEventListener('click', async () => {
+            const email = $('auth-email').value.trim();
+            const pass  = $('auth-password').value;
+            $('auth-error').textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch(e) { $('auth-error').textContent = 'Chyba: ' + e.message; }
+        });
 
-    window.adminSmazatZapis = async (logId, pivo, hospoda) => {
-        if (!adminVybranyHracUid) return;
-        if (!confirm('Smazat záznam "' + pivo + '" @ ' + hospoda + '? Odečte -100 XP hráči.')) return;
-
-        try {
-            const batch = writeBatch(db);
-            const logRef = doc(db, "hraci", adminVybranyHracUid, "log_piv", logId);
-            batch.delete(logRef);
-
-            // Odečti XP hráči
-            batch.update(doc(db, "hraci", adminVybranyHracUid), { xp: increment(-100) });
-
-            // Odečti ze statistik
-            const bezTecky = hospoda.replace(/\./g, '_');
-            await batch.commit();
-
-            try { await updateDoc(doc(db, "statistiky_piv", pivo), { pocet: increment(-1) }); } catch(e) {}
-            try { await updateDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(-1) }); } catch(e) {}
-
-            // Odstraň řádek z UI
-            const row = document.getElementById('logrow-' + logId);
-            if (row) row.remove();
-
-            // Aktualizuj zobrazené XP
-            const hSnap = await getDoc(doc(db, "hraci", adminVybranyHracUid));
-            if (hSnap.exists()) {
-                document.getElementById('admin-hrac-xp').textContent = (hSnap.data().xp || 0) + ' XP';
-            }
-
-            notify('Záznam smazán a -100 XP odečteno.');
-        } catch(e) {
-            notify('Chyba při mazání: ' + e.message);
-        }
-    };
-
-    // ─── SMAZAT PRÁZDNÉ CECHY ────────────────────────────────────────────
-    $('btn-smazat-prazdne-cechy').addEventListener('click', async () => {
-        const logEl = $('prazdne-cechy-log');
-        logEl.classList.remove('hidden');
-        logEl.innerHTML = '';
-        $('btn-smazat-prazdne-cechy').disabled = true;
-        const log = msg => { logEl.innerHTML += msg + '\n'; logEl.scrollTop = 9999; };
-        try {
-            const vsechnyCechy = await getDocs(collection(db, "cechy"));
-            log('Nalezeno ' + vsechnyCechy.size + ' cechů.');
-            let smazano = 0;
-            for (const cechDoc of vsechnyCechy.docs) {
-                const clenovSnap = await getDocs(query(
-                    collection(db, "hraci"), where("cech_id", "==", cechDoc.id)
-                ));
-                if (clenovSnap.empty) {
-                    await deleteDoc(cechDoc.ref);
-                    log('🗑️ Smazán prázdný cech: ' + (cechDoc.data().nazev || cechDoc.id));
-                    smazano++;
-                }
-            }
-            log('✅ Hotovo. Smazáno ' + smazano + ' prázdných cechů.');
-        } catch(e) {
-            log('❌ Chyba: ' + e.message);
-        } finally {
-            $('btn-smazat-prazdne-cechy').disabled = false;
-        }
-    });
-
-    // ─── PŘEPOČÍTAT KRÁLOVSTVÍ ───────────────────────────────────────────
-    $('btn-prepocitat-kralovstvi').addEventListener('click', async () => {
-        const logEl = $('prepocitat-kralovstvi-log');
-        logEl.classList.remove('hidden');
-        logEl.innerHTML = '';
-        $('btn-prepocitat-kralovstvi').disabled = true;
-
-        const log = (msg) => { logEl.innerHTML += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; };
-
-        try {
-            const mesic = new Date().toISOString().slice(0, 7);
-            log('Spouštím přepočet pro měsíc: ' + mesic);
-
-            // 1. Smaž existující záznamy pro tento měsíc
-            const kSnap = await getDocs(query(collection(db, "kralovstvi"), where("mesic", "==", mesic)));
-            const khSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
-            let delBatch = writeBatch(db);
-            let delCount = 0;
-            kSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
-            khSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
-            if (delCount > 0) await delBatch.commit();
-            log('Smazáno ' + delCount + ' starých záznamů.');
-
-            // 2. Načti všechny hráče s krajem
-            const hraciSnap = await getDocs(query(collection(db, "hraci"), where("kraj", "!=", null)));
-            log('Nalezeno ' + hraciSnap.size + ' hráčů s krajem.');
-
-            // 3. Pro každého hráče spočítej piva tento měsíc
-            const krajSoučty = {}; // kraj -> počet piv
-            let zpracovano = 0;
-
-            for (const hracDoc of hraciSnap.docs) {
-                const h = hracDoc.data();
-                if (!h.kraj) continue;
-
-                const zacatekMesice = new Date(mesic + '-01T00:00:00');
-                const konecMesice = new Date(new Date(zacatekMesice).setMonth(zacatekMesice.getMonth() + 1));
-
-                const logSnap = await getDocs(query(
-                    collection(db, "hraci", hracDoc.id, "log_piv"),
-                    where("cas", ">=", Timestamp.fromDate(zacatekMesice)),
-                    where("cas", "<", Timestamp.fromDate(konecMesice))
-                ));
-
-                const pocetPiv = logSnap.size;
-                if (pocetPiv === 0) continue;
-
-                // Ulož hráčský záznam
-                await setDoc(doc(db, "kralovstvi_hraci", mesic + "_" + hracDoc.id), {
-                    uid: hracDoc.id,
-                    prezdivka: h.prezdivka || "—",
-                    kraj: h.kraj,
-                    mesic: mesic,
-                    piv: pocetPiv
+        $('btn-register').addEventListener('click', async () => {
+            const nick  = $('auth-nickname').value.trim();
+            const email = $('auth-email').value.trim();
+            const pass  = $('auth-password').value;
+            $('auth-error').textContent = '';
+            if (!nick)  { $('auth-error').textContent = 'Zadej přezdívku!'; return; }
+            if (!email) { $('auth-error').textContent = 'Zadej e-mail!'; return; }
+            if (pass.length < 6) { $('auth-error').textContent = 'Heslo musí mít alespoň 6 znaků!'; return; }
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                await setDoc(doc(db, "hraci", cred.user.uid), {
+                    email: cred.user.email,
+                    prezdivka: nick,
+                    xp: 0,
+                    dungeony: {},
+                    cech_id: null,
+                    cech_zakladatel: false,
+                    avatar: '⚔️',
+                    bio: '',
+                    kraj: '',
+                    sledovani: [],
+                    registraci_cas: serverTimestamp(),
+                    verze_schematu: SCHEMA_VERZE
                 });
+            } catch(e) { $('auth-error').textContent = 'Chyba: ' + e.message; }
+        });
 
-                // Přičti ke kraji
-                krajSoučty[h.kraj] = (krajSoučty[h.kraj] || 0) + pocetPiv;
-                zpracovano++;
+        $('btn-logout').addEventListener('click', () => signOut(auth));
+
+        // ─── DATA UŽIVATELE + AUTO-MIGRACE ───────────────────────────────────
+        async function loadUserData() {
+            if (!currentUser) return;
+            const ref = doc(db, "hraci", currentUser.uid);
+            const snap = await getDoc(ref);
+
+            if (snap.exists()) {
+                userData = snap.data();
+            } else {
+                // Nový hráč – vytvoř dokument s aktuální verzí schématu
+                userData = {
+                    email: currentUser.email,
+                    prezdivka: currentUser.email.split('@')[0],
+                    xp: 0,
+                    dungeony: {},
+                    cech_id: null,
+                    cech_zakladatel: false,
+                    verze_schematu: SCHEMA_VERZE
+                };
+                await setDoc(ref, userData);
             }
 
-            log('Zpracováno ' + zpracovano + ' aktivních hráčů.');
-
-            // 4. Ulož krajské součty
-            for (const [kraj, pocet] of Object.entries(krajSoučty)) {
-                await setDoc(doc(db, "kralovstvi", mesic + "_" + kraj), {
-                    kraj: kraj,
-                    mesic: mesic,
-                    piv: pocet
-                });
-            }
-
-            log('Uloženo ' + Object.keys(krajSoučty).length + ' krajů.');
-            log('✅ Hotovo! Království přepočítáno.');
-        } catch(e) {
-            log('❌ Chyba: ' + e.message);
-        } finally {
-            $('btn-prepocitat-kralovstvi').disabled = false;
-        }
-    });
-
-    // ─── UTILS ────────────────────────────────────────────────────────────
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    // ─── MIGRACE ─────────────────────────────────────────────────────────
-
-    // Aktuální verze schématu – zvyšuj při každé nové funkci co přidá pole
-    const SCHEMA_VERZE = 2;
-
-    // Co každá verze přidává:
-    // v1 → základní pole: email, prezdivka, xp, dungeony, cech_id
-    // v2 → cech_zakladatel (bool)
-    // v3 → sem přidej příště...
-
-    function logLine(boxId, text, color = '#86efac') {
-        const box = $(boxId);
-        box.classList.remove('hidden');
-        const line = document.createElement('div');
-        line.style.color = color;
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-        box.appendChild(line);
-        box.scrollTop = box.scrollHeight;
-    }
-
-    // ── 1. Přepočítat statistiky piv & hospod ────────────────────────────
-    $('btn-migrace-statistiky').addEventListener('click', async () => {
-        if (!confirm('Spustit přepočet statistik? Stávající data budou PŘIČTENA (ne smazána). Pro čistý přepočet použij Reset.')) return;
-        await spustMigraciStatistik('migrace-statistiky-log', false);
-    });
-
-    $('btn-reset-statistiky').addEventListener('click', async () => {
-        if (!confirm('VAROVÁNÍ: Toto smaže všechny statistiky piv a hospod a přepočítá je od nuly. Pokračovat?')) return;
-        await spustMigraciStatistik('reset-statistiky-log', true);
-    });
-
-    async function spustMigraciStatistik(logId, resetNejdrive) {
-        const box = $(logId);
-        box.innerHTML = '';
-        box.classList.remove('hidden');
-        const btn = resetNejdrive ? $('btn-reset-statistiky') : $('btn-migrace-statistiky');
-        btn.disabled = true;
-
-        try {
-            // Reset stávajících statistik pokud je požadován
-            if (resetNejdrive) {
-                logLine(logId, 'Mažu stávající statistiky piv...');
-                const pivSnap = await getDocs(collection(db, "statistiky_piv"));
-                let delBatch = writeBatch(db);
-                let delCount = 0;
-                for (const d of pivSnap.docs) {
-                    delBatch.delete(d.ref);
-                    delCount++;
-                    if (delCount % 400 === 0) { await delBatch.commit(); delBatch = writeBatch(db); }
-                }
-                await delBatch.commit();
-                logLine(logId, `  → Smazáno ${delCount} záznamů piv.`);
-
-                logLine(logId, 'Mažu stávající statistiky hospod...');
-                const hospSnap = await getDocs(collection(db, "statistiky_hospod"));
-                let delBatch2 = writeBatch(db);
-                let delCount2 = 0;
-                for (const d of hospSnap.docs) {
-                    delBatch2.delete(d.ref);
-                    delCount2++;
-                    if (delCount2 % 400 === 0) { await delBatch2.commit(); delBatch2 = writeBatch(db); }
-                }
-                await delBatch2.commit();
-                logLine(logId, `  → Smazáno ${delCount2} záznamů hospod.`);
-            }
-
-            // Načti všechny hráče
-            logLine(logId, 'Načítám seznam hráčů...');
-            const hraciSnap = await getDocs(collection(db, "hraci"));
-            logLine(logId, `  → Nalezeno ${hraciSnap.size} hráčů.`);
-
-            const poctyPiv = {};
-            const poctyHospod = {};
-            let celkemLogu = 0;
-
-            // Projdi logy každého hráče
-            for (const hracDoc of hraciSnap.docs) {
-                logLine(logId, `Čtu logy: ${hracDoc.data().prezdivka ?? hracDoc.id}...`, '#fbbf24');
-                try {
-                    const logSnap = await getDocs(
-                        collection(db, "hraci", hracDoc.id, "log_piv")
-                    );
-                    logSnap.forEach(l => {
-                        const data = l.data();
-                        if (data.pivo)   poctyPiv[data.pivo]     = (poctyPiv[data.pivo]     || 0) + 1;
-                        if (data.hospoda) poctyHospod[data.hospoda] = (poctyHospod[data.hospoda] || 0) + 1;
-                        celkemLogu++;
-                    });
-                    logLine(logId, `  → ${logSnap.size} záznamů.`);
-                } catch (e) {
-                    logLine(logId, `  ⚠ Chyba čtení logů: ${e.message}`, '#f87171');
-                }
-            }
-
-            logLine(logId, `Celkem ${celkemLogu} zápisů, ${Object.keys(poctyPiv).length} unikátních piv, ${Object.keys(poctyHospod).length} hospod.`);
-            logLine(logId, 'Zapisuji statistiky piv...');
-
-            // Zápis statistik piv (po 400 kvůli batch limitu)
-            let pivBatch = writeBatch(db);
-            let pivCount = 0;
-            for (const [nazev, pocet] of Object.entries(poctyPiv)) {
-                pivBatch.set(doc(db, "statistiky_piv", nazev), { pocet }, { merge: !resetNejdrive });
-                pivCount++;
-                if (pivCount % 400 === 0) { await pivBatch.commit(); pivBatch = writeBatch(db); }
-            }
-            await pivBatch.commit();
-            logLine(logId, `  → Zapsáno ${pivCount} piv.`);
-
-            logLine(logId, 'Zapisuji statistiky hospod...');
-            let hospBatch = writeBatch(db);
-            let hospCount = 0;
-            for (const [nazev, pocet] of Object.entries(poctyHospod)) {
-                hospBatch.set(doc(db, "statistiky_hospod", nazev), { pocet }, { merge: !resetNejdrive });
-                hospCount++;
-                if (hospCount % 400 === 0) { await hospBatch.commit(); hospBatch = writeBatch(db); }
-            }
-            await hospBatch.commit();
-            logLine(logId, `  → Zapsáno ${hospCount} hospod.`);
-
-            logLine(logId, '✅ Migrace statistik dokončena!', '#34d399');
-
-        } catch (e) {
-            logLine(logId, `❌ Chyba: ${e.message}`, '#f87171');
-        } finally {
-            btn.disabled = false;
-        }
-    }
-
-    // ── 2. Migrace schématu hráčů ────────────────────────────────────────
-    $('btn-migrace-hraci').addEventListener('click', async () => {
-        if (!confirm('Doplnit chybějící pole všem hráčům?')) return;
-        const logId = 'migrace-hraci-log';
-        const box = $(logId);
-        box.innerHTML = '';
-        box.classList.remove('hidden');
-        $('btn-migrace-hraci').disabled = true;
-
-        try {
-            logLine(logId, 'Načítám hráče...');
-            const snap = await getDocs(collection(db, "hraci"));
-            logLine(logId, `  → ${snap.size} hráčů nalezeno.`);
-
-            let opraveno = 0;
-            let vporizadku = 0;
-
-            for (const d of snap.docs) {
-                const h = d.data();
+            // ── AUTO-MIGRACE ──────────────────────────────────────────────────
+            // Spustí se tiše při každém přihlášení pokud je hráčova verze zastaralá.
+            // Nikdy nepřepisuje existující data, jen doplňuje chybějící pole.
+            const aktualniVerze = userData.verze_schematu ?? 0;
+            if (aktualniVerze < SCHEMA_VERZE) {
                 const opravy = {};
 
-                // Každá nová verze schématu přidá svou kontrolu sem:
+                // v1 → základní pole (pro případ velmi starých účtů)
+                if (!userData.prezdivka)           opravy.prezdivka = currentUser.email.split('@')[0];
+                if (userData.xp === undefined)     opravy.xp = 0;
+                if (!userData.dungeony)            opravy.dungeony = {};
+                if (userData.cech_id === undefined) opravy.cech_id = null;
 
-                // v1 – základní pole
-                if (!h.prezdivka)                   opravy.prezdivka = h.email?.split('@')[0] ?? 'Hrdina';
-                if (h.xp === undefined)              opravy.xp = 0;
-                if (!h.dungeony)                     opravy.dungeony = {};
-                if (h.cech_id === undefined)         opravy.cech_id = null;
-
-                // v2 – cech_zakladatel
-                if (h.cech_zakladatel === undefined) opravy.cech_zakladatel = false;
-
-                // Verze schématu – pro sledování
-                if ((h.verze_schematu ?? 0) < SCHEMA_VERZE) opravy.verze_schematu = SCHEMA_VERZE;
-
-                if (Object.keys(opravy).length > 0) {
-                    await updateDoc(d.ref, opravy);
-                    logLine(logId, `  ✏ ${h.prezdivka ?? d.id}: doplněno ${Object.keys(opravy).join(', ')}`, '#fbbf24');
-                    opraveno++;
-                } else {
-                    vporizadku++;
+                // v2 → cech_zakladatel
+                if (aktualniVerze < 2) {
+                    if (userData.cech_zakladatel === undefined) opravy.cech_zakladatel = false;
                 }
-            }
 
-            logLine(logId, `✅ Hotovo! Opraveno: ${opraveno}, v pořádku: ${vporizadku}`, '#34d399');
-
-        } catch (e) {
-            logLine(logId, `❌ Chyba: ${e.message}`, '#f87171');
-        } finally {
-            $('btn-migrace-hraci').disabled = false;
-        }
-    });
-
-
-    // ── 4. Spárovat záznamy společného pití ─────────────────────────────
-    $('btn-migrace-spolecne').addEventListener('click', async () => {
-        const logId = 'migrace-spolecne-log';
-        const logEl = $(logId);
-        logEl.classList.remove('hidden');
-        logEl.innerHTML = '';
-        $('btn-migrace-spolecne').disabled = true;
-
-        const logLine = (msg, color) => {
-            const d = document.createElement('div');
-            d.textContent = msg;
-            if (color) d.style.color = color;
-            logEl.appendChild(d);
-            logEl.scrollTop = logEl.scrollHeight;
-        };
-
-        try {
-            logLine('Načítám všechny hráče...');
-            const hraciSnap = await getDocs(collection(db, "hraci"));
-            logLine(`Nalezeno ${hraciSnap.size} hráčů.`);
-
-            // Načti logy hráče po hráči (collectionGroup s orderBy vyžaduje index)
-            logLine('Načítám logy hráče po hráči...');
-            const podleHospody = {};
-            let celkemZaznamu = 0;
-
-            for (const hracDoc of hraciSnap.docs) {
-                const logSnap = await getDocs(collection(db, "hraci", hracDoc.id, "log_piv"));
-                logSnap.docs.forEach(d => {
-                    const data = d.data();
-                    if (!data.hospoda || !data.cas) return;
-                    if (!podleHospody[data.hospoda]) podleHospody[data.hospoda] = [];
-                    podleHospody[data.hospoda].push({
-                        ref: d.ref,
-                        uid: hracDoc.id,
-                        cas: data.cas.toDate ? data.cas.toDate() : new Date(data.cas),
-                        pivo: data.pivo,
-                        spolecne_s: data.spolecne_s || null
-                    });
-                    celkemZaznamu++;
-                });
-            }
-            logLine(`Nalezeno ${celkemZaznamu} záznamů celkem.`);
-
-            // Seřaď záznamy v každé hospodě podle času
-            for (const hospoda of Object.keys(podleHospody)) {
-                podleHospody[hospoda].sort((a, b) => a.cas - b.cas);
-            }
-
-            let sparovano = 0;
-            const batch = writeBatch(db);
-            let batchCount = 0;
-
-            for (const [hospoda, zaznamy] of Object.entries(podleHospody)) {
-                if (zaznamy.length < 2) continue;
-
-                // Pro každý záznam najdi ostatní do 5 minut
-                for (let i = 0; i < zaznamy.length; i++) {
-                    const z = zaznamy[i];
-                    const spoluhraciUids = [];
-                    const spoluhraciJmena = [];
-
-                    for (let j = 0; j < zaznamy.length; j++) {
-                        if (i === j) continue;
-                        const z2 = zaznamy[j];
-                        if (z2.uid === z.uid) continue;
-                        const rozdilMs = Math.abs(z.cas - z2.cas);
-                        if (rozdilMs <= 5 * 60 * 1000) {
-                            spoluhraciUids.push(z2.uid);
-                            // Zjisti přezdívku
-                            const hSnap = hraciSnap.docs.find(d => d.id === z2.uid);
-                            if (hSnap) spoluhraciJmena.push(hSnap.data().prezdivka);
-                        }
-                    }
-
-                    if (spoluhraciJmena.length > 0 && !z.spolecne_s) {
-                        // Každý záznam zapisujeme přes updateDoc zvlášť (batch přes cizí log_piv blokují rules)
-                        try {
-                            await updateDoc(z.ref, {
-                                spolecne_s: spoluhraciJmena.join(', '),
-                                spolecne_uids: spoluhraciUids
-                            });
-                            sparovano++;
-                        } catch(eWrite) {
-                            // Přeskočíme záznamy kde nemáme write permission
-                        }
-                    }
+                // v3 → registraci_cas
+                if (aktualniVerze < 3) {
+                    if (userData.registraci_cas === undefined) opravy.registraci_cas = serverTimestamp();
                 }
+
+                // v4 → avatar, bio, kraj, sledovani
+                if (aktualniVerze < 4) {
+                    if (userData.avatar === undefined) opravy.avatar = '⚔️';
+                    if (userData.bio === undefined) opravy.bio = '';
+                    if (userData.kraj === undefined) opravy.kraj = '';
+                    if (userData.sledovani === undefined) opravy.sledovani = [];
+                }
+
+                // ← sem přidávej nové verze migrace:
+                // if (aktualniVerze < 4) { opravy.nove_pole = defaultniHodnota; }
+
+                opravy.verze_schematu = SCHEMA_VERZE;
+                await updateDoc(ref, opravy);
+                Object.assign(userData, opravy);
+                console.log(`[Migrace] Hráč upgradován z v${aktualniVerze} na v${SCHEMA_VERZE}.`);
             }
 
-            // (updateDoc volány průběžně výše)
-
-            logLine(`✅ Hotovo! Spárováno ${sparovano} záznamů.`, '#34d399');
-        } catch(e) {
-            logLine('❌ Chyba: ' + e.message, '#fc8181');
-        } finally {
-            $('btn-migrace-spolecne').disabled = false;
+            vykresliHeader();
+            await vykresliDenicek();
         }
-    });
 
-    // ── 5. Reset Království ──────────────────────────────────────────────
-    $('btn-reset-kralovstvi').addEventListener('click', async () => {
-        if (!confirm('Opravdu smazat výsledky aktuálního měsíce krajské války?')) return;
-        const logEl = $('reset-kralovstvi-log');
-        logEl.classList.remove('hidden');
-        logEl.innerHTML = '';
-        $('btn-reset-kralovstvi').disabled = true;
+        function vykresliHeader() {
+            $('user-nickname-display').textContent = userData.prezdivka || 'Hrdina';
+            // Avatar v headeru
+            const avatarEl = document.getElementById('user-avatar-display');
+            if (avatarEl) avatarEl.textContent = userData.avatar || '⚔️';
+            const xp = userData.xp || 0;
+            $('user-xp-display').textContent = xp;
+            const { lvl, prog } = xpLevel(xp);
+            $('user-xp-display').textContent = `${xp} XP  |  Úroveň ${lvl}`;
+            $('xp-bar').style.width = prog + '%';
+        }
 
-        const log = (msg, color) => {
-            const d = document.createElement('div');
-            d.textContent = msg; if (color) d.style.color = color;
-            logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+        // ─── PIVA ─────────────────────────────────────────────────────────────
+        let schvalenaPiva = new Set(); // množina schválených piv pro validaci při zápisu
+
+        async function nactiPiva() {
+            try {
+                const snap = await getDocs(collection(db, "vsechna_piva"));
+                let piva = [...ZAKLAD_PIV];
+                snap.forEach(d => { if (d.data().nazev) piva.push(d.data().nazev); });
+                const unikatni = [...new Set(piva)].sort();
+                schvalenaPiva = new Set(unikatni); // ulož pro validaci
+                $('seznam-piv').innerHTML = unikatni
+                    .map(p => `<option value="${p.replace(/"/g, '&quot;')}">`).join('');
+            } catch (e) { console.error("Chyba načítání piv:", e); }
+        }
+
+        // ─── DENÍČEK ──────────────────────────────────────────────────────────
+        let grafInstance = null;
+        let grafData = {};     // { nazevPiva: count }
+        let grafTyp = 'bar';
+
+        window.prepnoutGraf = (typ) => {
+            grafTyp = typ;
+            $('btn-graf-bar').classList.toggle('active', typ === 'bar');
+            $('btn-graf-pie').classList.toggle('active', typ === 'pie');
+            vykresliGraf(grafData);
         };
 
-        try {
-            const mesic = new Date().toISOString().slice(0, 7);
-            log('Mažu kraje za ' + mesic + '...');
+        const GRAF_BARVY = [
+            '#f6e05e','#ed8936','#fc8181','#68d391','#76e4f7',
+            '#b794f4','#fbb6ce','#90cdf4','#faf089','#c6f6d5'
+        ];
 
-            const krajSnap = await getDocs(query(collection(db, "kralovstvi"), where("mesic", "==", mesic)));
-            const hracSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
+        function vykresliGraf(pocty) {
+            grafData = pocty;
+            const canvas = $('graf-piv');
+            const prazdny = $('graf-prazdny');
 
-            const batch = writeBatch(db);
-            krajSnap.forEach(d => batch.delete(d.ref));
-            hracSnap.forEach(d => batch.delete(d.ref));
-            await batch.commit();
+            const entries = Object.entries(pocty).sort((a,b) => b[1]-a[1]).slice(0, 10);
 
-            log('Smazáno ' + (krajSnap.size + hracSnap.size) + ' záznamů.', '#34d399');
-            log('✅ Reset dokončen!', '#34d399');
-        } catch(e) {
-            log('❌ Chyba: ' + e.message, '#fc8181');
-        } finally {
-            $('btn-reset-kralovstvi').disabled = false;
-        }
-    });
+            if (entries.length === 0) {
+                canvas.style.display = 'none';
+                prazdny.classList.remove('hidden');
+                if (grafInstance) { grafInstance.destroy(); grafInstance = null; }
+                return;
+            }
 
+            canvas.style.display = 'block';
+            prazdny.classList.add('hidden');
 
-    // ── Sestavit global_log z historických logů ──────────────────────────
-    $('btn-sestavit-global-log').addEventListener('click', async () => {
-        const logId = 'sestavit-global-log-log';
-        const logEl = $(logId);
-        logEl.classList.remove('hidden');
-        logEl.innerHTML = '';
-        $('btn-sestavit-global-log').disabled = true;
+            const labels = entries.map(([k]) => k);
+            const data   = entries.map(([,v]) => v);
+            const colors = entries.map((_, i) => GRAF_BARVY[i % GRAF_BARVY.length]);
 
-        const log = (msg, color) => {
-            const d = document.createElement('div');
-            d.textContent = msg;
-            if (color) d.style.color = color;
-            logEl.appendChild(d);
-            logEl.scrollTop = logEl.scrollHeight;
-        };
+            if (grafInstance) grafInstance.destroy();
 
-        try {
-            log('Načítám hráče...');
-            const hraciSnap = await getDocs(collection(db, "hraci"));
-            log('Nalezeno ' + hraciSnap.size + ' hráčů.');
-
-            // Načti existující global_log záznamy (abychom neduplikovali)
-            log('Načítám existující global_log...');
-            const existSnap = await getDocs(collection(db, "global_log"));
-            // Klíč: uid+cas jako string pro dedup
-            const existKlice = new Set();
-            existSnap.forEach(d => {
-                const z = d.data();
-                const casMs = z.cas?.toMillis ? z.cas.toMillis() : 0;
-                existKlice.add(z.hrac_uid + '_' + casMs);
+            const ctx = canvas.getContext('2d');
+            grafInstance = new Chart(ctx, {
+                type: grafTyp === 'pie' ? 'doughnut' : 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: colors,
+                        borderColor: colors.map(c => c + 'cc'),
+                        borderWidth: 1,
+                        borderRadius: grafTyp === 'bar' ? 4 : 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: grafTyp === 'pie',
+                            labels: {
+                                color: '#d1d5db',
+                                font: { family: 'Cinzel', size: 10 },
+                                boxWidth: 12,
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ` ${ctx.parsed}× vypito`
+                            },
+                            bodyFont: { family: 'Cinzel' },
+                            titleFont: { family: 'Bangers', size: 14 }
+                        }
+                    },
+                    scales: grafTyp === 'bar' ? {
+                        x: {
+                            ticks: { color: '#9ca3af', font: { family: 'Cinzel', size: 9 }, maxRotation: 35 },
+                            grid: { color: 'rgba(255,255,255,0.04)' }
+                        },
+                        y: {
+                            ticks: { color: '#9ca3af', font: { family: 'Cinzel', size: 9 }, stepSize: 1 },
+                            grid: { color: 'rgba(255,255,255,0.08)' },
+                            beginAtZero: true
+                        }
+                    } : {}
+                }
             });
-            log('Existujících záznamů: ' + existSnap.size);
-
-            let celkem = 0;
-            let preskoceno = 0;
-            let zapsano = 0;
-            const BATCH_SIZE = 400;
-            let batch = writeBatch(db);
-            let batchCount = 0;
-
-            for (const hracDoc of hraciSnap.docs) {
-                const h = hracDoc.data();
-                const logSnap = await getDocs(query(
-                    collection(db, "hraci", hracDoc.id, "log_piv"),
-                    orderBy("cas", "asc")
-                ));
-                celkem += logSnap.size;
-
-                for (const ld of logSnap.docs) {
-                    const z = ld.data();
-                    const casMs = z.cas?.toMillis ? z.cas.toMillis() : 0;
-                    const klic = hracDoc.id + '_' + casMs;
-
-                    if (existKlice.has(klic)) { preskoceno++; continue; }
-
-                    const gRef = doc(collection(db, "global_log"));
-                    batch.set(gRef, {
-                        pivo: z.pivo || '—',
-                        hospoda: z.hospoda || '—',
-                        hrac_uid: hracDoc.id,
-                        hrac_prezdivka: h.prezdivka || '—',
-                        cas: z.cas
-                    });
-                    existKlice.add(klic);
-                    batchCount++;
-                    zapsano++;
-
-                    if (batchCount >= BATCH_SIZE) {
-                        await batch.commit();
-                        log('Zapsán batch ' + zapsano + ' záznamů...');
-                        batch = writeBatch(db);
-                        batchCount = 0;
-                    }
-                }
+        }
+        async function vykresliDenicek() {
+            // Dungeony
+            const dBox = $('seznam-dungeonu');
+            if (userData.dungeony && Object.keys(userData.dungeony).length > 0) {
+                const sorted = Object.entries(userData.dungeony).sort((a, b) => b[1] - a[1]);
+                dBox.innerHTML = sorted.map(([n, p]) => {
+                    const star = p >= 10 ? '🌟' : p >= 5 ? '⭐' : '🔸';
+                    const nazev = n.replace(/_/g, '.'); // zpět tečky
+                    return `<div class="log-item flex justify-between"><span>${star} ${nazev}</span><span class="text-yellow-500">${p}× návštěv</span></div>`;
+                }).join('');
+            } else {
+                dBox.innerHTML = '<div class="text-gray-600 italic text-center py-2">Žádné dungeony zatím nenavštíveny.</div>';
             }
 
-            if (batchCount > 0) await batch.commit();
+            // Log piv (subkollekce) + počítání pro graf
+            const logBox = $('seznam-piv-log');
+            try {
+                const q = query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc"),
+                    limit(200)   // více pro přesný graf
+                );
+                const snap = await getDocs(q);
 
-            log('✅ Hotovo! Celkem logů: ' + celkem + ', zapsáno: ' + zapsano + ', přeskočeno (duplicity): ' + preskoceno, '#34d399');
-            await nactiAdminGlobalLog();
-        } catch(e) {
-            log('❌ Chyba: ' + e.message, '#f87171');
-        } finally {
-            $('btn-sestavit-global-log').disabled = false;
+                if (snap.empty) {
+                    logBox.innerHTML = '<div class="text-gray-600 italic text-center py-2">Deník je prázdný.</div>';
+                    vykresliGraf({});
+                    return;
+                }
+
+                // Spočítej piva pro graf
+                const pocty = {};
+                snap.docs.forEach(d => {
+                    const pivo = d.data().pivo;
+                    if (pivo) pocty[pivo] = (pocty[pivo] || 0) + 1;
+                });
+                vykresliGraf(pocty);
+
+                // Zobraz posledních 20 s akcemi
+                logBox.innerHTML = '';
+                snap.docs.slice(0, 20).forEach((d, idx) => {
+                    const z = d.data();
+                    const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+                    const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
+                    const cas = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'}) : '';
+                    const spolecneHtml = z.spolecne_s
+                        ? ' · <span class="spolecne-badge">🍻 s ' + z.spolecne_s + '</span>'
+                        : '';
+
+                    const div = document.createElement('div');
+                    div.className = 'log-item fade-in';
+                    div.innerHTML =
+                        '<div class="flex justify-between items-start">' +
+                            '<div>' +
+                                '<span class="text-yellow-400 font-bold">🍺 ' + (z.pivo || '—') + '</span>' +
+                                '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
+                                '<span class="block text-gray-600 text-[10px]">' + datum + (cas ? ' · ' + cas : '') + spolecneHtml + '</span>' +
+                            '</div>' +
+                            '<div class="log-akce">' +
+                                (idx === 0 ? '<button class="log-btn log-btn-repeat" title="Zopakovat zápis">🔁</button>' : '') +
+                                '<button class="log-btn log-btn-delete" title="Smazat záznam">🗑️</button>' +
+                            '</div>' +
+                        '</div>';
+
+                    // 🔁 Zopakovat — jen u prvního záznamu
+                    if (idx === 0) {
+                        div.querySelector('.log-btn-repeat').addEventListener('click', () => {
+                            zopakovatzapis(z.pivo, z.hospoda, d.id);
+                        });
+                    }
+
+                    // 🗑️ Smazat
+                    div.querySelector('.log-btn-delete').addEventListener('click', () => {
+                        smazatZapis(d.id, d.ref, z);
+                    });
+
+                    logBox.appendChild(div);
+                });
+
+            } catch (e) {
+                logBox.innerHTML = '<div class="text-red-500 text-xs">Chyba načítání deníčku.</div>';
+            }
         }
-    });
 
-</script>
-```
+        // ─── MAPA ─────────────────────────────────────────────────────────────
 
+        // SVG marker — středověká věž hospody
+        function createDungeonMarker(status) {
+            const colors = {
+                conquered: { fill: '#276749', stroke: '#68d391' },
+                visited:   { fill: '#975a16', stroke: '#f6ad55' },
+                new:       { fill: '#6b2737', stroke: '#fc8181' }
+            };
+            const c = colors[status] || colors.new;
+            const windows = status === 'conquered'
+                ? `<rect x="12" y="23" width="5" height="4" rx="1" fill="rgba(246,224,94,0.7)"/>
+                   <rect x="27" y="23" width="5" height="4" rx="1" fill="rgba(246,224,94,0.7)"/>`
+                : '';
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
+              <ellipse cx="22" cy="50" rx="10" ry="3" fill="rgba(0,0,0,0.4)"/>
+              <rect x="9" y="18" width="26" height="28" rx="2" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+              <rect x="9" y="13" width="5" height="8" rx="1" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+              <rect x="19" y="11" width="6" height="10" rx="1" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+              <rect x="30" y="13" width="5" height="8" rx="1" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+              <line x1="22" y1="2" x2="22" y2="12" stroke="${c.stroke}" stroke-width="1.5"/>
+              <polygon points="22,2 30,6 22,10" fill="${c.stroke}"/>
+              <rect x="17" y="32" width="10" height="14" rx="5 5 0 0" fill="rgba(0,0,0,0.6)" stroke="${c.stroke}" stroke-width="1"/>
+              <rect x="11" y="22" width="7" height="6" rx="1" fill="rgba(246,224,94,0.15)" stroke="${c.stroke}" stroke-width="1"/>
+              <rect x="26" y="22" width="7" height="6" rx="1" fill="rgba(246,224,94,0.15)" stroke="${c.stroke}" stroke-width="1"/>
+              ${windows}
+            </svg>`;
+            return L.divIcon({
+                html: `<div class="dungeon-marker">${svg}</div>`,
+                className: '', iconSize: [44, 52], iconAnchor: [22, 50], popupAnchor: [0, -52]
+            });
+        }
+
+        function getMarkerStatus(pubName) {
+            const count = (userData.dungeony && userData.dungeony[pubName]) || 0;
+            if (count >= 5) return 'conquered';
+            if (count > 0) return 'visited';
+            return 'new';
+        }
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([49.8, 15.5], 7);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap © CARTO',
+                subdomains: 'abcd', maxZoom: 19
+            }).addTo(map);
+            map.on('locationfound', onLocationFound);
+            map.on('locationerror', () => notify('Nepodařilo se zjistit polohu. Povol lokaci v prohlížeči.'));
+
+            document.getElementById('map-search-btn').addEventListener('click', hledatHospoduNazev);
+            document.getElementById('map-search-input').addEventListener('keydown', e => {
+                if (e.key === 'Enter') hledatHospoduNazev();
+            });
+        }
+
+        async function hledatHospoduNazev() {
+            const query = document.getElementById('map-search-input').value.trim();
+            if (!query) return;
+            if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+                const center = map.getCenter();
+                const service = new google.maps.places.PlacesService(document.createElement('div'));
+                service.textSearch({
+                    query: query,
+                    location: new google.maps.LatLng(center.lat, center.lng),
+                    region: 'cz'
+                }, (results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                        const r = results[0];
+                        const lat = r.geometry.location.lat();
+                        const lng = r.geometry.location.lng();
+                        map.setView([lat, lng], 17);
+                        L.marker([lat, lng], { icon: createDungeonMarker(getMarkerStatus(r.name)) })
+                            .addTo(map).bindPopup(buildPopup(r.name, lat, lng)).openPopup();
+                    } else {
+                        notify('Hospoda nenalezena. Zkus jiný název.');
+                    }
+                });
+            } else {
+                // Fallback: Nominatim geocoder
+                try {
+                    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' Czech Republic')}&format=json&limit=1`;
+                    const res = await fetch(url, { headers: { 'Accept-Language': 'cs' } });
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lng = parseFloat(data[0].lon);
+                        const name = data[0].display_name.split(',')[0];
+                        map.setView([lat, lng], 17);
+                        L.marker([lat, lng], { icon: createDungeonMarker(getMarkerStatus(name)) })
+                            .addTo(map).bindPopup(buildPopup(name, lat, lng)).openPopup();
+                    } else {
+                        notify('Hospoda nenalezena.');
+                    }
+                } catch(e) { notify('Chyba vyhledávání.'); }
+            }
+        }
+
+        function onLocationFound(e) {
+            userLatLng = e.latlng;
+            L.circle(e.latlng, { radius: 30, color: '#f6e05e', fillColor: '#f6e05e', fillOpacity: 0.2, weight: 2 }).addTo(map);
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+                nacistHospadyGooglePlaces(lat, lng);
+            } else {
+                nacistHospadyOverpass(lat, lng, new Set());
+            }
+        }
+
+        function nacistHospadyGooglePlaces(lat, lng) {
+            const service = new google.maps.places.PlacesService(document.createElement('div'));
+            const location = new google.maps.LatLng(lat, lng);
+            const seen = new Set();
+            let loaded = 0;
+            ['bar', 'night_club', 'restaurant'].forEach(type => {
+                service.nearbySearch({ location, radius: 1500, type }, (results, status) => {
+                    loaded++;
+                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                        results.forEach(place => {
+                            if (seen.has(place.place_id)) return;
+                            seen.add(place.place_id);
+                            const hLat = place.geometry.location.lat();
+                            const hLon = place.geometry.location.lng();
+                            L.marker([hLat, hLon], { icon: createDungeonMarker(getMarkerStatus(place.name)) })
+                                .addTo(map).bindPopup(buildPopup(place.name, hLat, hLon));
+                        });
+                    }
+                    if (loaded === 3) nacistHospadyOverpass(lat, lng, new Set([...seen].map(id => id)));
+                });
+            });
+        }
+
+        function nacistHospadyOverpass(lat, lng, existingIds) {
+            const query = `[out:json];(
+                node["amenity"~"pub|bar|restaurant"](around:2000,${lat},${lng});
+                way["amenity"~"pub|bar|restaurant"](around:2000,${lat},${lng});
+                relation["amenity"~"pub|bar|restaurant"](around:2000,${lat},${lng});
+            );out center;`;
+            fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`)
+                .then(r => r.json())
+                .then(data => {
+                    data.elements.forEach(h => {
+                        const hLat = h.lat ?? h.center?.lat;
+                        const hLon = h.lon ?? h.center?.lon;
+                        if (!hLat || !hLon) return;
+                        const n = h.tags.name || 'Krčma';
+                        L.marker([hLat, hLon], { icon: createDungeonMarker(getMarkerStatus(n)) })
+                            .addTo(map).bindPopup(buildPopup(n, hLat, hLon));
+                    });
+                })
+                .catch(() => {});
+        }
+
+        function buildPopup(name, lat, lon) {
+            const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const count = (userData.dungeony && userData.dungeony[name]) || 0;
+            const statusText = count >= 5 ? `✅ Poraženo (${count}×)` : count > 0 ? `⚔️ Navštíveno (${count}×)` : '🔴 Neporaženo';
+            return `<div style="font-family:Cinzel,serif;min-width:160px;">
+                <div style="font-weight:bold;color:#f6e05e;margin-bottom:4px;">${name}</div>
+                <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">${statusText}</div>
+                <button onclick="window.pickPub('${safeName}',${lat},${lon})"
+                    style="background:linear-gradient(135deg,#c05621,#9c4221);color:#fed7aa;padding:6px 10px;
+                           border-radius:6px;width:100%;font-size:11px;font-weight:bold;
+                           font-family:Cinzel,serif;border:1px solid #c05621;cursor:pointer;">
+                    🍺 Tady piju!
+                </button></div>`;
+        }
+
+        $('btn-hledej').addEventListener('click', () => {
+            if (!map) initMap();
+            map.locate({ setView: true, maxZoom: 16 });
+        });
+
+        // Sleduje aktuální pub seanci — návštěva se počítá jen jednou za seanci
+        let currentPubSession = null; // { pubName, started }
+
+        window.pickPub = (n, lat, lng) => {
+            $('pub-name-input').value = n;
+            $('beer-modal-pub-name').textContent = n;
+            currentPubLatLng = L.latLng(lat, lng);
+            map.closePopup();
+            // Nová hospoda = nová seance
+            if (!currentPubSession || currentPubSession.pubName !== n) {
+                currentPubSession = { pubName: n, navstevaPocitana: false };
+            }
+            // Otevři beer modal
+            $('beer-modal').classList.remove('hidden');
+            $('beer-name-input').focus();
+        };
+
+        $('btn-zavrit-beer-modal').addEventListener('click', () => {
+            $('beer-modal').classList.add('hidden');
+        });
+
+        // ─── CLAIM XP ─────────────────────────────────────────────────────────
+        $('btn-claim').addEventListener('click', async () => {
+            const pN = $('pub-name-input').value.trim();
+            const bN = $('beer-name-input').value.trim();
+            if (!pN || !bN) { notify('Vyber hospodu i pivo!'); return; }
+            if (!userLatLng)        { notify('Nejprve zjisti svou polohu tlačítkem Najít dungeony.'); return; }
+            if (!currentPubLatLng)  { notify('Klikni na hospodu na mapě!'); return; }
+
+            // Validace — pivo musí být v schváleném seznamu
+            if (!schvalenaPiva.has(bN)) {
+                notify(`"${bN}" není v seznamu schválených piv. Použij tlačítko ❗ pro návrh nového piva.`);
+                return;
+            }
+
+            const dist = map.distance(userLatLng, currentPubLatLng);
+            if (dist > 150)         { notify(`Jsi příliš daleko (${Math.round(dist)} m). Musíš být blíže než 150 m!`); return; }
+
+            try {
+                $('btn-claim').disabled = true;
+                $('btn-claim').textContent = '⏳ Zapisuji...';
+
+                const batch = writeBatch(db);
+
+                // Log entry jako subkollekce
+                const logRef = doc(collection(db, "hraci", currentUser.uid, "log_piv"));
+                batch.set(logRef, {
+                    pivo: bN, hospoda: pN, cas: serverTimestamp()
+                });
+
+                // Globální log aktivit
+                const gLogRef = doc(collection(db, "global_log"));
+                batch.set(gLogRef, {
+                    pivo: bN,
+                    hospoda: pN,
+                    hrac_uid: currentUser.uid,
+                    hrac_prezdivka: userData.prezdivka || '—',
+                    cas: serverTimestamp()
+                });
+
+                // Aktualizace hráče — dungeony klíč nesmí obsahovat tečky (Firestore to bere jako cestu)
+                const hracRef = doc(db, "hraci", currentUser.uid);
+                const bezTecky = pN.replace(/\./g, '_');
+                // Návštěva se počítá jen jednou za seanci (první pivo v hospodě)
+                const jeNovyNavsteva = !currentPubSession || !currentPubSession.navstevaPocitana;
+                const hracUpdate = { xp: increment(100) };
+                if (jeNovyNavsteva) {
+                    hracUpdate[`dungeony.${bezTecky}`] = increment(1);
+                    if (currentPubSession) currentPubSession.navstevaPocitana = true;
+                }
+                batch.update(hracRef, hracUpdate);
+
+                await batch.commit();
+
+                // Globální statistiky — increment() nefunguje v batch.set(), musíme použít updateDoc se set+merge zvlášť
+                try {
+                    await setDoc(doc(db, "statistiky_piv", bN), { pocet: increment(1) }, { merge: true });
+                } catch(e) {
+                    await setDoc(doc(db, "statistiky_piv", bN), { pocet: 1 });
+                }
+                try {
+                    await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: pN }, { merge: true });
+                } catch(e) {
+                    await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: 1, nazev: pN });
+                }
+
+                // Krajová válka — přičti bod kraji pokud má hráč zvolený kraj
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7); // "2025-03"
+                    const krajRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                    try {
+                        await setDoc(krajRef, {
+                            kraj: userData.kraj,
+                            mesic: mesic,
+                            piv: increment(1)
+                        }, { merge: true });
+                        // Příspěvek hráče
+                        const hracKrajRef = doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid);
+                        await setDoc(hracKrajRef, {
+                            uid: currentUser.uid,
+                            kraj: userData.kraj,
+                            mesic: mesic,
+                            piv: increment(1)
+                        }, { merge: true });
+                    } catch(eKraj) { console.warn('Kraj zapis chyba:', eKraj.message); }
+                }
+
+                // Cech skóre + válka body
+                if (userData.cech_id) {
+                    const cechRef = doc(db, "cechy", userData.cech_id);
+                    await updateDoc(cechRef, { skore: increment(1) });
+                    await pripoctiValecneBody(pN);
+                }
+
+                // Detekce spoluhráčů — collection group query přes log_piv všech hráčů
+                try {
+                    const pred5min = new Date(Date.now() - 5 * 60 * 1000);
+                    const spoluhraciSnap = await getDocs(query(
+                        collectionGroup(db, "log_piv"),
+                        where("hospoda", "==", pN),
+                        where("cas", ">=", Timestamp.fromDate(pred5min))
+                    ));
+
+                    // Filtruj sebe — cesta dokumentu: hraci/{uid}/log_piv/{docId}
+                    const cizi = spoluhraciSnap.docs.filter(d => d.ref.parent.parent.id !== currentUser.uid);
+
+                    if (cizi.length > 0) {
+                        // Unikátní hráči
+                        const spoluhraciMap = {};
+                        for (const d of cizi) {
+                            const uid = d.ref.parent.parent.id;
+                            if (!spoluhraciMap[uid]) {
+                                const hSnap = await getDoc(doc(db, "hraci", uid));
+                                if (hSnap.exists()) {
+                                    spoluhraciMap[uid] = { uid, prezdivka: hSnap.data().prezdivka };
+                                }
+                            }
+                        }
+                        const spoluhraciList = Object.values(spoluhraciMap);
+
+                        if (spoluhraciList.length > 0) {
+                            const jmena = spoluhraciList.map(s => s.prezdivka).join(', ');
+
+                            // Načti právě zapsaný záznam (nejnovější v mém log_piv)
+                            const mojLogSnap = await getDocs(query(
+                                collection(db, "hraci", currentUser.uid, "log_piv"),
+                                orderBy("cas", "desc"), limit(1)
+                            ));
+
+                            if (!mojLogSnap.empty) {
+                                // Doplň spoluhráče jen do MÉHO záznamu (cizí log_piv nemůžeme zapisovat)
+                                await updateDoc(mojLogSnap.docs[0].ref, {
+                                    spolecne_s: jmena,
+                                    spolecne_uids: spoluhraciList.map(s => s.uid)
+                                });
+                                notify('Zapsáno! +100 XP 🍺  ·  🍻 Piješ s: ' + jmena);
+                            } else {
+                                notify('Zapsáno! +100 XP 🍺');
+                            }
+                        } else {
+                            notify('Zapsáno! +100 XP 🍺');
+                        }
+                    } else {
+                        notify('Zapsáno! +100 XP 🍺');
+                    }
+                } catch(eSpol) {
+                    console.warn('Detekce spoluhráčů selhala:', eSpol.message);
+                    notify('Zapsáno! +100 XP 🍺');
+                }
+
+                $('beer-name-input').value = '';
+                $('beer-modal').classList.add('hidden');
+                await loadUserData();
+                nactiGlobalniLog(); // refresh live feed
+            } catch (e) {
+                notify('Chyba: ' + e.message);
+            } finally {
+                $('btn-claim').disabled = false;
+                $('btn-claim').textContent = '🍺 Zapsat pivo (+100 XP)';
+            }
+        });
+
+        // ─── NÁVRH PIVA ───────────────────────────────────────────────────────
+        $('btn-odeslat-navrh').addEventListener('click', async () => {
+            const val = $('navrh-piva-input').value.trim();
+            if (!val) { notify('Napiš název piva!'); return; }
+            const hospoda = $('pub-name-input').value.trim() || 'Nezadáno';
+            try {
+                await addDoc(collection(db, "navrhy_piv"), {
+                    nazev_piva: val,
+                    hospoda: hospoda,
+                    navrhl: userData.prezdivka,
+                    navrhl_uid: currentUser.uid,
+                    cas: serverTimestamp(),       // čas odeslání návrhu = čas zápisu do deníčku po schválení
+                    stav: 'ceka_na_schvaleni'
+                });
+                notify('Návrh odeslán! Velmistr posoudí brzy. Po schválení se pivo zapíše do deníčku s dnešním datem a touto hospodou.');
+                zavritModal();
+            } catch (e) { notify('Chyba: ' + e.message); }
+        });
+
+        // ─── TABY ─────────────────────────────────────────────────────────────
+        window.switchTab = (tabName) => {
+            ['mapa', 'denik', 'cech', 'kralovstvi', 'sin'].forEach(t => {
+                $(`tab-${t}`).classList.remove('active');
+                $(`obsah-${t}`).classList.add('hidden');
+            });
+            $(`tab-${tabName}`).classList.add('active');
+            $(`obsah-${tabName}`).classList.remove('hidden');
+            if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
+            if (tabName === 'mapa') nactiGlobalniLog();
+            if (tabName === 'denik') { vykresliDenicek(); vykresliEditProfil(); nactiSledovane(); }
+            if (tabName === 'cech') nactiVseOkoloCechu();
+            if (tabName === 'kralovstvi') nactiKralovstvi();
+            if (tabName === 'sin') nactiSinSlavy();
+        };
+
+        // ─── CECH ─────────────────────────────────────────────────────────────
+        async function nactiVseOkoloCechu() {
+            await nactiPozvankyCechu();
+            if (userData.cech_id) {
+                await vykresliCech();
+            } else {
+                hide('cech-existuje');
+                show('cech-neexistuje');
+            }
+        }
+
+        async function nactiPozvankyCechu() {
+            if (!userData.email || userData.cech_id) { hide('panel-pozvanek'); return; }
+            const q = query(collection(db, "pozvanky"), where("cilovy_email", "==", userData.email));
+            const snap = await getDocs(q);
+            const panel = $('panel-pozvanek');
+            if (snap.empty) { hide('panel-pozvanek'); return; }
+
+            show('panel-pozvanek');
+            panel.innerHTML = '<div class="text-xs text-orange-400 uppercase font-bold mb-2">📬 Pozvánky do cechu</div>';
+            snap.forEach(d => {
+                const p = d.data();
+                const card = document.createElement('div');
+                card.className = 'bg-black bg-opacity-50 border border-yellow-800 rounded p-2 flex justify-between items-center mb-2 text-xs';
+                card.innerHTML = `<span class="text-yellow-400 font-bold">${p.cech_nazev}</span>`;
+                const btn = document.createElement('button');
+                btn.textContent = '✓ Přijmout';
+                btn.className = 'btn-primary px-3 py-1 text-xs';
+                btn.dataset.id = d.id;
+                btn.dataset.cid = p.cech_id;
+                btn.addEventListener('click', () => prijmoutPozvanku(d.id, p.cech_id));
+                card.appendChild(btn);
+                panel.appendChild(card);
+            });
+        }
+
+        async function vykresliCech() {
+            hide('cech-neexistuje');
+            show('cech-existuje');
+
+            const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+            if (!cSnap.exists()) {
+                // Cech byl zrušen – vyčisti hráče
+                await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
+                userData.cech_id = null; userData.cech_zakladatel = false;
+                hide('cech-existuje'); show('cech-neexistuje');
+                return;
+            }
+            const cech = cSnap.data();
+            $('cech-nazev-zobrazeni').textContent = cech.nazev;
+            $('cech-skore-zobrazeni').textContent = cech.skore ?? 0;
+
+            const jeZakladatel = cech.zakladatel === currentUser.uid;
+            $('cech-role-display').textContent = jeZakladatel ? '👑 Zakladatel cechu' : '⚔️ Člen cechu';
+
+            // Tlačítko rozpustit jen pro zakladatele, pozvat také jen pro zakladatele
+            if (jeZakladatel) { show('btn-rozpustit-cech'); show('panel-pozvat'); }
+            else              { hide('btn-rozpustit-cech'); hide('panel-pozvat'); }
+            // Panel vyhlásit válku vidí všichni členové cechu (řídí se stavem aktivních válek)
+
+            // Žebříček členů
+            await nactiClenyCechu();
+
+            // Války
+            await nactiValky();
+        }
+
+        async function nactiClenyCechu() {
+            try {
+            // Pozn: query bez orderBy aby nevyžadoval composite index ve Firestore
+            const q = query(collection(db, "hraci"), where("cech_id", "==", userData.cech_id));
+            const snap = await getDocs(q);
+            const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+            const zakladatelUid = cSnap.data().zakladatel;
+            const box = $('cech-zebricek');
+            if (snap.empty) { box.innerHTML = '<div class="text-gray-600">Žádní členové.</div>'; return; }
+            // Seřaď podle XP v JS
+            const sorted = snap.docs.slice().sort((a,b) => (b.data().xp||0) - (a.data().xp||0));
+            box.innerHTML = sorted.map((d, i) => {
+                const h = d.data(); const isZ = d.id === zakladatelUid;
+                const isMe = d.id === currentUser.uid;
+                return `<div class="flex justify-between items-center">
+                    <span>${i+1}. <span class="${isMe ? '' : 'profil-link'}" ${isMe ? '' : 'onclick="otevritProfil(\'' + d.id + '\')"'}>${h.prezdivka}</span> ${isZ ? '<span class="rank-badge rank-zakladatel">Zakladatel</span>' : ''}</span>
+                    <span class="text-yellow-500">${h.xp ?? 0} XP</span>
+                </div>`;
+            }).join('');
+            } catch(e) { $('cech-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání členů: ' + e.message + '</div>'; }
+        }
+
+        // ─── CECH AKCE ────────────────────────────────────────────────────────
+        $('btn-zalozit-cech').addEventListener('click', async () => {
+            const n = $('novy-cech-nazev').value.trim();
+            if (!n) { notify('Zadej název cechu!'); return; }
+            if (userData.cech_id) { notify('Už jsi v cechu!'); return; }
+            try {
+                const ref = await addDoc(collection(db, "cechy"), {
+                    nazev: n, zakladatel: currentUser.uid, skore: 0, zalozen: serverTimestamp()
+                });
+                await updateDoc(doc(db, "hraci", currentUser.uid), {
+                    cech_id: ref.id, cech_zakladatel: true
+                });
+                notify(`Cech "${n}" byl založen!`);
+                await loadUserData();
+                await nactiVseOkoloCechu();
+            } catch (e) { notify('Chyba: ' + e.message); }
+        });
+
+        $('btn-opustit-cech').addEventListener('click', async () => {
+            if (!confirm('Opravdu chceš opustit cech?')) return;
+            const cechId = userData.cech_id;
+            const cSnap = await getDoc(doc(db, "cechy", cechId));
+            if (!cSnap.exists()) {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
+                userData.cech_id = null;
+                await loadUserData(); await nactiVseOkoloCechu(); return;
+            }
+            const jeZakladatel = cSnap.data().zakladatel === currentUser.uid;
+
+            if (jeZakladatel) {
+                // Najdi nejstaršího dalšího člena podle registraci_cas
+                const clenoveSnanp = await getDocs(query(
+                    collection(db, "hraci"),
+                    where("cech_id", "==", cechId),
+                    orderBy("registraci_cas", "asc")
+                ));
+                const ostatni = clenoveSnanp.docs.filter(d => d.id !== currentUser.uid);
+                if (ostatni.length === 0) {
+                    // Nikdo jiný v cechu — cech se automaticky rozpustí
+                    if (!confirm('Jsi jediný člen cechu. Odchodem cech zanikne. Pokračovat?')) return;
+                    const batch2 = writeBatch(db);
+                    const valkyS1 = await getDocs(query(collection(db, "valky"), where("utocnik_id","==",cechId)));
+                    const valkyS2 = await getDocs(query(collection(db, "valky"), where("obrance_id","==",cechId)));
+                    valkyS1.forEach(d => batch2.delete(d.ref));
+                    valkyS2.forEach(d => batch2.delete(d.ref));
+                    batch2.delete(doc(db, "cechy", cechId));
+                    batch2.update(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
+                    await batch2.commit();
+                    userData.cech_id = null; userData.cech_zakladatel = false;
+                    notify('Byl jsi poslední člen — cech byl rozpuštěn.');
+                    await loadUserData(); await nactiVseOkoloCechu(); return;
+                }
+                // Předej zakladatelství nejstaršímu členovi
+                const novyZakladatel = ostatni[0];
+                const batch3 = writeBatch(db);
+                batch3.update(doc(db, "cechy", cechId), { zakladatel: novyZakladatel.id });
+                batch3.update(novyZakladatel.ref, { cech_zakladatel: true });
+                batch3.update(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
+                await batch3.commit();
+                notify('Vedení cechu předáno hráči ' + novyZakladatel.data().prezdivka + '. Opustil jsi cech.');
+            } else {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: null, cech_zakladatel: false });
+                notify('Opustil jsi cech.');
+                // Zkontroluj jestli cech nezůstal prázdný
+                const zbyvajici = await getDocs(query(collection(db, "hraci"), where("cech_id", "==", cechId)));
+                if (zbyvajici.empty) {
+                    await deleteDoc(doc(db, "cechy", cechId));
+                }
+            }
+            userData.cech_id = null;
+            await loadUserData();
+            await nactiVseOkoloCechu();
+        });
+
+        $('btn-rozpustit-cech').addEventListener('click', async () => {
+            if (!confirm('Opravdu rozpustit celý cech? Všichni členové budou vyhozeni a veškerá data cechu smazána!')) return;
+            try {
+                const cechId = userData.cech_id;
+                // Najdi všechny členy a odeber jim cech_id
+                const clenoveSnanp = await getDocs(query(collection(db, "hraci"), where("cech_id", "==", cechId)));
+                const batch = writeBatch(db);
+                clenoveSnanp.forEach(d => {
+                    batch.update(d.ref, { cech_id: null, cech_zakladatel: false });
+                });
+                // Smaž aktivní války cechu
+                const valkySnap = await getDocs(query(collection(db, "valky"),
+                    where("utocnik_id", "==", cechId)));
+                const valkySnap2 = await getDocs(query(collection(db, "valky"),
+                    where("obrance_id", "==", cechId)));
+                valkySnap.forEach(d => batch.delete(d.ref));
+                valkySnap2.forEach(d => batch.delete(d.ref));
+                // Smaž cech
+                batch.delete(doc(db, "cechy", cechId));
+                await batch.commit();
+                userData.cech_id = null; userData.cech_zakladatel = false;
+                notify('Cech byl rozpuštěn.');
+                await loadUserData();
+                await nactiVseOkoloCechu();
+            } catch (e) { notify('Chyba: ' + e.message); }
+        });
+
+        $('btn-poslat-pozvanku').addEventListener('click', async () => {
+            const email = $('pozvanky-email-input').value.trim().toLowerCase();
+            if (!email) { notify('Zadej e-mail hráče!'); return; }
+            if (email === userData.email) { notify('Nemůžeš pozvat sám sebe!'); return; }
+
+            // Zkontroluj, zda hráč existuje
+            const q = query(collection(db, "hraci"), where("email", "==", email));
+            const snap = await getDocs(q);
+            if (snap.empty) { notify('Hráč s tímto e-mailem neexistuje.'); return; }
+
+            const hrac = snap.docs[0].data();
+            if (hrac.cech_id) { notify('Tento hráč je již v cechu.'); return; }
+
+            // Zkontroluj duplicitní pozvánku
+            const qP = query(collection(db, "pozvanky"), where("cilovy_email", "==", email), where("cech_id", "==", userData.cech_id));
+            const snapP = await getDocs(qP);
+            if (!snapP.empty) { notify('Tomuto hráči jsi už poslal pozvánku.'); return; }
+
+            const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+            await addDoc(collection(db, "pozvanky"), {
+                cilovy_email: email,
+                cech_id: userData.cech_id,
+                cech_nazev: cSnap.data().nazev,
+                od: userData.prezdivka,
+                cas: serverTimestamp()
+            });
+            $('pozvanky-email-input').value = '';
+            notify(`Pozvánka odeslána na ${email}!`);
+        });
+
+        async function prijmoutPozvanku(id, cId) {
+            try {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { cech_id: cId, cech_zakladatel: false });
+                await deleteDoc(doc(db, "pozvanky", id));
+                userData.cech_id = cId;
+                notify('Přijal jsi pozvánku do cechu!');
+                await loadUserData();
+                await nactiVseOkoloCechu();
+            } catch (e) { notify('Chyba: ' + e.message); }
+        }
+
+        // ─── CECHOVNÍ VÁLKY ───────────────────────────────────────────────────
+        async function nactiValky() {
+            const cechId = userData.cech_id;
+            if (!cechId) return;
+
+            // Načti války kde jsme útočník nebo bránce
+            const [qU, qO] = await Promise.all([
+                getDocs(query(collection(db, "valky"), where("utocnik_id", "==", cechId))),
+                getDocs(query(collection(db, "valky"), where("obrance_id", "==", cechId)))
+            ]);
+
+            const valky = [];
+            qU.forEach(d => valky.push({ id: d.id, ...d.data(), mujSmer: 'utocnik' }));
+            qO.forEach(d => valky.push({ id: d.id, ...d.data(), mujSmer: 'obrance' }));
+
+            const box = $('panel-valky');
+            const aktivni = valky.filter(v => v.stav === 'aktivni');
+            const cekajici = valky.filter(v => v.stav === 'ceka');
+
+            // Ukážeme selector pro vyhlášení války, pokud nemáme aktivní válku — pro VŠECHNY členy cechu
+            if (aktivni.length === 0) {
+                show('panel-vyhlasit-valku');
+                await nactiCechyProValku(cechId);
+            } else {
+                hide('panel-vyhlasit-valku');
+            }
+
+            if (valky.length === 0) {
+                box.innerHTML = '<div class="text-gray-600 italic text-xs text-center py-1">Žádné aktivní ani čekající války.</div>';
+                return;
+            }
+
+            box.innerHTML = '';
+            for (const v of [...aktivni, ...cekajici]) {
+                // Zjisti jméno soupeře
+                const soupeřId = v.mujSmer === 'utocnik' ? v.obrance_id : v.utocnik_id;
+                const soupeřSnap = await getDoc(doc(db, "cechy", soupeřId));
+                const soupeřNazev = soupeřSnap.exists() ? soupeřSnap.data().nazev : 'Neznámý cech';
+
+                const nashBodu = v.mujSmer === 'utocnik' ? (v.utocnik_bodu ?? 0) : (v.obrance_bodu ?? 0);
+                const jichBodu = v.mujSmer === 'utocnik' ? (v.obrance_bodu ?? 0) : (v.utocnik_bodu ?? 0);
+                const totalBodu = nashBodu + jichBodu || 1;
+                const nashPct = Math.round(nashBodu / totalBodu * 100);
+                const jichPct = 100 - nashPct;
+
+                const konecTs = v.konec?.toDate ? v.konec.toDate() : null;
+                const konecStr = konecTs ? konecTs.toLocaleDateString('cs-CZ') : '—';
+
+                const card = document.createElement('div');
+                card.className = 'war-card fade-in';
+                // Tlačítko přijmout výzvu vidí jakýkoliv člen obranného cechu
+                const muzePrijmout = v.stav === 'ceka' && v.mujSmer === 'obrance';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-orange-400 font-bold">⚔️ vs. ${soupeřNazev}</span>
+                        <span class="text-[10px] ${v.stav === 'aktivni' ? 'text-green-400' : 'text-yellow-500'}">
+                            ${v.stav === 'aktivni' ? '🔥 Aktivní' : '⏳ Čeká na přijetí'}
+                        </span>
+                    </div>
+                    ${v.stav === 'aktivni' ? `
+                    <div class="war-progress-bar mb-1">
+                        <div class="war-bar-left" style="width:${nashPct}%"></div>
+                        <div class="war-bar-right" style="width:${jichPct}%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>My: ${nashBodu} bodů</span>
+                        <span>Cíl: ${v.cil_bodu ?? VALKA_CIL_BODU}</span>
+                        <span>Oni: ${jichBodu} bodů</span>
+                    </div>
+                    <div class="text-[10px] text-gray-600 mt-1">Konec: ${konecStr}</div>
+                    ` : ''}
+                    ${muzePrijmout ? `
+                    <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${v.id}">⚔️ Přijmout výzvu</button>
+                    ` : ''}
+                `;
+
+                // Přijmout výzvu
+                const prijmBtn = card.querySelector('[data-vid]');
+                if (prijmBtn) {
+                    prijmBtn.addEventListener('click', () => prijmoutValku(v.id));
+                }
+
+                box.appendChild(card);
+            }
+        }
+
+        async function nactiCechyProValku(mojeCechId) {
+            const q = query(collection(db, "cechy"), orderBy("skore", "desc"), limit(20));
+            const snap = await getDocs(q);
+            const sel = $('select-rival-cech');
+            sel.innerHTML = '<option value="">— Vyber soupeřský cech —</option>';
+            snap.docs.forEach(d => {
+                if (d.id === mojeCechId) return;
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = `${d.data().nazev} (${d.data().skore ?? 0} 🍺)`;
+                sel.appendChild(opt);
+            });
+        }
+
+        $('btn-vyhlasit-valku').addEventListener('click', async () => {
+            const rivalId = $('select-rival-cech').value;
+            if (!rivalId) { notify('Vyber soupeřský cech!'); return; }
+            if (!confirm('Opravdu vyhlásit válku? Soupeř ji musí přijmout.')) return;
+
+            // Zkontroluj, zda už válka neexistuje
+            const check1 = await getDocs(query(collection(db, "valky"),
+                where("utocnik_id", "==", userData.cech_id),
+                where("obrance_id", "==", rivalId)));
+            if (!check1.empty) { notify('Tomuto cechu jsi již vyhlásil válku!'); return; }
+
+            try {
+                const konec = new Date();
+                konec.setDate(konec.getDate() + VALKA_TRVANI_DNI);
+                await addDoc(collection(db, "valky"), {
+                    utocnik_id: userData.cech_id,
+                    obrance_id: rivalId,
+                    utocnik_bodu: 0,
+                    obrance_bodu: 0,
+                    stav: 'ceka', // čeká na přijetí
+                    cil_bodu: VALKA_CIL_BODU,
+                    zahajeno: serverTimestamp(),
+                    konec: Timestamp.fromDate(konec)
+                });
+                notify('Válka vyhlášena! Soupeř ji musí přijmout.');
+                await nactiValky();
+            } catch (e) { notify('Chyba: ' + e.message); }
+        });
+
+        async function prijmoutValku(valkaId) {
+            if (!confirm('Přijmout výzvu k válce?')) return;
+            await updateDoc(doc(db, "valky", valkaId), { stav: 'aktivni' });
+            notify('Válka přijata! Ať začne boj! ⚔️');
+            await nactiValky();
+        }
+
+        async function pripoctiValecneBody(hospoda) {
+            if (!userData.cech_id) return;
+            // Najdi aktivní válku
+            const [q1, q2] = await Promise.all([
+                getDocs(query(collection(db, "valky"),
+                    where("utocnik_id", "==", userData.cech_id),
+                    where("stav", "==", "aktivni"))),
+                getDocs(query(collection(db, "valky"),
+                    where("obrance_id", "==", userData.cech_id),
+                    where("stav", "==", "aktivni")))
+            ]);
+
+            const valky = [];
+            q1.forEach(d => valky.push({ id: d.id, smer: 'utocnik' }));
+            q2.forEach(d => valky.push({ id: d.id, smer: 'obrance' }));
+
+            for (const v of valky) {
+                const pole = v.smer === 'utocnik' ? 'utocnik_bodu' : 'obrance_bodu';
+                const vSnap = await getDoc(doc(db, "valky", v.id));
+                const vData = vSnap.data();
+
+                // Zkontroluj konec platnosti
+                if (vData.konec?.toDate && vData.konec.toDate() < new Date()) {
+                    // Válka vypršela – vyhodnoť
+                    await vyhodnotValku(v.id, vData);
+                    continue;
+                }
+
+                const novyBod = (vData[pole] ?? 0) + 1;
+                const updateData = { [pole]: novyBod };
+
+                // Kontrola vítěze
+                if (novyBod >= (vData.cil_bodu ?? VALKA_CIL_BODU)) {
+                    updateData.stav = 'skoncila';
+                    updateData.vitez = userData.cech_id;
+                    await updateDoc(doc(db, "valky", v.id), updateData);
+                    // Odměna
+                    await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(10) });
+                    notify('🏆 Váš cech vyhrál válku! +10 bonusových bodů!');
+                } else {
+                    await updateDoc(doc(db, "valky", v.id), updateData);
+                }
+            }
+        }
+
+        async function vyhodnotValku(valkaId, vData) {
+            const vitez = (vData.utocnik_bodu ?? 0) >= (vData.obrance_bodu ?? 0)
+                ? vData.utocnik_id : vData.obrance_id;
+            await updateDoc(doc(db, "valky", valkaId), { stav: 'skoncila', vitez });
+            await updateDoc(doc(db, "cechy", vitez), { skore: increment(5) });
+        }
+
+        // ─── SÍŇ SLÁVY ───────────────────────────────────────────────────────
+        async function nactiSinSlavy() {
+            show('sin-loading');
+            hide('sin-obsah');
+
+            try {
+                // 1. Top hráči podle XP
+                const snapHraci = await getDocs(
+                    query(collection(db, "hraci"), orderBy("xp", "desc"), limit(10))
+                );
+                const radkyHraci = snapHraci.docs.map((d, i) => {
+                    const h = d.data();
+                    const isMe = d.id === currentUser.uid;
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                    const jmeno = isMe
+                        ? `${h.prezdivka ?? '—'} 👈`
+                        : `<span class="profil-link" onclick="otevritProfil('${d.id}')">${h.prezdivka ?? '—'}</span>`;
+                    return `<div class="sin-row${isMe ? ' me' : ''}">
+                        <span>${medal} ${jmeno}</span>
+                        <span class="text-yellow-500">${h.xp ?? 0} XP</span>
+                    </div>`;
+                });
+                // Najdi moji pozici pokud nejsem v top 10
+                let mojePoziceHrac = '';
+                if (!snapHraci.docs.find(d => d.id === currentUser.uid)) {
+                    const vsichniSnap = await getDocs(
+                        query(collection(db, "hraci"), orderBy("xp", "desc"))
+                    );
+                    const idx = vsichniSnap.docs.findIndex(d => d.id === currentUser.uid);
+                    if (idx >= 0) {
+                        mojePoziceHrac = `<div class="sin-row me border-t border-yellow-900 mt-1 pt-1">
+                            <span>... ${idx+1}. ${userData.prezdivka} 👈</span>
+                            <span class="text-yellow-500">${userData.xp ?? 0} XP</span>
+                        </div>`;
+                    }
+                }
+                $('sin-hraci').innerHTML = radkyHraci.join('') + mojePoziceHrac;
+
+                // 2. Top cechy podle skóre
+                const snapCechy = await getDocs(
+                    query(collection(db, "cechy"), orderBy("skore", "desc"), limit(10))
+                );
+                const radkyCechy = snapCechy.docs.map((d, i) => {
+                    const c = d.data();
+                    const isMe = d.id === userData.cech_id;
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                    return `<div class="sin-row${isMe ? ' me' : ''}">
+                        <span>${medal} ${c.nazev}${isMe ? ' 🛡️' : ''}</span>
+                        <span class="text-yellow-500">${c.skore ?? 0} 🍺</span>
+                    </div>`;
+                });
+                if (radkyCechy.length === 0) radkyCechy.push('<div class="sin-row"><span class="text-gray-600 italic">Žádné cechy zatím.</span></div>');
+                $('sin-cechy').innerHTML = radkyCechy.join('');
+
+                // 3. Top piva globálně – agregujeme z log_piv všech hráčů
+                // Kvůli Firestore limitům čteme log ze subcollection group query
+                // (vyžaduje index "collectionGroup" – fallback na vsechna_piva statistiky)
+                // Místo toho použijeme kolekci "statistiky_piv" kterou plníme při zápisu
+                const snapPiva = await getDocs(
+                    query(collection(db, "statistiky_piv"), orderBy("pocet", "desc"), limit(10))
+                );
+                if (snapPiva.empty) {
+                    $('sin-piva').innerHTML = '<div class="sin-row"><span class="text-gray-600 italic">Data se shromažďují... zapiš první pivo!</span></div>';
+                } else {
+                    $('sin-piva').innerHTML = snapPiva.docs.map((d, i) => {
+                        const p = d.data();
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        return `<div class="sin-row">
+                            <span>${medal} ${d.id}</span>
+                            <span class="text-yellow-500">${p.pocet}× vypito</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                // 4. Top hospody globálně – ze statistiky_hospod
+                const snapHospody = await getDocs(
+                    query(collection(db, "statistiky_hospod"), orderBy("pocet", "desc"), limit(10))
+                );
+                if (snapHospody.empty) {
+                    $('sin-hospody').innerHTML = '<div class="sin-row"><span class="text-gray-600 italic">Data se shromažďují... zapiš první pivo!</span></div>';
+                } else {
+                    $('sin-hospody').innerHTML = snapHospody.docs.map((d, i) => {
+                        const h = d.data();
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        const nazev = h.nazev || d.id.replace(/_/g, '.'); // preferuj uložený název, fallback na ID
+                        return `<div class="sin-row">
+                            <span>${medal} ${nazev}</span>
+                            <span class="text-yellow-500">${h.pocet}× navštíveno</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                hide('sin-loading');
+                show('sin-obsah');
+            } catch (e) {
+                $('sin-loading').textContent = 'Chyba načítání: ' + e.message;
+            }
+        }
+
+
+
+
+        // ─── GLOBÁLNÍ LOG ─────────────────────────────────────────────────────
+        function formatGlobalLogItem(d) {
+            const z = d.data();
+            const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+            const casStr = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) + ' · ' + casObj.toLocaleDateString('cs-CZ') : '—';
+            const jmeno = z.hrac_uid === currentUser?.uid
+                ? `<span class="text-yellow-400 font-bold">${z.hrac_prezdivka}</span>`
+                : `<span class="profil-link" onclick="otevritProfil('${z.hrac_uid}')">${z.hrac_prezdivka}</span>`;
+            return `<div class="glog-item">
+                ${jmeno} <span class="text-gray-400">vypil</span> <span class="text-orange-300 font-bold">🍺 ${z.pivo || '—'}</span>
+                <span class="text-gray-500"> @ ${z.hospoda || '—'}</span>
+                <span class="block text-gray-600 text-[10px] mt-0.5">${casStr}</span>
+            </div>`;
+        }
+
+        async function nactiGlobalniLog() {
+            const box = $('global-log-box');
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "global_log"),
+                    orderBy("cas", "desc"),
+                    limit(5)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Zatím nikdo nic nevypil.</div>';
+                    return;
+                }
+                box.innerHTML = snap.docs.map(formatGlobalLogItem).join('');
+            } catch(e) {
+                box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Nelze načíst log.</div>';
+            }
+        }
+
+        async function nactiGlobalniLogFull() {
+            const box = $('global-log-modal-box');
+            box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Načítám...</div>';
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "global_log"),
+                    orderBy("cas", "desc"),
+                    limit(100)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-4">Zatím nikdo nic nevypil.</div>';
+                    return;
+                }
+                box.innerHTML = snap.docs.map(formatGlobalLogItem).join('');
+            } catch(e) {
+                box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + e.message + '</div>';
+            }
+        }
+
+        $('btn-global-log-vice').addEventListener('click', () => {
+            $('global-log-modal').classList.remove('hidden');
+            nactiGlobalniLogFull();
+        });
+
+        $('btn-zavrit-global-log').addEventListener('click', () => {
+            $('global-log-modal').classList.add('hidden');
+        });
+        window.zopakovatzapis = async (pivo, hospoda, posledniId) => {
+            if (!pivo || !hospoda) { notify('Chybí data záznamu!'); return; }
+            if (!userLatLng) { notify('Nejprve zjisti polohu na záložce Mapa.'); return; }
+            if (!currentPubLatLng) {
+                // Pokus se najít hospodu podle jména — uživatel musí být na mapě
+                notify('Přejdi na Mapu, klikni na hospodu "' + hospoda + '" a pak zkus znovu.');
+                return;
+            }
+
+            const dist = map.distance(userLatLng, currentPubLatLng);
+            if (dist > 150) {
+                notify('Jsi příliš daleko (' + Math.round(dist) + ' m). Musíš být v hospodě!');
+                return;
+            }
+
+            const pubNazev = $('pub-name-input').value.trim();
+            if (pubNazev && pubNazev !== hospoda) {
+                notify('Vybraná hospoda (' + pubNazev + ') se neshoduje s původní (' + hospoda + ').');
+                return;
+            }
+
+            if (!confirm('Zopakovat zápis: ' + pivo + ' @ ' + hospoda + '?')) return;
+
+            try {
+                const batch = writeBatch(db);
+                const logRef = doc(collection(db, "hraci", currentUser.uid, "log_piv"));
+                batch.set(logRef, { pivo, hospoda, cas: serverTimestamp() });
+                const gLogRef2 = doc(collection(db, "global_log"));
+                batch.set(gLogRef2, {
+                    pivo,
+                    hospoda,
+                    hrac_uid: currentUser.uid,
+                    hrac_prezdivka: userData.prezdivka || '—',
+                    cas: serverTimestamp()
+                });
+                const bezTecky = hospoda.replace(/\./g, '_');
+                batch.update(doc(db, "hraci", currentUser.uid), {
+                    xp: increment(100),
+                    ['dungeony.' + bezTecky]: increment(1)
+                });
+                await batch.commit();
+
+                // Statistiky
+                try { await setDoc(doc(db, "statistiky_piv", pivo), { pocet: increment(1) }, { merge: true }); } catch(e) {}
+                try { await setDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(1), nazev: hospoda }, { merge: true }); } catch(e) {}
+                if (userData.cech_id) {
+                    await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(1) });
+                    await pripoctiValecneBody(hospoda);
+                }
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7);
+                    try { await setDoc(doc(db, "kralovstvi", mesic + '_' + userData.kraj), { kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
+                    try { await setDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid), { uid: currentUser.uid, kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
+                }
+
+                notify('Zopakováno! +100 XP 🍺');
+                await loadUserData();
+            } catch(e) { notify('Chyba: ' + e.message); }
+        };
+
+        // ─── SMAZAT ZÁPIS ─────────────────────────────────────────────────────
+        window.smazatZapis = async (docId, docRef, z) => {
+            if (!confirm('Smazat záznam: ' + (z.pivo || '—') + ' @ ' + (z.hospoda || '—') + '? Odečte -100 XP a odstraní záznam ze statistik.')) return;
+
+            try {
+                const batch = writeBatch(db);
+
+                // 1. Smaž log záznam
+                batch.delete(docRef);
+
+                // 2. Odečti XP a dungeon návštěvu
+                const bezTecky = (z.hospoda || '').replace(/\./g, '_');
+                const hracRef = doc(db, "hraci", currentUser.uid);
+                const hracOpravy = { xp: increment(-100) };
+                if (z.hospoda) {
+                    const aktualni = (userData.dungeony && userData.dungeony[bezTecky]) || 0;
+                    if (aktualni > 1) {
+                        // Odečti návštěvu
+                        hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                    } else if (aktualni === 1) {
+                        // Poslední návštěva — smaž klíč úplně (FieldValue.delete není v batch, použijeme updateDoc po commitu)
+                        hracOpravy['dungeony.' + bezTecky] = increment(-1);
+                    }
+                }
+                batch.update(hracRef, hracOpravy);
+
+                await batch.commit();
+
+                // 3. Globální statistiky (mimo batch)
+                if (z.pivo) {
+                    try {
+                        const pivSnap = await getDoc(doc(db, "statistiky_piv", z.pivo));
+                        if (pivSnap.exists() && (pivSnap.data().pocet || 0) > 1) {
+                            await updateDoc(doc(db, "statistiky_piv", z.pivo), { pocet: increment(-1) });
+                        } else if (pivSnap.exists()) {
+                            await deleteDoc(doc(db, "statistiky_piv", z.pivo));
+                        }
+                    } catch(e) {}
+                }
+                if (z.hospoda) {
+                    try {
+                        const hospSnap = await getDoc(doc(db, "statistiky_hospod", bezTecky));
+                        if (hospSnap.exists() && (hospSnap.data().pocet || 0) > 1) {
+                            await updateDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(-1) });
+                        } else if (hospSnap.exists()) {
+                            await deleteDoc(doc(db, "statistiky_hospod", bezTecky));
+                        }
+                    } catch(e) {}
+                }
+
+                // 4. Cech skóre
+                if (userData.cech_id) {
+                    try {
+                        const cechSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+                        if (cechSnap.exists() && (cechSnap.data().skore || 0) > 0) {
+                            await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(-1) });
+                        }
+                    } catch(e) {}
+                }
+
+                // 5. Krajová válka
+                if (userData.kraj) {
+                    const mesic = new Date().toISOString().slice(0, 7);
+                    try {
+                        const hkRef = doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid);
+                        const hkSnap = await getDoc(hkRef);
+                        if (hkSnap.exists() && (hkSnap.data().piv || 0) > 0) {
+                            await updateDoc(hkRef, { piv: increment(-1) });
+                            const kRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                            const kSnap = await getDoc(kRef);
+                            if (kSnap.exists() && (kSnap.data().piv || 0) > 0) {
+                                await updateDoc(kRef, { piv: increment(-1) });
+                            }
+                        }
+                    } catch(e) {}
+                }
+
+                // Pokud hospodský počet klesl na 0, smaž klíč z dungeony mapy
+                if (z.hospoda) {
+                    const bezTecky2 = (z.hospoda || '').replace(/\./g, '_');
+                    const aktualni2 = (userData.dungeony && userData.dungeony[bezTecky2]) || 0;
+                    if (aktualni2 <= 1) {
+                        try {
+                                await updateDoc(doc(db, "hraci", currentUser.uid), {
+                                ['dungeony.' + bezTecky2]: deleteField()
+                            });
+                        } catch(e) {}
+                    }
+                }
+
+                notify('Záznam smazán. -100 XP.');
+                await loadUserData();
+
+            } catch(e) { notify('Chyba: ' + e.message); }
+        };
+
+        // ─── EDITACE PROFILU ──────────────────────────────────────────────────
+        window.toggleEditProfil = () => {
+            const ed = $('profil-editace');
+            const isHidden = ed.classList.contains('hidden');
+            ed.classList.toggle('hidden', !isHidden);
+            $('btn-profil-toggle').textContent = isHidden ? 'Zavřít' : 'Upravit';
+        };
+
+        function vykresliEditProfil() {
+            $('muj-avatar-display').textContent = userData.avatar || '⚔️';
+            $('muj-nick-display').textContent = userData.prezdivka || '—';
+            $('muj-bio-display').textContent = userData.bio || '';
+            $('muj-kraj-display').textContent = userData.kraj ? '📍 ' + userData.kraj : 'Kraj nezvolén';
+
+            // Nastav hodnoty formuláře
+            $('edit-prezdivka').value = userData.prezdivka || '';
+            $('edit-bio').value = userData.bio || '';
+            $('edit-kraj').value = userData.kraj || '';
+
+            // Avatar výběr
+            document.querySelectorAll('.avatar-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.avatar === (userData.avatar || '⚔️'));
+                el.onclick = () => {
+                    document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+                    el.classList.add('selected');
+                };
+            });
+        }
+
+        $('btn-ulozit-profil').addEventListener('click', async () => {
+            const novyNick = $('edit-prezdivka').value.trim();
+            const noveBio = $('edit-bio').value.trim();
+            const novyKraj = $('edit-kraj').value;
+            const novyAvatar = document.querySelector('.avatar-option.selected')?.dataset.avatar || userData.avatar || '⚔️';
+            const soucasneHeslo = $('edit-heslo-soucasne').value;
+            const noveHeslo = $('edit-heslo-nove').value;
+
+            if (!novyNick) { notify('Přezdívka nesmí být prázdná!'); return; }
+
+            try {
+                $('btn-ulozit-profil').disabled = true;
+                $('btn-ulozit-profil').textContent = '⏳ Ukládám...';
+
+                const opravy = {
+                    prezdivka: novyNick,
+                    bio: noveBio,
+                    avatar: novyAvatar
+                };
+
+                // Změna kraje — vymaže body v aktuální krajské válce
+                if (novyKraj !== (userData.kraj || '')) {
+                    if (userData.kraj && novyKraj) {
+                        if (!confirm('Změna kraje vymaže tvůj příspěvek v aktuální krajské válce. Pokračovat?')) {
+                            $('btn-ulozit-profil').disabled = false;
+                            $('btn-ulozit-profil').textContent = '💾 Uložit profil';
+                            return;
+                        }
+                    }
+                    // Vymaz příspěvek v aktuálním měsíci
+                    if (userData.kraj) {
+                        const mesic = new Date().toISOString().slice(0, 7);
+                        try {
+                            await deleteDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid));
+                            // Odečti od krajského součtu
+                            const krajRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
+                            const krajSnap = await getDoc(krajRef);
+                            if (krajSnap.exists()) {
+                                const staryPrispevek = (await getDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid)))?.data()?.piv || 0;
+                                if (staryPrispevek > 0) {
+                                    await updateDoc(krajRef, { piv: increment(-staryPrispevek) });
+                                }
+                            }
+                        } catch(e) { console.warn('Mazání kraj příspěvku:', e); }
+                    }
+                    opravy.kraj = novyKraj;
+                }
+
+                await updateDoc(doc(db, "hraci", currentUser.uid), opravy);
+                Object.assign(userData, opravy);
+
+                // Změna hesla
+                if (soucasneHeslo && noveHeslo) {
+                    if (noveHeslo.length < 6) { notify('Nové heslo musí mít alespoň 6 znaků!'); return; }
+                    try {
+                        const credential = EmailAuthProvider.credential(currentUser.email, soucasneHeslo);
+                        await reauthenticateWithCredential(currentUser, credential);
+                        await updatePassword(currentUser, noveHeslo);
+                        $('edit-heslo-soucasne').value = '';
+                        $('edit-heslo-nove').value = '';
+                        notify('Profil i heslo uloženy! ✓');
+                    } catch(eHeslo) {
+                        if (eHeslo.code === 'auth/wrong-password') {
+                            notify('Současné heslo je špatně!');
+                        } else {
+                            notify('Chyba změny hesla: ' + eHeslo.message);
+                        }
+                        return;
+                    }
+                } else {
+                    notify('Profil uložen! ✓');
+                }
+
+                vykresliHeader();
+                vykresliEditProfil();
+                toggleEditProfil();
+
+            } catch(e) {
+                notify('Chyba: ' + e.message);
+            } finally {
+                $('btn-ulozit-profil').disabled = false;
+                $('btn-ulozit-profil').textContent = '💾 Uložit profil';
+            }
+        });
+
+        // ─── SLEDOVÁNÍ ────────────────────────────────────────────────────────
+        async function nactiSledovane() {
+            const box = $('seznam-sledovanych');
+            const sledovani = userData.sledovani || [];
+            if (sledovani.length === 0) {
+                box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Zatím nikoho nesleduješ.</div>';
+                return;
+            }
+            box.innerHTML = '<div class="text-gray-500 italic text-center py-1">Načítám...</div>';
+            const rows = [];
+            for (const uid of sledovani) {
+                try {
+                    const snap = await getDoc(doc(db, "hraci", uid));
+                    if (!snap.exists()) continue;
+                    const h = snap.data();
+                    const { lvl } = xpLevel(h.xp || 0);
+                    rows.push('<div class="flex justify-between items-center py-1">' +
+                        '<span class="profil-link" onclick="otevritProfil(\'' + uid + '\')">'+
+                        (h.avatar || '⚔️') + ' ' + (h.prezdivka || '—') +
+                        '</span>' +
+                        '<span class="text-gray-500">Úr. ' + lvl + '</span>' +
+                        '</div>');
+                } catch(e) {}
+            }
+            box.innerHTML = rows.length ? rows.join('') : '<div class="text-gray-600 italic text-center py-2">Žádní sledovaní.</div>';
+        }
+
+        // ─── KRÁLOVSTVÍ ───────────────────────────────────────────────────────
+        window.kliknoutKraj = (kraj) => {
+            notify('Kraj: ' + kraj + ' — statistiky načteny v žebříčku.');
+        };
+
+        async function nactiKralovstvi() {
+            const mesic = new Date().toISOString().slice(0, 7);
+
+            // Nastav info o resetu
+            const pristiMesic = new Date();
+            pristiMesic.setMonth(pristiMesic.getMonth() + 1);
+            pristiMesic.setDate(1);
+            $('kral-reset-info').textContent = 'Aktuální kolo: ' + mesic + '  ·  Reset: 1. ' +
+                pristiMesic.toLocaleDateString('cs-CZ', {month:'long', year:'numeric'});
+
+            if (!userData.kraj) {
+                show('kral-bez-kraje');
+                hide('kral-obsah');
+                return;
+            }
+            hide('kral-bez-kraje');
+            show('kral-obsah');
+
+            $('kral-muj-kraj').textContent = '📍 ' + userData.kraj;
+
+            // Načti příspěvek hráče
+            try {
+                const hracKrajSnap = await getDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid));
+                const mojePiv = hracKrajSnap.exists() ? (hracKrajSnap.data().piv || 0) : 0;
+                $('kral-muj-prispevek').textContent = mojePiv + ' piv';
+            } catch(e) {}
+
+            // Načti všechny kraje v aktuálním měsíci
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "kralovstvi"),
+                    where("mesic", "==", mesic),
+                    orderBy("piv", "desc")
+                ));
+
+                // Načti celkový počet piv pro kraj přihlášeného hráče
+                const mojKrajDoc = snap.docs.find(d => d.data().kraj === userData.kraj);
+                $('kral-moje-piva').textContent = (mojKrajDoc ? mojKrajDoc.data().piv : 0) + ' 🍺';
+
+                // Žebříček
+                const box = $('kral-zebricek');
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center text-xs py-2">Zatím žádná piva. Začni psát za svůj kraj!</div>';
+                } else {
+                    const max = snap.docs[0].data().piv || 1;
+                    box.innerHTML = snap.docs.map((d, i) => {
+                        const k = d.data();
+                        const isMe = k.kraj === userData.kraj;
+                        const pct = Math.round((k.piv / max) * 100);
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
+                        return '<div class="kraj-card' + (isMe ? ' border-yellow-600' : '') + '">' +
+                            '<div class="flex justify-between items-center">' +
+                            '<span class="text-sm ' + (isMe ? 'text-yellow-400 font-bold' : 'text-gray-300') + '">' + medal + ' ' + k.kraj + (isMe ? ' 👈' : '') + '</span>' +
+                            '<span class="text-yellow-500 font-bold">' + k.piv + ' 🍺</span>' +
+                            '</div>' +
+                            '<div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:' + pct + '%"></div></div>' +
+                            '</div>';
+                    }).join('');
+                }
+
+                // Aktualizuj SVG mapu
+                snap.docs.forEach(d => {
+                    const k = d.data();
+                    const maxPiv = snap.docs[0].data().piv || 1;
+                    const intenzita = Math.min(k.piv / maxPiv, 1);
+                    // Obarvi kraj na mapě
+                    const g = document.querySelector('[data-kraj="' + k.kraj + '"]');
+                    if (g) {
+                        const rect = g.querySelector('rect, circle');
+                        if (rect) {
+                            const r = Math.round(26 + intenzita * 100);
+                            const g2 = Math.round(26 + intenzita * 60);
+                            rect.setAttribute('fill', 'rgb(' + r + ',' + g2 + ',14)');
+                        }
+                        const txt = g.querySelector('.kraj-piva-text');
+                        if (txt) txt.textContent = k.piv + ' 🍺';
+                    }
+                });
+
+            } catch(e) {
+                $('kral-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání: ' + e.message + '</div>';
+            }
+        }
+
+        // ─── HRÁČSKÝ PROFIL ───────────────────────────────────────────────────
+        window.zavritProfilModal = () => {
+            $('profil-modal-overlay').classList.add('hidden');
+        };
+
+        window.otevritProfil = async (uid) => {
+            $('profil-modal-overlay').classList.remove('hidden');
+            $('profil-loading').classList.remove('hidden');
+            $('profil-nazev').textContent = '—';
+            $('profil-akce').classList.add('hidden');
+
+            try {
+                const snap = await getDoc(doc(db, "hraci", uid));
+                if (!snap.exists()) { $('profil-loading').textContent = 'Hráč nenalezen.'; return; }
+                const h = snap.data();
+                const { lvl, prog } = xpLevel(h.xp || 0);
+
+                $('profil-nazev').textContent = h.prezdivka || '—';
+                $('profil-level').textContent = `Úroveň ${lvl}`;
+                $('profil-level-num').textContent = lvl;
+                $('profil-xp').textContent = `${h.xp || 0} XP`;
+                $('profil-xp-bar').style.width = prog + '%';
+
+                // Avatar podle levelu
+                const avatary = ['🍺','⚔️','🛡️','🏆','👑','🐉','🌟','💀','🔥','⚡'];
+                $('profil-avatar').textContent = avatary[Math.min(lvl - 1, avatary.length - 1)];
+
+                // Cech badge
+                if (h.cech_id) {
+                    const cSnap = await getDoc(doc(db, "cechy", h.cech_id));
+                    if (cSnap.exists()) {
+                        $('profil-cech-badge').textContent = `🛡️ ${cSnap.data().nazev}`;
+                        $('profil-cech-badge').classList.remove('hidden');
+                    }
+                } else {
+                    $('profil-cech-badge').classList.add('hidden');
+                }
+
+                // Statistiky z log_piv
+                const logSnap = await getDocs(query(
+                    collection(db, "hraci", uid, "log_piv"),
+                    orderBy("cas", "desc"), limit(500)
+                ));
+                const pocetPiv = logSnap.size;
+                const pocetHospod = Object.keys(h.dungeony || {}).length;
+                $('profil-pocet-piv').textContent = pocetPiv;
+                $('profil-pocet-hospod').textContent = pocetHospod;
+
+                // Oblíbené pivo
+                const poctyPiv = {};
+                logSnap.docs.forEach(d => {
+                    const p = d.data().pivo;
+                    if (p) poctyPiv[p] = (poctyPiv[p] || 0) + 1;
+                });
+                const oblPivo = Object.entries(poctyPiv).sort((a,b) => b[1]-a[1])[0];
+                $('profil-oblibene-pivo').textContent = oblPivo ? `${oblPivo[0]} (${oblPivo[1]}×)` : '—';
+
+                // Oblíbená hospoda
+                const dungeony = h.dungeony || {};
+                const oblHosp = Object.entries(dungeony).sort((a,b) => b[1]-a[1])[0];
+                $('profil-oblibena-hospoda').textContent = oblHosp
+                    ? `${oblHosp[0].replace(/_/g, '.')} (${oblHosp[1]}×)` : '—';
+
+                // Akce — Follow button
+                $('profil-akce').classList.remove('hidden');
+                const btnFollow = $('profil-btn-follow');
+                if (uid !== currentUser.uid) {
+                    btnFollow.classList.remove('hidden');
+                    const sledovani = userData.sledovani || [];
+                    const jizSleduju = sledovani.includes(uid);
+                    btnFollow.textContent = jizSleduju ? '✓ Sleduji' : '➕ Sledovat';
+                    btnFollow.className = 'follow-btn w-full py-2 ' + (jizSleduju ? 'sleduju' : 'nesleduju');
+                    btnFollow.onclick = async () => {
+                        const sledovaniAktualni = userData.sledovani || [];
+                        const uzSleduju = sledovaniAktualni.includes(uid);
+                        let novySeznam;
+                        if (uzSleduju) {
+                            novySeznam = sledovaniAktualni.filter(x => x !== uid);
+                        } else {
+                            novySeznam = [...sledovaniAktualni, uid];
+                        }
+                        await updateDoc(doc(db, "hraci", currentUser.uid), { sledovani: novySeznam });
+                        userData.sledovani = novySeznam;
+                        btnFollow.textContent = uzSleduju ? '➕ Sledovat' : '✓ Sleduji';
+                        btnFollow.className = 'follow-btn w-full py-2 ' + (uzSleduju ? 'nesleduju' : 'sleduju');
+                        notify(uzSleduju ? 'Přestal jsi sledovat hráče.' : 'Sleduješ hráče ' + (h.prezdivka || '') + '!');
+                    };
+                } else {
+                    btnFollow.classList.add('hidden');
+                }
+
+                // Akce — pozvat do cechu (jen zakladatel, hráč není v cechu)
+                const btnPozvat = $('profil-btn-pozvat');
+                if (userData.cech_zakladatel && !h.cech_id && uid !== currentUser.uid) {
+                    btnPozvat.classList.remove('hidden');
+                    btnPozvat.onclick = async () => {
+                        const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
+                        await addDoc(collection(db, "pozvanky"), {
+                            cilovy_email: h.email,
+                            cech_id: userData.cech_id,
+                            cech_nazev: cSnap.data().nazev,
+                            od: userData.prezdivka,
+                            cas: serverTimestamp()
+                        });
+                        notify(`Pozvánka odeslána hráči ${h.prezdivka}!`);
+                        btnPozvat.disabled = true;
+                        btnPozvat.textContent = '✓ Odesláno';
+                    };
+                } else {
+                    btnPozvat.classList.add('hidden');
+                }
+
+                $('profil-loading').classList.add('hidden');
+            } catch(e) {
+                $('profil-loading').textContent = 'Chyba: ' + e.message;
+            }
+        };
+
+    </script>
 </body>
 </html>
