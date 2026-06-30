@@ -2734,11 +2734,11 @@
             const dnyNazvy = ['Ne','Po','Út','St','Čt','Pá','So'];
             const nejDenIdx = dnyTydne.indexOf(Math.max(...dnyTydne));
 
-            // Průměr piv / týden
+            // Průměr piv / týden — od prvního zápisu do DNEŠKA (inaktivita průměr snižuje)
             let prumerTyden = 0;
-            if (serazene.length >= 2) {
-                const prvni = new Date(serazene[0]), posledni = new Date(serazene[serazene.length-1]);
-                const tydny = Math.max(1, (posledni - prvni) / (7 * 86400000));
+            if (serazene.length >= 1) {
+                const prvni = new Date(serazene[0]);
+                const tydny = Math.max(1, (Date.now() - prvni) / (7 * 86400000));
                 prumerTyden = (logDocs.length / tydny).toFixed(1);
             }
 
