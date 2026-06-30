@@ -634,22 +634,28 @@
 
             <!-- TAB: PIVA -->
             <div id="obsah-piva" class="hidden">
-                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🍺 Encyklopedie moků</h3>
-                <p class="text-xs text-gray-500 mb-4">Všechna piva ohodnoť hvězdičkami — tvoje hodnocení se počítá do průměru</p>
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🍺 Moje moky</h3>
+                <p class="text-xs text-gray-500 mb-3">Hodnoť hvězdičkami — každý mok nebo dungeon jednou, tvoje hodnocení se počítá do průměru</p>
 
-                <!-- Hledání + řazení -->
+                <!-- Toggle Piva / Hospody -->
                 <div class="flex gap-2 mb-3">
-                    <input id="piva-search" type="text" placeholder="🔍 Hledat pivo..." class="flex-grow p-2 text-sm" style="background:rgba(0,0,0,0.4);border:2px solid #5a4a2a;border-radius:10px;color:#fff;font-family:'Fredoka',sans-serif;outline:none;">
+                    <button id="piva-typ-piva"    class="piva-sort-btn active flex-1" onclick="setPivaTyp('piva')">🍺 Piva</button>
+                    <button id="piva-typ-hospody" class="piva-sort-btn flex-1"        onclick="setPivaTyp('hospody')">🏰 Hospody</button>
                 </div>
+
+                <!-- Hledání -->
+                <input id="piva-search" type="text" placeholder="🔍 Hledat..." class="w-full p-2 text-sm mb-3" style="background:rgba(0,0,0,0.4);border:2px solid #5a4a2a;border-radius:10px;color:#fff;font-family:'Fredoka',sans-serif;outline:none;">
+
+                <!-- Řazení -->
                 <div class="flex gap-2 mb-4 flex-wrap">
                     <button id="sort-hodnoceni" class="piva-sort-btn active" onclick="setPivaSort('hodnoceni')">⭐ Hodnocení</button>
                     <button id="sort-vypitost"  class="piva-sort-btn"        onclick="setPivaSort('vypitost')">🍺 Nejvíce pito</button>
                     <button id="sort-abeceda"   class="piva-sort-btn"        onclick="setPivaSort('abeceda')">🔤 A–Z</button>
                 </div>
 
-                <div id="piva-loading" class="text-gray-500 italic text-sm text-center py-8">Načítám moky...</div>
+                <div id="piva-loading" class="text-gray-500 italic text-sm text-center py-8">Načítám...</div>
                 <div id="piva-seznam" class="space-y-2 hidden"></div>
-                <div id="piva-prazdno" class="hidden text-gray-600 italic text-sm text-center py-6">Žádné pivo nenalezeno.</div>
+                <div id="piva-prazdno" class="hidden text-gray-600 italic text-sm text-center py-6">Žádné záznamy nenalezeny.</div>
             </div>
 
             <!-- TAB: SÍŇ SLÁVY -->
@@ -2793,107 +2799,164 @@
 
         // ─── ZÁLOŽKA PIVA ─────────────────────────────────────────────────────────
 
-        let vsechnaPivaData = [];   // cache načtených piv
-        let pivaSort = 'hodnoceni'; // aktuální řazení
+        let vsechnaPivaData   = [];
+        let vsechnaHospodyData = [];
+        let pivaSort = 'hodnoceni';
+        let pivaTyp  = 'piva';     // 'piva' nebo 'hospody'
+
+        window.setPivaTyp = (typ) => {
+            pivaTyp = typ;
+            $('piva-typ-piva').classList.toggle('active',    typ === 'piva');
+            $('piva-typ-hospody').classList.toggle('active', typ === 'hospody');
+            $('piva-search').placeholder = typ === 'piva' ? '🔍 Hledat pivo...' : '🔍 Hledat hospodu...';
+            renderPivaSeznamu();
+        };
 
         window.setPivaSort = (typ) => {
             pivaSort = typ;
-            ['hodnoceni','vypitost','abeceda'].forEach(s => {
-                $(`sort-${s}`).classList.toggle('active', s === typ);
-            });
+            ['hodnoceni','vypitost','abeceda'].forEach(s =>
+                $(`sort-${s}`).classList.toggle('active', s === typ)
+            );
             renderPivaSeznamu();
         };
 
         async function nactiPivaTab() {
-            $('piva-loading').classList.remove('hidden');
-            $('piva-seznam').classList.add('hidden');
-            $('piva-prazdno').classList.add('hidden');
+            show('piva-loading');
+            hide('piva-seznam');
+            hide('piva-prazdno');
+            $('piva-search').value = '';
 
             try {
-                const snap = await getDocs(collection(db, "statistiky_piv"));
-                vsechnaPivaData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Načti hráčův log — jen unikátní piva/hospody co sám vypil
+                const logSnap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc")
+                ));
+
+                // Sestav mapy: název→počet
+                const pivMap  = {}, hospMap = {};
+                logSnap.docs.forEach(d => {
+                    const z = d.data();
+                    if (z.pivo)    pivMap[z.pivo]   = (pivMap[z.pivo]   || 0) + 1;
+                    if (z.hospoda) hospMap[z.hospoda] = (hospMap[z.hospoda] || 0) + 1;
+                });
+
+                // Načti aggregate statistiky (batch)
+                const [pivStats, hospStats] = await Promise.all([
+                    getDocs(collection(db, "statistiky_piv")),
+                    getDocs(collection(db, "statistiky_hospod"))
+                ]);
+                const pivStatsMap  = Object.fromEntries(pivStats.docs.map(d  => [d.id, d.data()]));
+                const hospStatsMap = Object.fromEntries(hospStats.docs.map(d => [d.id, d.data()]));
+
+                // Piva — jen to co hráč osobně vypil
+                vsechnaPivaData = Object.entries(pivMap).map(([nazev, mujPocet]) => ({
+                    id:                nazev,
+                    mujPocet,
+                    pocet:             pivStatsMap[nazev]?.pocet              || mujPocet,
+                    hodnoceni_prumerne: pivStatsMap[nazev]?.hodnoceni_prumerne || 0,
+                    hodnoceni_pocet:    pivStatsMap[nazev]?.hodnoceni_pocet    || 0,
+                    obrazek_url:        pivStatsMap[nazev]?.obrazek_url        || null
+                }));
+
+                // Hospody — jen ty co navštívil
+                vsechnaHospodyData = Object.entries(hospMap).map(([nazev, mujPocet]) => {
+                    const id = nazev.replace(/\./g, '_');
+                    const st = hospStatsMap[id] || hospStatsMap[nazev] || {};
+                    return {
+                        id,
+                        nazev,
+                        mujPocet,
+                        pocet:              st.pocet              || mujPocet,
+                        hodnoceni_prumerne: st.hodnoceni_prumerne || 0,
+                        hodnoceni_pocet:    st.hodnoceni_pocet    || 0,
+                    };
+                });
+
+                $('piva-search').oninput = renderPivaSeznamu;
                 renderPivaSeznamu();
 
-                // Live vyhledávání
-                $('piva-search').oninput = renderPivaSeznamu;
             } catch(e) {
                 $('piva-loading').textContent = 'Chyba načítání: ' + e.message;
+                $('piva-loading').classList.remove('hidden');
             }
         }
 
         function renderPivaSeznamu() {
             const hledani = $('piva-search').value.trim().toLowerCase();
-            let seznam = vsechnaPivaData.filter(p =>
-                !hledani || p.id.toLowerCase().includes(hledani)
+            const zdroj   = pivaTyp === 'piva' ? vsechnaPivaData : vsechnaHospodyData;
+
+            let seznam = zdroj.filter(p =>
+                !hledani || (p.nazev || p.id).toLowerCase().includes(hledani)
             );
 
-            // Řazení
             if (pivaSort === 'hodnoceni') {
                 seznam.sort((a, b) => {
-                    const aH = (a.hodnoceni_pocet || 0) > 0 ? (a.hodnoceni_prumerne || 0) : -1;
-                    const bH = (b.hodnoceni_pocet || 0) > 0 ? (b.hodnoceni_prumerne || 0) : -1;
+                    const aH = (a.hodnoceni_pocet||0) > 0 ? (a.hodnoceni_prumerne||0) : -1;
+                    const bH = (b.hodnoceni_pocet||0) > 0 ? (b.hodnoceni_prumerne||0) : -1;
                     return bH - aH;
                 });
             } else if (pivaSort === 'vypitost') {
-                seznam.sort((a, b) => (b.pocet || 0) - (a.pocet || 0));
+                seznam.sort((a, b) => (b.mujPocet||0) - (a.mujPocet||0));
             } else {
-                seznam.sort((a, b) => a.id.localeCompare(b.id, 'cs'));
+                seznam.sort((a, b) => (a.nazev||a.id).localeCompare(b.nazev||b.id, 'cs'));
             }
 
-            $('piva-loading').classList.add('hidden');
+            hide('piva-loading');
 
             if (seznam.length === 0) {
-                $('piva-seznam').classList.add('hidden');
-                $('piva-prazdno').classList.remove('hidden');
+                hide('piva-seznam');
+                show('piva-prazdno');
                 return;
             }
-
-            $('piva-prazdno').classList.add('hidden');
+            hide('piva-prazdno');
             const box = $('piva-seznam');
             box.classList.remove('hidden');
             box.innerHTML = '';
 
-            // Moje hodnocení z userData
-            const mojeHodnoceni = userData?.hodnoceni_piv || {};
+            const moje = pivaTyp === 'piva'
+                ? (userData?.hodnoceni_piv    || {})
+                : (userData?.hodnoceni_hospod || {});
 
-            seznam.forEach(pivo => {
-                const nazev    = pivo.id;
-                const pocet    = pivo.pocet || 0;
-                const prumerne = pivo.hodnoceni_prumerne || 0;
-                const hlasu    = pivo.hodnoceni_pocet || 0;
-                const mojeHv   = mojeHodnoceni[nazev] || 0;
+            seznam.forEach(item => {
+                const klic     = pivaTyp === 'piva' ? item.id : item.id;
+                const zobrazNazev = pivaTyp === 'piva' ? item.id : item.nazev;
+                const prumerne = item.hodnoceni_prumerne || 0;
+                const hlasu    = item.hodnoceni_pocet    || 0;
+                const mojeHv   = moje[klic] || 0;
 
-                const karta = document.createElement('div');
-                karta.className = 'pivo-karta fade-in';
+                const ikonaHtml = (pivaTyp === 'piva' && item.obrazek_url)
+                    ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
+                    : `<div class="pivo-ikona">${pivaTyp === 'piva' ? '🍺' : '🏰'}</div>`;
 
-                // Ikona / obrázek
-                const ikonaHtml = pivo.obrazek_url
-                    ? `<img src="${pivo.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
-                    : `<div class="pivo-ikona">🍺</div>`;
-
-                // Průměrné hvězdičky (zobrazovací, ne klikací)
                 const prumHtml = hlasu > 0
                     ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu} hlasů)</span>`
                     : `<span class="text-gray-600 text-[10px]">Zatím nehodnoceno</span>`;
 
+                const pocetLabel = pivaTyp === 'piva' ? `Vypito ${item.mujPocet}×` : `Navštíveno ${item.mujPocet}×`;
+
+                const karta = document.createElement('div');
+                karta.className = 'pivo-karta fade-in';
                 karta.innerHTML = `
                     ${ikonaHtml}
                     <div class="flex-grow min-w-0">
-                        <div class="pivo-nazev">${escapeHtml(nazev)}</div>
-                        <div class="pivo-meta">Vypito ${pocet}× · ${prumHtml}</div>
-                        <div class="hvezdicky" data-nazev="${escapeHtml(nazev)}">
+                        <div class="pivo-nazev">${escapeHtml(zobrazNazev)}</div>
+                        <div class="pivo-meta">${pocetLabel} · ${prumHtml}</div>
+                        <div class="hvezdicky">
                             ${[1,2,3,4,5].map(i => {
-                                const trida = i <= mojeHv ? 'hv moje' : i <= Math.round(prumerne) && hlasu > 0 ? 'hv filled' : 'hv prazdna';
-                                return `<span class="${trida}" data-stars="${i}" title="${i} hvězdičky">★</span>`;
+                                const t = i <= mojeHv ? 'hv moje'
+                                        : (i <= Math.round(prumerne) && hlasu > 0) ? 'hv filled'
+                                        : 'hv prazdna';
+                                return `<span class="${t}" data-stars="${i}">★</span>`;
                             }).join('')}
                         </div>
                         ${mojeHv > 0 ? `<div style="font-size:0.62rem;color:#f3a81e;margin-top:2px;">Tvé hodnocení: ${mojeHv}★</div>` : ''}
                     </div>`;
 
-                // Klik na hvězdičky
-                karta.querySelectorAll('.hvezdicky .hv').forEach(hvEl => {
+                karta.querySelectorAll('.hv').forEach(hvEl => {
                     hvEl.addEventListener('click', () => {
-                        hodnotitPivo(nazev, parseInt(hvEl.dataset.stars));
+                        if (pivaTyp === 'piva') hodnotitPolozku('pivo',   klic, parseInt(hvEl.dataset.stars));
+                        else                    hodnotitPolozku('hospoda', klic, parseInt(hvEl.dataset.stars));
                     });
                 });
 
@@ -2901,49 +2964,45 @@
             });
         }
 
-        async function hodnotitPivo(nazev, stars) {
+        async function hodnotitPolozku(typ, klic, stars) {
             if (!currentUser) return;
-            const mojeHodnoceni = userData?.hodnoceni_piv || {};
-            const stareHv = mojeHodnoceni[nazev] || 0;
+            const fieldPath = typ === 'pivo' ? 'hodnoceni_piv' : 'hodnoceni_hospod';
+            const kolekce   = typ === 'pivo' ? 'statistiky_piv' : 'statistiky_hospod';
+
+            const stareHv = (userData?.[fieldPath]?.[klic]) || 0;
 
             try {
-                // Načti aktuální aggregate z Firestore
-                const pivSnap = await getDoc(doc(db, "statistiky_piv", nazev));
-                let prumerne = pivSnap.exists() ? (pivSnap.data().hodnoceni_prumerne || 0) : 0;
-                let pocetHl  = pivSnap.exists() ? (pivSnap.data().hodnoceni_pocet    || 0) : 0;
+                const refSnap = await getDoc(doc(db, kolekce, klic));
+                let prumerne  = refSnap.exists() ? (refSnap.data().hodnoceni_prumerne || 0) : 0;
+                let pocetHl   = refSnap.exists() ? (refSnap.data().hodnoceni_pocet    || 0) : 0;
 
-                // Přepočítej průměr
                 if (stareHv > 0) {
-                    // Přepisuji existující hodnocení
                     prumerne = ((prumerne * pocetHl) - stareHv + stars) / pocetHl;
                 } else {
-                    // Nové hodnocení
                     prumerne = (prumerne * pocetHl + stars) / (pocetHl + 1);
-                    pocetHl += 1;
+                    pocetHl++;
                 }
-                prumerne = Math.round(prumerne * 10) / 10; // 1 des. místo
+                prumerne = Math.round(prumerne * 10) / 10;
 
-                // Ulož do Firestore (batch)
                 const batch = writeBatch(db);
-                batch.set(doc(db, "statistiky_piv", nazev),
+                batch.set(doc(db, kolekce, klic),
                     { hodnoceni_prumerne: prumerne, hodnoceni_pocet: pocetHl },
                     { merge: true }
                 );
                 batch.update(doc(db, "hraci", currentUser.uid), {
-                    [`hodnoceni_piv.${nazev}`]: stars
+                    [`${fieldPath}.${klic}`]: stars
                 });
                 await batch.commit();
 
-                // Aktualizuj lokální cache
-                if (!userData.hodnoceni_piv) userData.hodnoceni_piv = {};
-                userData.hodnoceni_piv[nazev] = stars;
-                const pivLocal = vsechnaPivaData.find(p => p.id === nazev);
-                if (pivLocal) {
-                    pivLocal.hodnoceni_prumerne = prumerne;
-                    pivLocal.hodnoceni_pocet    = pocetHl;
-                }
+                if (!userData[fieldPath]) userData[fieldPath] = {};
+                userData[fieldPath][klic] = stars;
 
-                notify(`Hodnocení uloženo: ${stars}★ pro ${nazev}`);
+                const cache = typ === 'pivo' ? vsechnaPivaData : vsechnaHospodyData;
+                const local = cache.find(p => p.id === klic);
+                if (local) { local.hodnoceni_prumerne = prumerne; local.hodnoceni_pocet = pocetHl; }
+
+                const zobraz = typ === 'pivo' ? klic : (vsechnaHospodyData.find(h=>h.id===klic)?.nazev || klic);
+                notify(`${stars}★ uloženo pro ${zobraz}`);
                 renderPivaSeznamu();
             } catch(e) { notify('Chyba: ' + e.message, 'err'); }
         }
