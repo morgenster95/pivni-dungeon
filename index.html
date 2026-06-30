@@ -2821,39 +2821,43 @@
         };
 
         async function nactiPivaTab() {
-            show('piva-loading');
+            $('piva-loading').style.cssText = 'display:block;color:#9a86a4;font-style:italic;font-size:0.85rem;text-align:center;padding:2rem 0;';
+            $('piva-loading').textContent = 'Načítám...';
             hide('piva-seznam');
             hide('piva-prazdno');
             $('piva-search').value = '';
+            $('piva-search').oninput = renderPivaSeznamu;
 
             try {
-                // Načti hráčův log — jen unikátní piva/hospody co sám vypil
-                const logSnap = await getDocs(query(
-                    collection(db, "hraci", currentUser.uid, "log_piv"),
-                    orderBy("cas", "desc")
-                ));
+                // Načti hráčův log — bez orderBy (nepotřebujeme pořadí, jen počty)
+                const logSnap = await getDocs(
+                    collection(db, "hraci", currentUser.uid, "log_piv")
+                );
 
                 // Sestav mapy: název→počet
                 const pivMap  = {}, hospMap = {};
                 logSnap.docs.forEach(d => {
                     const z = d.data();
-                    if (z.pivo)    pivMap[z.pivo]   = (pivMap[z.pivo]   || 0) + 1;
-                    if (z.hospoda) hospMap[z.hospoda] = (hospMap[z.hospoda] || 0) + 1;
+                    if (z.pivo)    pivMap[z.pivo]     = (pivMap[z.pivo]     || 0) + 1;
+                    if (z.hospoda) hospMap[z.hospoda]  = (hospMap[z.hospoda] || 0) + 1;
                 });
 
-                // Načti aggregate statistiky (batch)
-                const [pivStats, hospStats] = await Promise.all([
-                    getDocs(collection(db, "statistiky_piv")),
-                    getDocs(collection(db, "statistiky_hospod"))
-                ]);
-                const pivStatsMap  = Object.fromEntries(pivStats.docs.map(d  => [d.id, d.data()]));
-                const hospStatsMap = Object.fromEntries(hospStats.docs.map(d => [d.id, d.data()]));
+                // Načti aggregate statistiky — separátně aby jedna chyba nezastavila vše
+                let pivStatsMap = {}, hospStatsMap = {};
+                try {
+                    const pivStats = await getDocs(collection(db, "statistiky_piv"));
+                    pivStatsMap = Object.fromEntries(pivStats.docs.map(d => [d.id, d.data()]));
+                } catch(_) {}
+                try {
+                    const hospStats = await getDocs(collection(db, "statistiky_hospod"));
+                    hospStatsMap = Object.fromEntries(hospStats.docs.map(d => [d.id, d.data()]));
+                } catch(_) {}
 
                 // Piva — jen to co hráč osobně vypil
                 vsechnaPivaData = Object.entries(pivMap).map(([nazev, mujPocet]) => ({
                     id:                nazev,
                     mujPocet,
-                    pocet:             pivStatsMap[nazev]?.pocet              || mujPocet,
+                    pocet:             pivStatsMap[nazev]?.pocet               || mujPocet,
                     hodnoceni_prumerne: pivStatsMap[nazev]?.hodnoceni_prumerne || 0,
                     hodnoceni_pocet:    pivStatsMap[nazev]?.hodnoceni_pocet    || 0,
                     obrazek_url:        pivStatsMap[nazev]?.obrazek_url        || null
@@ -2867,18 +2871,19 @@
                         id,
                         nazev,
                         mujPocet,
-                        pocet:              st.pocet              || mujPocet,
-                        hodnoceni_prumerne: st.hodnoceni_prumerne || 0,
-                        hodnoceni_pocet:    st.hodnoceni_pocet    || 0,
+                        pocet:              st.pocet               || mujPocet,
+                        hodnoceni_prumerne: st.hodnoceni_prumerne  || 0,
+                        hodnoceni_pocet:    st.hodnoceni_pocet     || 0,
                     };
                 });
 
-                $('piva-search').oninput = renderPivaSeznamu;
+                $('piva-loading').style.display = 'none';
                 renderPivaSeznamu();
 
             } catch(e) {
-                $('piva-loading').textContent = 'Chyba načítání: ' + e.message;
-                $('piva-loading').classList.remove('hidden');
+                console.error('nactiPivaTab error:', e);
+                $('piva-loading').style.cssText = 'display:block;color:#e05a5a;font-size:0.8rem;text-align:center;padding:2rem 0;';
+                $('piva-loading').textContent = '⚠️ Chyba: ' + e.message;
             }
         }
 
@@ -2902,7 +2907,7 @@
                 seznam.sort((a, b) => (a.nazev||a.id).localeCompare(b.nazev||b.id, 'cs'));
             }
 
-            hide('piva-loading');
+            $('piva-loading').style.display = 'none';
 
             if (seznam.length === 0) {
                 hide('piva-seznam');
