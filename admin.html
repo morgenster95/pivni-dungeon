@@ -318,6 +318,43 @@
             </div>
         </div>
 
+        <!-- ── 6. SPRÁVA HODNOCENÍ PIV ──────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5" style="border-color:#4a3a26;">
+            <h2 class="text-xl text-orange-400 fantasy-font mb-1">⭐ Správa hodnocení piv</h2>
+            <p class="text-xs text-gray-500 mb-5">Inicializace polí pro nová piva a reset hodnocení konkrétního piva.</p>
+
+            <div class="space-y-4">
+
+                <!-- Migrace hodnocení -->
+                <div class="tool-card">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1" style="font-family:'Baloo 2',sans-serif;">🔧 Inicializovat hodnocení piv</div>
+                            <div class="text-xs text-gray-400">Projde všechna piva v <code class="text-yellow-600">statistiky_piv</code> a doplní chybějící pole <code class="text-yellow-600">hodnoceni_prumerne: 0</code> a <code class="text-yellow-600">hodnoceni_pocet: 0</code>.</div>
+                        </div>
+                        <button id="btn-migrace-hodnoceni" class="btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-hodnoceni-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Reset hodnocení piva -->
+                <div class="tool-card danger-zone">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-300 mb-1" style="font-family:'Baloo 2',sans-serif;">🗑️ Reset hodnocení konkrétního piva</div>
+                            <div class="text-xs text-gray-400">Vynuluje průměr a počet hlasů pro zadané pivo. Nesmaže hodnocení z profilů hráčů.</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <input id="reset-hodnoceni-nazev" type="text" placeholder="Přesný název piva..." class="flex-grow p-2 text-sm">
+                        <button id="btn-reset-hodnoceni-piva" class="btn-danger px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
+                    </div>
+                    <div id="reset-hodnoceni-log" class="hidden log-console"></div>
+                </div>
+
+            </div>
+        </div>
+
     </div><!-- /admin-panel -->
 
     <script type="module">
@@ -881,6 +918,60 @@
                 logLine(logId, '✅ Reset dokončen!', '#34d399');
             } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
             finally { $('btn-reset-kralovstvi').disabled = false; }
+        });
+
+        // ─── 6A. MIGRACE HODNOCENÍ PIV ────────────────────────────────────
+        $('btn-migrace-hodnoceni').addEventListener('click', async () => {
+            if (!confirm('Doplnit chybějící hodnocení pole všem pivům?')) return;
+            const logId = 'migrace-hodnoceni-log';
+            $(logId).innerHTML = '';
+            $('btn-migrace-hodnoceni').disabled = true;
+            try {
+                logLine(logId, 'Načítám statistiky_piv...');
+                const snap = await getDocs(collection(db, "statistiky_piv"));
+                logLine(logId, `Nalezeno ${snap.size} piv.`);
+                let opraveno = 0;
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => {
+                    const data = d.data();
+                    if (data.hodnoceni_prumerne === undefined || data.hodnoceni_pocet === undefined) {
+                        batch.set(d.ref, {
+                            hodnoceni_prumerne: 0,
+                            hodnoceni_pocet: 0
+                        }, { merge: true });
+                        opraveno++;
+                    }
+                });
+                if (opraveno > 0) {
+                    await batch.commit();
+                    logLine(logId, `✅ Doplněno ${opraveno} piv.`, '#34d399');
+                } else {
+                    logLine(logId, '✅ Všechna piva již mají hodnocení pole.', '#34d399');
+                }
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-migrace-hodnoceni').disabled = false; }
+        });
+
+        // ─── 6B. RESET HODNOCENÍ PIVA ─────────────────────────────────────
+        $('btn-reset-hodnoceni-piva').addEventListener('click', async () => {
+            const nazev = $('reset-hodnoceni-nazev').value.trim();
+            if (!nazev) { notify('Zadej název piva!', 'warn'); return; }
+            if (!confirm(`Opravdu vynulovat hodnocení piva "${nazev}"?`)) return;
+            const logId = 'reset-hodnoceni-log';
+            $(logId).innerHTML = '';
+            $('btn-reset-hodnoceni-piva').disabled = true;
+            try {
+                const pivRef = doc(db, "statistiky_piv", nazev);
+                const pivSnap = await getDoc(pivRef);
+                if (!pivSnap.exists()) {
+                    logLine(logId, `❌ Pivo "${nazev}" neexistuje v statistiky_piv.`, '#f87171');
+                    return;
+                }
+                await updateDoc(pivRef, { hodnoceni_prumerne: 0, hodnoceni_pocet: 0 });
+                logLine(logId, `✅ Hodnocení piva "${nazev}" vynulováno.`, '#34d399');
+                $('reset-hodnoceni-nazev').value = '';
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-reset-hodnoceni-piva').disabled = false; }
         });
 
     </script>

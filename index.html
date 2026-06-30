@@ -142,6 +142,21 @@
         .glog-item { background: rgba(0,0,0,0.32); border-left: 4px solid #c05621; border-radius: 0 11px 11px 0; padding: 6px 9px; font-size: 0.72rem; line-height: 1.4; }
         .spolecne-badge { display:inline-block; background:linear-gradient(180deg,#54d07f,#2e9b54); border:1.5px solid #160d18; border-radius:6px; padding:1px 7px; font-size:0.65rem; color:#0f3d22; font-weight:700; margin-left:4px; }
 
+        /* ── Záložka Piva ── */
+        .pivo-karta { background:rgba(0,0,0,0.35); border:2px solid #4a3a26; border-radius:14px; padding:12px 13px; display:flex; align-items:center; gap:12px; transition: border-color .15s; }
+        .pivo-karta:hover { border-color:#8a6a3a; }
+        .pivo-ikona { font-size:2rem; flex-shrink:0; width:42px; text-align:center; }
+        .pivo-nazev { font-family:'Baloo 2',sans-serif; font-weight:800; font-size:0.92rem; color:#fff; line-height:1.2; }
+        .pivo-meta  { font-size:0.68rem; color:#9a86a4; margin-top:2px; }
+        .hvezdicky  { display:flex; gap:3px; margin-top:5px; }
+        .hvezdicky .hv { font-size:1.2rem; cursor:pointer; transition:transform .1s, filter .1s; line-height:1; }
+        .hvezdicky .hv:hover { transform:scale(1.25); filter:brightness(1.3); }
+        .hvezdicky .hv.filled  { color:#ffd35a; }
+        .hvezdicky .hv.moje    { color:#f3a81e; text-shadow:0 0 6px rgba(255,168,30,.7); }
+        .hvezdicky .hv.prazdna { color:#3a3040; }
+        .piva-sort-btn { background:rgba(0,0,0,0.35); border:2px solid #4a3a26; border-radius:10px; padding:5px 12px; font-size:0.7rem; font-family:'Baloo 2',sans-serif; font-weight:700; color:#c9b6cf; cursor:pointer; transition:all .15s; }
+        .piva-sort-btn.active { border-color:#ffd35a; color:#ffd35a; background:rgba(255,211,90,0.08); }
+
         .kraj-card { background: rgba(0,0,0,0.3); border: 2px solid #4a3a26; border-radius: 13px; padding: 11px 13px; margin-bottom: 8px; }
         .kraj-bar-outer { background: rgba(0,0,0,0.5); border: 2px solid #160d18; border-radius: 7px; height: 11px; overflow: hidden; margin-top: 4px; }
         .kraj-bar-inner { background: linear-gradient(180deg, #ffe27a, #f3a81e); height: 100%; border-radius: 5px; transition: width 0.6s ease; }
@@ -199,11 +214,12 @@
 
         <!-- Tabs -->
         <div class="flex w-full mb-[-1px] z-10 justify-between">
-            <button id="tab-mapa"      onclick="switchTab('mapa')"      class="tab-btn active w-[19%]" style="font-size:0.68rem">🗺️ Mapa</button>
-            <button id="tab-denik"     onclick="switchTab('denik')"     class="tab-btn w-[19%]" style="font-size:0.68rem">📜 Deník</button>
-            <button id="tab-cech"      onclick="switchTab('cech')"      class="tab-btn w-[19%]" style="font-size:0.68rem">🛡️ Cech</button>
-            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn w-[19%]" style="font-size:0.68rem">👑 Kraj</button>
-            <button id="tab-sin"       onclick="switchTab('sin')"       class="tab-btn w-[19%]" style="font-size:0.68rem">🏆 Síň</button>
+            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn active flex-1" style="font-size:0.62rem">🗺️ Mapa</button>
+            <button id="tab-denik"      onclick="switchTab('denik')"      class="tab-btn flex-1"        style="font-size:0.62rem">📜 Deník</button>
+            <button id="tab-piva"       onclick="switchTab('piva')"       class="tab-btn flex-1"        style="font-size:0.62rem">🍺 Piva</button>
+            <button id="tab-cech"       onclick="switchTab('cech')"       class="tab-btn flex-1"        style="font-size:0.62rem">🛡️ Cech</button>
+            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn flex-1"        style="font-size:0.62rem">👑 Kraj</button>
+            <button id="tab-sin"        onclick="switchTab('sin')"        class="tab-btn flex-1"        style="font-size:0.62rem">🏆 Síň</button>
         </div>
 
         <div class="glass-card w-full p-4 rounded-tl-none">
@@ -571,6 +587,26 @@
                 </div>
             </div>
 
+            <!-- TAB: PIVA -->
+            <div id="obsah-piva" class="hidden">
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🍺 Encyklopedie moků</h3>
+                <p class="text-xs text-gray-500 mb-4">Všechna piva ohodnoť hvězdičkami — tvoje hodnocení se počítá do průměru</p>
+
+                <!-- Hledání + řazení -->
+                <div class="flex gap-2 mb-3">
+                    <input id="piva-search" type="text" placeholder="🔍 Hledat pivo..." class="flex-grow p-2 text-sm" style="background:rgba(0,0,0,0.4);border:2px solid #5a4a2a;border-radius:10px;color:#fff;font-family:'Fredoka',sans-serif;outline:none;">
+                </div>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <button id="sort-hodnoceni" class="piva-sort-btn active" onclick="setPivaSort('hodnoceni')">⭐ Hodnocení</button>
+                    <button id="sort-vypitost"  class="piva-sort-btn"        onclick="setPivaSort('vypitost')">🍺 Nejvíce pito</button>
+                    <button id="sort-abeceda"   class="piva-sort-btn"        onclick="setPivaSort('abeceda')">🔤 A–Z</button>
+                </div>
+
+                <div id="piva-loading" class="text-gray-500 italic text-sm text-center py-8">Načítám moky...</div>
+                <div id="piva-seznam" class="space-y-2 hidden"></div>
+                <div id="piva-prazdno" class="hidden text-gray-600 italic text-sm text-center py-6">Žádné pivo nenalezeno.</div>
+            </div>
+
             <!-- TAB: SÍŇ SLÁVY -->
             <div id="obsah-sin" class="hidden">
                 <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🏆 Síň Slávy</h3>
@@ -602,6 +638,12 @@
                     <div class="sin-card">
                         <div class="sin-section-title">🏰 Nejnavštěvovanější dungeony</div>
                         <div id="sin-hospody"></div>
+                    </div>
+
+                    <!-- Nejlépe hodnocená piva -->
+                    <div class="sin-card">
+                        <div class="sin-section-title">⭐ Nejlépe hodnocené moky</div>
+                        <div id="sin-hodnocena-piva"></div>
                     </div>
 
                 </div>
@@ -1407,7 +1449,7 @@
 
         // ─── TABY ─────────────────────────────────────────────────────────────
         window.switchTab = (tabName) => {
-            ['mapa', 'denik', 'cech', 'kralovstvi', 'sin'].forEach(t => {
+            ['mapa', 'denik', 'piva', 'cech', 'kralovstvi', 'sin'].forEach(t => {
                 $(`tab-${t}`).classList.remove('active');
                 $(`obsah-${t}`).classList.add('hidden');
             });
@@ -1416,6 +1458,7 @@
             if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
             if (tabName === 'mapa') nactiGlobalniLog();
             if (tabName === 'denik') { vykresliDenicek(); vykresliEditProfil(); nactiSledovane(); }
+            if (tabName === 'piva') nactiPivaTab();
             if (tabName === 'cech') nactiVseOkoloCechu();
             if (tabName === 'kralovstvi') nactiKralovstvi();
             if (tabName === 'sin') nactiSinSlavy();
@@ -1928,6 +1971,27 @@
                         return `<div class="sin-row">
                             <span>${medal} ${nazev}</span>
                             <span class="text-yellow-500">${h.pocet}× navštíveno</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                // Nejlépe hodnocená piva
+                const snapHodnocena = await getDocs(collection(db, "statistiky_piv"));
+                const hodnocenaPiva = snapHodnocena.docs
+                    .map(d => ({ nazev: d.id, ...d.data() }))
+                    .filter(p => (p.hodnoceni_pocet || 0) >= 1)
+                    .sort((a, b) => (b.hodnoceni_prumerne || 0) - (a.hodnoceni_prumerne || 0))
+                    .slice(0, 10);
+
+                if (hodnocenaPiva.length === 0) {
+                    $('sin-hodnocena-piva').innerHTML = '<div class="sin-row"><span class="text-gray-600 italic">Zatím nikdo nehodnotil... buď první!</span></div>';
+                } else {
+                    $('sin-hodnocena-piva').innerHTML = hodnocenaPiva.map((p, i) => {
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        const hviezdy = '★'.repeat(Math.round(p.hodnoceni_prumerne || 0)) + '☆'.repeat(5 - Math.round(p.hodnoceni_prumerne || 0));
+                        return `<div class="sin-row">
+                            <span>${medal} ${escapeHtml(p.nazev)}</span>
+                            <span class="text-yellow-400">${hviezdy} <span class="text-gray-500 text-[10px]">${(p.hodnoceni_prumerne||0).toFixed(1)} (${p.hodnoceni_pocet||0})</span></span>
                         </div>`;
                     }).join('');
                 }
@@ -2505,6 +2569,163 @@
                 $('profil-loading').textContent = 'Chyba: ' + e.message;
             }
         };
+
+        // ─── ZÁLOŽKA PIVA ─────────────────────────────────────────────────────────
+
+        let vsechnaPivaData = [];   // cache načtených piv
+        let pivaSort = 'hodnoceni'; // aktuální řazení
+
+        window.setPivaSort = (typ) => {
+            pivaSort = typ;
+            ['hodnoceni','vypitost','abeceda'].forEach(s => {
+                $(`sort-${s}`).classList.toggle('active', s === typ);
+            });
+            renderPivaSeznamu();
+        };
+
+        async function nactiPivaTab() {
+            $('piva-loading').classList.remove('hidden');
+            $('piva-seznam').classList.add('hidden');
+            $('piva-prazdno').classList.add('hidden');
+
+            try {
+                const snap = await getDocs(collection(db, "statistiky_piv"));
+                vsechnaPivaData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderPivaSeznamu();
+
+                // Live vyhledávání
+                $('piva-search').oninput = renderPivaSeznamu;
+            } catch(e) {
+                $('piva-loading').textContent = 'Chyba načítání: ' + e.message;
+            }
+        }
+
+        function renderPivaSeznamu() {
+            const hledani = $('piva-search').value.trim().toLowerCase();
+            let seznam = vsechnaPivaData.filter(p =>
+                !hledani || p.id.toLowerCase().includes(hledani)
+            );
+
+            // Řazení
+            if (pivaSort === 'hodnoceni') {
+                seznam.sort((a, b) => {
+                    const aH = (a.hodnoceni_pocet || 0) > 0 ? (a.hodnoceni_prumerne || 0) : -1;
+                    const bH = (b.hodnoceni_pocet || 0) > 0 ? (b.hodnoceni_prumerne || 0) : -1;
+                    return bH - aH;
+                });
+            } else if (pivaSort === 'vypitost') {
+                seznam.sort((a, b) => (b.pocet || 0) - (a.pocet || 0));
+            } else {
+                seznam.sort((a, b) => a.id.localeCompare(b.id, 'cs'));
+            }
+
+            $('piva-loading').classList.add('hidden');
+
+            if (seznam.length === 0) {
+                $('piva-seznam').classList.add('hidden');
+                $('piva-prazdno').classList.remove('hidden');
+                return;
+            }
+
+            $('piva-prazdno').classList.add('hidden');
+            const box = $('piva-seznam');
+            box.classList.remove('hidden');
+            box.innerHTML = '';
+
+            // Moje hodnocení z userData
+            const mojeHodnoceni = userData?.hodnoceni_piv || {};
+
+            seznam.forEach(pivo => {
+                const nazev    = pivo.id;
+                const pocet    = pivo.pocet || 0;
+                const prumerne = pivo.hodnoceni_prumerne || 0;
+                const hlasu    = pivo.hodnoceni_pocet || 0;
+                const mojeHv   = mojeHodnoceni[nazev] || 0;
+
+                const karta = document.createElement('div');
+                karta.className = 'pivo-karta fade-in';
+
+                // Ikona / obrázek
+                const ikonaHtml = pivo.obrazek_url
+                    ? `<img src="${pivo.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
+                    : `<div class="pivo-ikona">🍺</div>`;
+
+                // Průměrné hvězdičky (zobrazovací, ne klikací)
+                const prumHtml = hlasu > 0
+                    ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu} hlasů)</span>`
+                    : `<span class="text-gray-600 text-[10px]">Zatím nehodnoceno</span>`;
+
+                karta.innerHTML = `
+                    ${ikonaHtml}
+                    <div class="flex-grow min-w-0">
+                        <div class="pivo-nazev">${escapeHtml(nazev)}</div>
+                        <div class="pivo-meta">Vypito ${pocet}× · ${prumHtml}</div>
+                        <div class="hvezdicky" data-nazev="${escapeHtml(nazev)}">
+                            ${[1,2,3,4,5].map(i => {
+                                const trida = i <= mojeHv ? 'hv moje' : i <= Math.round(prumerne) && hlasu > 0 ? 'hv filled' : 'hv prazdna';
+                                return `<span class="${trida}" data-stars="${i}" title="${i} hvězdičky">★</span>`;
+                            }).join('')}
+                        </div>
+                        ${mojeHv > 0 ? `<div style="font-size:0.62rem;color:#f3a81e;margin-top:2px;">Tvé hodnocení: ${mojeHv}★</div>` : ''}
+                    </div>`;
+
+                // Klik na hvězdičky
+                karta.querySelectorAll('.hvezdicky .hv').forEach(hvEl => {
+                    hvEl.addEventListener('click', () => {
+                        hodnotitPivo(nazev, parseInt(hvEl.dataset.stars));
+                    });
+                });
+
+                box.appendChild(karta);
+            });
+        }
+
+        async function hodnotitPivo(nazev, stars) {
+            if (!currentUser) return;
+            const mojeHodnoceni = userData?.hodnoceni_piv || {};
+            const stareHv = mojeHodnoceni[nazev] || 0;
+
+            try {
+                // Načti aktuální aggregate z Firestore
+                const pivSnap = await getDoc(doc(db, "statistiky_piv", nazev));
+                let prumerne = pivSnap.exists() ? (pivSnap.data().hodnoceni_prumerne || 0) : 0;
+                let pocetHl  = pivSnap.exists() ? (pivSnap.data().hodnoceni_pocet    || 0) : 0;
+
+                // Přepočítej průměr
+                if (stareHv > 0) {
+                    // Přepisuji existující hodnocení
+                    prumerne = ((prumerne * pocetHl) - stareHv + stars) / pocetHl;
+                } else {
+                    // Nové hodnocení
+                    prumerne = (prumerne * pocetHl + stars) / (pocetHl + 1);
+                    pocetHl += 1;
+                }
+                prumerne = Math.round(prumerne * 10) / 10; // 1 des. místo
+
+                // Ulož do Firestore (batch)
+                const batch = writeBatch(db);
+                batch.set(doc(db, "statistiky_piv", nazev),
+                    { hodnoceni_prumerne: prumerne, hodnoceni_pocet: pocetHl },
+                    { merge: true }
+                );
+                batch.update(doc(db, "hraci", currentUser.uid), {
+                    [`hodnoceni_piv.${nazev}`]: stars
+                });
+                await batch.commit();
+
+                // Aktualizuj lokální cache
+                if (!userData.hodnoceni_piv) userData.hodnoceni_piv = {};
+                userData.hodnoceni_piv[nazev] = stars;
+                const pivLocal = vsechnaPivaData.find(p => p.id === nazev);
+                if (pivLocal) {
+                    pivLocal.hodnoceni_prumerne = prumerne;
+                    pivLocal.hodnoceni_pocet    = pocetHl;
+                }
+
+                notify(`Hodnocení uloženo: ${stars}★ pro ${nazev}`);
+                renderPivaSeznamu();
+            } catch(e) { notify('Chyba: ' + e.message, 'err'); }
+        }
 
         // ─── SHARE KARTY ──────────────────────────────────────────────────────────
         let posledniZapis = null;
