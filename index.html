@@ -142,6 +142,36 @@
         .glog-item { background: rgba(0,0,0,0.32); border-left: 4px solid #c05621; border-radius: 0 11px 11px 0; padding: 6px 9px; font-size: 0.72rem; line-height: 1.4; }
         .spolecne-badge { display:inline-block; background:linear-gradient(180deg,#54d07f,#2e9b54); border:1.5px solid #160d18; border-radius:6px; padding:1px 7px; font-size:0.65rem; color:#0f3d22; font-weight:700; margin-left:4px; }
 
+        /* ── Osobní statistiky ── */
+        .stat-tile { background:rgba(0,0,0,0.38); border:1.5px solid #4a3a26; border-radius:12px; padding:9px 6px; text-align:center; }
+        .stat-tile-val { font-family:'Baloo 2',sans-serif; font-weight:800; font-size:1.25rem; color:#ffd35a; line-height:1.1; }
+        .stat-tile-label { font-size:0.6rem; color:#9a86a4; margin-top:2px; line-height:1.2; }
+
+        /* ── Odznaky ── */
+        .odznak-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; width:72px; cursor:default; }
+        .odznak-stit {
+            width:58px; height:66px;
+            clip-path: polygon(14% 0%, 86% 0%, 100% 14%, 100% 62%, 50% 100%, 0% 62%, 0% 14%);
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.55rem; position:relative; transition:transform .18s, filter .18s;
+            flex-shrink:0;
+        }
+        .odznak-stit.bronz  { background:linear-gradient(150deg,#e89040 0%,#7b3c0a 100%); }
+        .odznak-stit.stribro{ background:linear-gradient(150deg,#dde0e8 0%,#6a6e7e 100%); }
+        .odznak-stit.zlato  { background:linear-gradient(150deg,#ffe566 0%,#a07010 100%); }
+        .odznak-stit.earned { filter:drop-shadow(0 0 6px rgba(255,211,90,.55)) drop-shadow(0 0 2px rgba(255,255,255,.2)); }
+        .odznak-stit.locked { filter:grayscale(1) brightness(0.28); }
+        .odznak-stit.earned:hover { transform:scale(1.1); }
+        .odznak-gem { position:absolute; bottom:6px; right:7px; width:10px; height:10px; border-radius:50%; }
+        .odznak-gem.bronz   { background:#cd8032; box-shadow:0 0 4px #cd8032; }
+        .odznak-gem.stribro { background:#c0c8d8; box-shadow:0 0 4px #c0c8d8; }
+        .odznak-gem.zlato   { background:#ffd700; box-shadow:0 0 6px #ffd700; }
+        .odznak-nazev { font-size:0.58rem; text-align:center; line-height:1.25; font-family:'Baloo 2',sans-serif; font-weight:700; max-width:72px; }
+        .odznak-nazev.ziskano { color:#ffd35a; }
+        .odznak-nazev.locked  { color:#4a3a50; }
+        @keyframes odznak-shine { 0%,100%{filter:drop-shadow(0 0 6px rgba(255,211,90,.55))} 50%{filter:drop-shadow(0 0 14px rgba(255,211,90,.9)) drop-shadow(0 0 4px #fff)} }
+        .odznak-stit.novy { animation: odznak-shine 1.2s ease-in-out 3; }
+
         /* ── Záložka Piva ── */
         .pivo-karta { background:rgba(0,0,0,0.35); border:2px solid #4a3a26; border-radius:14px; padding:12px 13px; display:flex; align-items:center; gap:12px; transition: border-color .15s; }
         .pivo-karta:hover { border-color:#8a6a3a; }
@@ -359,6 +389,21 @@
                 <div class="mb-4">
                     <div class="sin-section-title">👥 Sleduji hráče</div>
                     <div id="seznam-sledovanych" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 text-xs space-y-1 max-h-36 overflow-y-auto"></div>
+                </div>
+
+                <!-- Osobní statistiky -->
+                <div class="mb-4">
+                    <div class="sin-section-title">📊 Moje statistiky</div>
+                    <div id="osobni-stats-grid" class="grid grid-cols-3 gap-2"></div>
+                </div>
+
+                <!-- Odznaky -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="sin-section-title" style="margin:0">🏅 Moje odznaky</div>
+                        <span id="odznak-pocet" class="text-[10px] text-gray-500"></span>
+                    </div>
+                    <div id="odznaky-grid" class="flex flex-wrap gap-3 justify-start"></div>
                 </div>
 
                 <!-- Share tlačítka -->
@@ -1113,6 +1158,11 @@
                     if (pivo) pocty[pivo] = (pocty[pivo] || 0) + 1;
                 });
                 vykresliGraf(pocty);
+
+                // Osobní statistiky + odznaky
+                const stats = vypoctiStatsZLogy(grafSnap.docs);
+                vykresliOsobniStats(stats);
+                zkontrolujAVykresliOdznaky(stats);
 
                 // Zobraz první stránku (LOG_STRANKA zápisů)
                 const prvniStranka = grafSnap.docs.slice(0, LOG_STRANKA);
@@ -2569,6 +2619,177 @@
                 $('profil-loading').textContent = 'Chyba: ' + e.message;
             }
         };
+
+        // ─── ODZNAKY & OSOBNÍ STATISTIKY ─────────────────────────────────────────
+
+        const ACHIEVEMENTY_DEF = [
+            // ── BRONZ ──
+            { id:'prvni_pivo',    stupen:'bronz',  ikona:'🍺', nazev:'První doušek',    popis:'Zapsal jsi své první pivo',             podminka: s => s.celkemPiv >= 1    },
+            { id:'deset_piv',     stupen:'bronz',  ikona:'⚗️', nazev:'Žíznivý hrdina',  popis:'Celkem 10 piv zapsáno',                 podminka: s => s.celkemPiv >= 10   },
+            { id:'pet_hospod',    stupen:'bronz',  ikona:'🗺️', nazev:'Průzkumník',      popis:'5 různých hospod navštíveno',           podminka: s => s.hospod >= 5       },
+            { id:'verny_host',    stupen:'bronz',  ikona:'🏠', nazev:'Věrný host',       popis:'Jednu hospodu navštívil 5× nebo více',  podminka: s => s.maxNavstev >= 5   },
+            { id:'deset_druhu',   stupen:'bronz',  ikona:'👅', nazev:'Ochutnávač',      popis:'10 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 10     },
+            { id:'socialni',      stupen:'bronz',  ikona:'🤝', nazev:'Sociální pijan',  popis:'Pil s kamarádem 10× nebo více',         podminka: s => s.spolecne >= 10    },
+            { id:'nocni_pijan',   stupen:'bronz',  ikona:'🌙', nazev:'Noční hlídka',    popis:'Zapis po půlnoci (00:00–04:00)',        podminka: s => s.nocniZapis        },
+            // ── STŘÍBRO ──
+            { id:'padesatpiv',    stupen:'stribro', ikona:'🎖️', nazev:'Pivní veterán',  popis:'Celkem 50 piv zapsáno',                 podminka: s => s.celkemPiv >= 50   },
+            { id:'deset_hospod',  stupen:'stribro', ikona:'🏰', nazev:'Dobrodruh',       popis:'10 různých hospod navštíveno',          podminka: s => s.hospod >= 10      },
+            { id:'stamgast',      stupen:'stribro', ikona:'🪑', nazev:'Štamgast',        popis:'Jednu hospodu navštívil 10× nebo více', podminka: s => s.maxNavstev >= 10  },
+            { id:'dvacet_druhu',  stupen:'stribro', ikona:'🎭', nazev:'Degustátor',      popis:'25 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 25     },
+            { id:'pivni_banda',   stupen:'stribro', ikona:'🍻', nazev:'Pivní banda',     popis:'Pil s kamarádem 30× nebo více',         podminka: s => s.spolecne >= 30    },
+            { id:'streak_7',      stupen:'stribro', ikona:'🔥', nazev:'Týdenní série',   popis:'7 dní v řadě se zápisem piva',          podminka: s => s.streakMax >= 7    },
+            // ── ZLATO ──
+            { id:'sto_piv',       stupen:'zlato',  ikona:'🏆', nazev:'Stý džbán',       popis:'Celkem 100 piv zapsáno',                podminka: s => s.celkemPiv >= 100  },
+            { id:'dvacet_hospod', stupen:'zlato',  ikona:'🌍', nazev:'Velký průzkumník', popis:'20 různých hospod navštíveno',          podminka: s => s.hospod >= 20      },
+            { id:'somelier',      stupen:'zlato',  ikona:'🎩', nazev:'Pivní someliér',  popis:'50 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 50     },
+        ];
+
+        function vypoctiStatsZLogy(logDocs) {
+            const poctyPiv = {}, dny = new Set();
+            let spolecne = 0, nocniZapis = false;
+
+            logDocs.forEach(d => {
+                const z = d.data();
+                if (z.pivo) poctyPiv[z.pivo] = (poctyPiv[z.pivo] || 0) + 1;
+                if (z.spolecne_s) spolecne++;
+                if (z.cas) {
+                    const dt = z.cas.toDate ? z.cas.toDate() : new Date(z.cas);
+                    dny.add(dt.toISOString().slice(0, 10));
+                    const h = dt.getHours();
+                    if (h >= 0 && h < 4) nocniZapis = true;
+                }
+            });
+
+            // Streak
+            const serazene = [...dny].sort();
+            let streakMax = serazene.length > 0 ? 1 : 0, aktStreak = 1;
+            for (let i = 1; i < serazene.length; i++) {
+                const diff = (new Date(serazene[i]) - new Date(serazene[i-1])) / 86400000;
+                aktStreak = diff === 1 ? aktStreak + 1 : 1;
+                streakMax = Math.max(streakMax, aktStreak);
+            }
+
+            // Aktuální streak (od dneška zpět)
+            let streakAkt = 0;
+            const dnesStr = new Date().toISOString().slice(0, 10);
+            const vcerStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            if (dny.has(dnesStr) || dny.has(vcerStr)) {
+                let den = dny.has(dnesStr) ? new Date() : new Date(Date.now() - 86400000);
+                while (dny.has(den.toISOString().slice(0, 10))) {
+                    streakAkt++;
+                    den = new Date(den - 86400000);
+                }
+            }
+
+            // Nejaktivnější den v týdnu
+            const dnyTydne = [0,0,0,0,0,0,0];
+            logDocs.forEach(d => {
+                const z = d.data();
+                if (z.cas) {
+                    const dt = z.cas.toDate ? z.cas.toDate() : new Date(z.cas);
+                    dnyTydne[dt.getDay()]++;
+                }
+            });
+            const dnyNazvy = ['Ne','Po','Út','St','Čt','Pá','So'];
+            const nejDenIdx = dnyTydne.indexOf(Math.max(...dnyTydne));
+
+            // Průměr piv / týden
+            let prumerTyden = 0;
+            if (serazene.length >= 2) {
+                const prvni = new Date(serazene[0]), posledni = new Date(serazene[serazene.length-1]);
+                const tydny = Math.max(1, (posledni - prvni) / (7 * 86400000));
+                prumerTyden = (logDocs.length / tydny).toFixed(1);
+            }
+
+            return {
+                celkemPiv:  logDocs.length,
+                ruznych:    Object.keys(poctyPiv).length,
+                hospod:     Object.keys(userData?.dungeony || {}).length,
+                maxNavstev: Math.max(0, ...Object.values(userData?.dungeony || {})),
+                spolecne,
+                streakMax,
+                streakAkt,
+                nocniZapis,
+                nejDen:     dnyNazvy[nejDenIdx],
+                prumerTyden,
+                poctyPiv
+            };
+        }
+
+        function vykresliOsobniStats(stats) {
+            const grid = $('osobni-stats-grid');
+            const tiles = [
+                { val: stats.celkemPiv,    label: 'piv celkem',        ikona: '🍺' },
+                { val: stats.ruznych,      label: 'různých druhů',     ikona: '🌈' },
+                { val: stats.hospod,       label: 'hospod navštíveno', ikona: '🏰' },
+                { val: `${stats.streakAkt}d`, label: 'aktuální série', ikona: '🔥' },
+                { val: stats.nejDen,       label: 'nejaktivnější den', ikona: '📅' },
+                { val: `${stats.prumerTyden}`, label: 'piv / týden v průměru', ikona: '📈' },
+            ];
+            grid.innerHTML = tiles.map(t => `
+                <div class="stat-tile">
+                    <div style="font-size:1.1rem;">${t.ikona}</div>
+                    <div class="stat-tile-val">${t.val}</div>
+                    <div class="stat-tile-label">${t.label}</div>
+                </div>`).join('');
+        }
+
+        async function zkontrolujAVykresliOdznaky(stats) {
+            const ziskane    = new Set((userData?.achievementy || []).map(a => a.id));
+            const noveOdznaky = [];
+
+            // Zkontroluj nové
+            ACHIEVEMENTY_DEF.forEach(def => {
+                if (!ziskane.has(def.id) && def.podminka(stats)) {
+                    noveOdznaky.push(def);
+                    ziskane.add(def.id);
+                }
+            });
+
+            // Ulož nové do Firestore
+            if (noveOdznaky.length > 0) {
+                const cas = new Date().toISOString();
+                const aktualizovane = [
+                    ...(userData?.achievementy || []),
+                    ...noveOdznaky.map(a => ({ id: a.id, ziskano: cas }))
+                ];
+                try {
+                    await updateDoc(doc(db, "hraci", currentUser.uid), { achievementy: aktualizovane });
+                    userData.achievementy = aktualizovane;
+                } catch(e) { console.warn('Chyba ukládání odznaků:', e); }
+
+                // Notifikace pro nové odznaky
+                noveOdznaky.forEach((a, i) => {
+                    setTimeout(() => notify(`🏅 Nový odznak: ${a.nazev}! ${a.ikona}`), i * 800);
+                });
+            }
+
+            // Vykresli mřížku
+            const grid = $('odznaky-grid');
+            grid.innerHTML = '';
+            let ziskaných = 0;
+
+            ACHIEVEMENTY_DEF.forEach(def => {
+                const mam  = ziskane.has(def.id);
+                const nove = noveOdznaky.some(n => n.id === def.id);
+                if (mam) ziskaných++;
+
+                const wrap = document.createElement('div');
+                wrap.className = 'odznak-wrap';
+                wrap.title     = `${def.nazev}\n${def.popis}`;
+
+                wrap.innerHTML = `
+                    <div class="odznak-stit ${def.stupen} ${mam ? 'earned' : 'locked'} ${nove ? 'novy' : ''}">
+                        ${def.ikona}
+                        ${mam ? `<div class="odznak-gem ${def.stupen}"></div>` : ''}
+                    </div>
+                    <div class="odznak-nazev ${mam ? 'ziskano' : 'locked'}">${def.nazev}</div>`;
+
+                grid.appendChild(wrap);
+            });
+
+            $('odznak-pocet').textContent = `${ziskaných} / ${ACHIEVEMENTY_DEF.length}`;
+        }
 
         // ─── ZÁLOŽKA PIVA ─────────────────────────────────────────────────────────
 
