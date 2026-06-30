@@ -2664,7 +2664,34 @@
         }
 
         async function vygenerujWrappedCanvas(s) {
-            const W = 1080, H = 1380;
+            const W = 1080;
+            const tW = 458, tH = 172, gap = 16, startY = 355;
+
+            // Sestav tiles nejdřív — výška canvasu se spočítá z jejich počtu
+            const tiles = [
+                { emoji:'🍺', value: s.celkemPiv.toString(), label: 'piv celkem'        },
+                { emoji:'🌈', value: s.ruznych.toString(),   label: 'různých druhů'     },
+                { emoji:'🏰', value: s.hospod.toString(),    label: 'hospod navštíveno' },
+                { emoji:'⭐', value: `Úr. ${s.lvl}`,        label: `${s.xp} XP celkem` },
+                { emoji:'🥇', value: s.oblPivo ? s.oblPivo.nazev : '—',
+                               label: s.oblPivo ? `${s.oblPivo.pocet}× vypito`    : 'oblíbené pivo'    },
+                { emoji:'🏠', value: s.oblHosp ? s.oblHosp.nazev : '—',
+                               label: s.oblHosp ? `${s.oblHosp.pocet}× návštěv`  : 'oblíbená hospoda' },
+            ];
+            if (s.nejSpoluhrac) {
+                tiles.push(
+                    { emoji:'📅', value: s.nejMesic ? s.nejMesic.nazev : '—',
+                                  label: s.nejMesic ? `${s.nejMesic.pocet} piv`         : 'nejlepší měsíc' },
+                    { emoji:'🍻', value: s.nejSpoluhrac.nazev, label: `${s.nejSpoluhrac.pocet}× spolu` }
+                );
+            } else if (s.nejMesic) {
+                tiles.push({ emoji:'📅', value: s.nejMesic.nazev, label: `${s.nejMesic.pocet} piv — nejlepší měsíc` });
+            }
+
+            const rows    = Math.ceil(tiles.length / 2);
+            const footerY = startY + rows * (tH + gap) + 20;
+            const H       = footerY + 80; // přesná výška: tiles + footer + dolní okraj
+
             const c = document.createElement('canvas');
             c.width = W; c.height = H;
             const ctx = c.getContext('2d');
@@ -2688,46 +2715,20 @@
             // Header
             ctx.fillStyle = 'rgba(255,211,90,0.5)'; ctx.font = '34px Arial, sans-serif';
             ctx.fillText('🍻  PIVNÍ DUNGEON  🍺', W/2, 105);
-
             ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 94px Arial, sans-serif';
             ctx.fillText('MŮJ WRAPPED', W/2, 218);
-
             ctx.font = '52px serif'; ctx.fillStyle = '#fff';
             ctx.fillText(s.avatar + '  ' + s.nick, W/2, 298);
 
             ctx.strokeStyle = 'rgba(255,211,90,0.22)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(80, 326); ctx.lineTo(W-80, 326); ctx.stroke();
 
-            // Tiles 2×3 mřížka + extra řádek pokud máme spoluhrače
-            const tiles = [
-                { emoji:'🍺', value: s.celkemPiv.toString(),     label: 'piv celkem'         },
-                { emoji:'🌈', value: s.ruznych.toString(),        label: 'různých druhů'      },
-                { emoji:'🏰', value: s.hospod.toString(),         label: 'hospod navštíveno'  },
-                { emoji:'⭐', value: `Úr. ${s.lvl}`,             label: `${s.xp} XP celkem`  },
-                { emoji:'🥇', value: s.oblPivo  ? s.oblPivo.nazev       : '—',
-                               label: s.oblPivo  ? `${s.oblPivo.pocet}× vypito`        : 'oblíbené pivo'    },
-                { emoji:'🏠', value: s.oblHosp  ? s.oblHosp.nazev       : '—',
-                               label: s.oblHosp  ? `${s.oblHosp.pocet}× návštěv`       : 'oblíbená hospoda' },
-            ];
-            if (s.nejSpoluhrac) {
-                tiles.push(
-                    { emoji:'📅', value: s.nejMesic ? s.nejMesic.nazev   : '—',
-                                  label: s.nejMesic ? `${s.nejMesic.pocet} piv`          : 'nejlepší měsíc'   },
-                    { emoji:'🍻', value: s.nejSpoluhrac.nazev,            label: `${s.nejSpoluhrac.pocet}× spolu` }
-                );
-            } else if (s.nejMesic) {
-                tiles.push({ emoji:'📅', value: s.nejMesic.nazev,       label: `${s.nejMesic.pocet} piv — nejlepší měsíc` });
-            }
-
-            const tW = 458, tH = 172, gap = 16;
-            const startY = 355;
+            // Tiles
             const cols = [60, W - 60 - tW];
-
             tiles.forEach((tile, i) => {
                 const col = i % 2, row = Math.floor(i / 2);
                 const x = cols[col], y = startY + row * (tH + gap);
 
-                // Tile bg
                 const tGrad = ctx.createLinearGradient(x, y, x, y + tH);
                 tGrad.addColorStop(0, 'rgba(255,211,90,0.13)');
                 tGrad.addColorStop(1, 'rgba(255,211,90,0.04)');
@@ -2739,18 +2740,14 @@
                 const cx = x + tW/2;
                 ctx.fillStyle = '#fff'; ctx.font = '38px serif'; ctx.textAlign = 'center';
                 ctx.fillText(tile.emoji, cx, y + 50);
-
                 ctx.fillStyle = '#fff';
                 fitText(ctx, tile.value, tW - 24, 36);
                 ctx.fillText(tile.value, cx, y + 103);
-
                 ctx.fillStyle = 'rgba(255,211,90,0.62)'; ctx.font = '21px Arial, sans-serif';
-                const shortLabel = tile.label.length > 22 ? tile.label.slice(0,21)+'…' : tile.label;
-                ctx.fillText(shortLabel, cx, y + 138);
+                ctx.fillText(tile.label.length > 22 ? tile.label.slice(0,21)+'…' : tile.label, cx, y + 138);
             });
 
             // Footer
-            const footerY = startY + Math.ceil(tiles.length / 2) * (tH + gap) + 24;
             ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(80, footerY); ctx.lineTo(W-80, footerY); ctx.stroke();
             ctx.fillStyle = 'rgba(255,211,90,0.38)'; ctx.font = '27px Arial, sans-serif';
