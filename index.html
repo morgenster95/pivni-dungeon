@@ -2610,7 +2610,7 @@
             return c;
         }
 
-        async function otevritWrapped() {
+        window.otevritWrapped = async function() {
             notify('Generuji Wrapped... 🍺', 'ok');
             try {
                 const snap = await getDocs(query(
