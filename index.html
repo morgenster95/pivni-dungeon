@@ -644,7 +644,7 @@
                 </div>
 
                 <!-- Hledání -->
-                <input id="piva-search" type="text" placeholder="🔍 Hledat..." class="w-full p-2 text-sm mb-3" style="background:rgba(0,0,0,0.4);border:2px solid #5a4a2a;border-radius:10px;color:#fff;font-family:'Fredoka',sans-serif;outline:none;">
+                <input id="piva-search" type="text" placeholder="🔍 Hledat..." oninput="window.renderPivaSeznamu && window.renderPivaSeznamu()" class="w-full p-2 text-sm mb-3" style="background:rgba(0,0,0,0.4);border:2px solid #5a4a2a;border-radius:10px;color:#fff;font-family:'Fredoka',sans-serif;outline:none;">
 
                 <!-- Řazení -->
                 <div class="flex gap-2 mb-4 flex-wrap">
@@ -2802,14 +2802,14 @@
         let vsechnaPivaData   = [];
         let vsechnaHospodyData = [];
         let pivaSort = 'hodnoceni';
-        let pivaTyp  = 'piva';     // 'piva' nebo 'hospody'
+        let pivaTyp  = 'piva';
 
         window.setPivaTyp = (typ) => {
             pivaTyp = typ;
             $('piva-typ-piva').classList.toggle('active',    typ === 'piva');
             $('piva-typ-hospody').classList.toggle('active', typ === 'hospody');
             $('piva-search').placeholder = typ === 'piva' ? '🔍 Hledat pivo...' : '🔍 Hledat hospodu...';
-            renderPivaSeznamu();
+            window.renderPivaSeznamu();
         };
 
         window.setPivaSort = (typ) => {
@@ -2817,78 +2817,75 @@
             ['hodnoceni','vypitost','abeceda'].forEach(s =>
                 $(`sort-${s}`).classList.toggle('active', s === typ)
             );
-            renderPivaSeznamu();
+            window.renderPivaSeznamu();
         };
 
+        function pivaSetLoading(msg, color) {
+            const el = $('piva-loading');
+            el.style.cssText = `display:block;color:${color||'#9a86a4'};font-size:0.85rem;text-align:center;padding:2rem 0;`;
+            el.textContent = msg;
+            $('piva-seznam').classList.add('hidden');
+            $('piva-prazdno').classList.add('hidden');
+        }
+
         async function nactiPivaTab() {
-            $('piva-loading').style.cssText = 'display:block;color:#9a86a4;font-style:italic;font-size:0.85rem;text-align:center;padding:2rem 0;';
-            $('piva-loading').textContent = 'Načítám...';
-            hide('piva-seznam');
-            hide('piva-prazdno');
-            $('piva-search').value = '';
-            $('piva-search').oninput = renderPivaSeznamu;
+            if (!currentUser) return;
+            pivaSetLoading('⏳ Načítám záznamy...');
 
             try {
-                // Načti hráčův log — bez orderBy (nepotřebujeme pořadí, jen počty)
-                const logSnap = await getDocs(
-                    collection(db, "hraci", currentUser.uid, "log_piv")
-                );
+                // Stejný dotaz jako deník — fungující, bez extra indexů
+                const logSnap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc"),
+                    limit(500)
+                ));
 
-                // Sestav mapy: název→počet
-                const pivMap  = {}, hospMap = {};
+                pivaSetLoading(`Zpracovávám ${logSnap.docs.length} zápisů...`);
+
+                const pivMap = {}, hospMap = {};
                 logSnap.docs.forEach(d => {
                     const z = d.data();
-                    if (z.pivo)    pivMap[z.pivo]     = (pivMap[z.pivo]     || 0) + 1;
-                    if (z.hospoda) hospMap[z.hospoda]  = (hospMap[z.hospoda] || 0) + 1;
+                    if (z.pivo)    pivMap[z.pivo]    = (pivMap[z.pivo]    || 0) + 1;
+                    if (z.hospoda) hospMap[z.hospoda] = (hospMap[z.hospoda] || 0) + 1;
                 });
 
-                // Načti aggregate statistiky — separátně aby jedna chyba nezastavila vše
                 let pivStatsMap = {}, hospStatsMap = {};
                 try {
-                    const pivStats = await getDocs(collection(db, "statistiky_piv"));
-                    pivStatsMap = Object.fromEntries(pivStats.docs.map(d => [d.id, d.data()]));
+                    const s = await getDocs(collection(db, "statistiky_piv"));
+                    s.docs.forEach(d => { pivStatsMap[d.id] = d.data(); });
                 } catch(_) {}
                 try {
-                    const hospStats = await getDocs(collection(db, "statistiky_hospod"));
-                    hospStatsMap = Object.fromEntries(hospStats.docs.map(d => [d.id, d.data()]));
+                    const s = await getDocs(collection(db, "statistiky_hospod"));
+                    s.docs.forEach(d => { hospStatsMap[d.id] = d.data(); });
                 } catch(_) {}
 
-                // Piva — jen to co hráč osobně vypil
                 vsechnaPivaData = Object.entries(pivMap).map(([nazev, mujPocet]) => ({
-                    id:                nazev,
+                    id: nazev,
                     mujPocet,
-                    pocet:             pivStatsMap[nazev]?.pocet               || mujPocet,
                     hodnoceni_prumerne: pivStatsMap[nazev]?.hodnoceni_prumerne || 0,
                     hodnoceni_pocet:    pivStatsMap[nazev]?.hodnoceni_pocet    || 0,
                     obrazek_url:        pivStatsMap[nazev]?.obrazek_url        || null
                 }));
 
-                // Hospody — jen ty co navštívil
-                vsechnaHospodyData = Object.entries(hospMap).map(([nazev, mujPocet]) => {
-                    const id = nazev.replace(/\./g, '_');
-                    const st = hospStatsMap[id] || hospStatsMap[nazev] || {};
-                    return {
-                        id,
-                        nazev,
-                        mujPocet,
-                        pocet:              st.pocet               || mujPocet,
-                        hodnoceni_prumerne: st.hodnoceni_prumerne  || 0,
-                        hodnoceni_pocet:    st.hodnoceni_pocet     || 0,
-                    };
-                });
+                vsechnaHospodyData = Object.entries(hospMap).map(([nazev, mujPocet]) => ({
+                    id:    nazev,
+                    nazev: nazev,
+                    mujPocet,
+                    hodnoceni_prumerne: hospStatsMap[nazev]?.hodnoceni_prumerne || 0,
+                    hodnoceni_pocet:    hospStatsMap[nazev]?.hodnoceni_pocet    || 0,
+                }));
 
                 $('piva-loading').style.display = 'none';
-                renderPivaSeznamu();
+                window.renderPivaSeznamu();
 
             } catch(e) {
-                console.error('nactiPivaTab error:', e);
-                $('piva-loading').style.cssText = 'display:block;color:#e05a5a;font-size:0.8rem;text-align:center;padding:2rem 0;';
-                $('piva-loading').textContent = '⚠️ Chyba: ' + e.message;
+                pivaSetLoading('⚠️ Chyba: ' + e.message, '#e05a5a');
+                console.error('[Piva]', e);
             }
         }
 
-        function renderPivaSeznamu() {
-            const hledani = $('piva-search').value.trim().toLowerCase();
+        window.renderPivaSeznamu = function() {
+            const hledani = ($('piva-search').value || '').trim().toLowerCase();
             const zdroj   = pivaTyp === 'piva' ? vsechnaPivaData : vsechnaHospodyData;
 
             let seznam = zdroj.filter(p =>
@@ -2897,12 +2894,12 @@
 
             if (pivaSort === 'hodnoceni') {
                 seznam.sort((a, b) => {
-                    const aH = (a.hodnoceni_pocet||0) > 0 ? (a.hodnoceni_prumerne||0) : -1;
-                    const bH = (b.hodnoceni_pocet||0) > 0 ? (b.hodnoceni_prumerne||0) : -1;
+                    const aH = a.hodnoceni_pocet > 0 ? a.hodnoceni_prumerne : -1;
+                    const bH = b.hodnoceni_pocet > 0 ? b.hodnoceni_prumerne : -1;
                     return bH - aH;
                 });
             } else if (pivaSort === 'vypitost') {
-                seznam.sort((a, b) => (b.mujPocet||0) - (a.mujPocet||0));
+                seznam.sort((a, b) => b.mujPocet - a.mujPocet);
             } else {
                 seznam.sort((a, b) => (a.nazev||a.id).localeCompare(b.nazev||b.id, 'cs'));
             }
@@ -2910,11 +2907,16 @@
             $('piva-loading').style.display = 'none';
 
             if (seznam.length === 0) {
-                hide('piva-seznam');
-                show('piva-prazdno');
+                $('piva-seznam').classList.add('hidden');
+                const prazdno = $('piva-prazdno');
+                prazdno.classList.remove('hidden');
+                prazdno.textContent = hledani
+                    ? `Žádný výsledek pro "${hledani}"`
+                    : (pivaTyp === 'piva' ? 'Žádná piva v historii.' : 'Žádné hospody v historii.');
                 return;
             }
-            hide('piva-prazdno');
+
+            $('piva-prazdno').classList.add('hidden');
             const box = $('piva-seznam');
             box.classList.remove('hidden');
             box.innerHTML = '';
@@ -2924,21 +2926,23 @@
                 : (userData?.hodnoceni_hospod || {});
 
             seznam.forEach(item => {
-                const klic     = pivaTyp === 'piva' ? item.id : item.id;
-                const zobrazNazev = pivaTyp === 'piva' ? item.id : item.nazev;
-                const prumerne = item.hodnoceni_prumerne || 0;
-                const hlasu    = item.hodnoceni_pocet    || 0;
-                const mojeHv   = moje[klic] || 0;
+                const klic        = item.id;
+                const zobrazNazev = item.nazev || item.id;
+                const prumerne    = item.hodnoceni_prumerne || 0;
+                const hlasu       = item.hodnoceni_pocet    || 0;
+                const mojeHv      = moje[klic] || 0;
 
                 const ikonaHtml = (pivaTyp === 'piva' && item.obrazek_url)
                     ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
                     : `<div class="pivo-ikona">${pivaTyp === 'piva' ? '🍺' : '🏰'}</div>`;
 
                 const prumHtml = hlasu > 0
-                    ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu} hlasů)</span>`
+                    ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}★</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu}×)</span>`
                     : `<span class="text-gray-600 text-[10px]">Zatím nehodnoceno</span>`;
 
-                const pocetLabel = pivaTyp === 'piva' ? `Vypito ${item.mujPocet}×` : `Navštíveno ${item.mujPocet}×`;
+                const pocetLabel = pivaTyp === 'piva'
+                    ? `Vypito ${item.mujPocet}×`
+                    : `Navštíveno ${item.mujPocet}×`;
 
                 const karta = document.createElement('div');
                 karta.className = 'pivo-karta fade-in';
@@ -2960,14 +2964,17 @@
 
                 karta.querySelectorAll('.hv').forEach(hvEl => {
                     hvEl.addEventListener('click', () => {
-                        if (pivaTyp === 'piva') hodnotitPolozku('pivo',   klic, parseInt(hvEl.dataset.stars));
-                        else                    hodnotitPolozku('hospoda', klic, parseInt(hvEl.dataset.stars));
+                        hodnotitPolozku(
+                            pivaTyp === 'piva' ? 'pivo' : 'hospoda',
+                            klic,
+                            parseInt(hvEl.dataset.stars)
+                        );
                     });
                 });
 
                 box.appendChild(karta);
             });
-        }
+        };
 
         async function hodnotitPolozku(typ, klic, stars) {
             if (!currentUser) return;
