@@ -817,6 +817,7 @@
         function show(id) { $(id).classList.remove('hidden'); }
         function hide(id) { $(id).classList.add('hidden'); }
         function setHtml(id, html) { $(id).innerHTML = html; }
+        function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function notify(msg) {
             // Jednoduchý toast místo alert()
             const t = document.createElement('div');
