@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velmistrův Panel – Pivní Dungeon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg: #160f08;
+            --card: #2c2138;
+            --border: #8a6a3a;
+            --accent: #ffd35a;
+            --orange: #f3a81e;
+            --green: #2e9b54;
+            --red: #c23b34;
+            --ink: #160d18;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            background-color: #160f08;
+            background-image:
+                radial-gradient(40% 26% at 50% 0%, rgba(255,176,70,.30), transparent 72%),
+                radial-gradient(28% 22% at 5% 24%, rgba(255,140,46,.16), transparent 68%),
+                radial-gradient(28% 22% at 95% 60%, rgba(255,140,46,.15), transparent 68%),
+                radial-gradient(125% 85% at 50% 32%, transparent 35%, rgba(8,5,2,.78) 88%),
+                url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%2280%22%20viewBox%3D%220%200%20120%2080%22%3E%3Crect%20width%3D%22120%22%20height%3D%2280%22%20fill%3D%22%230c0805%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2252%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%2333271c%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2252%22%20height%3D%229%22%20rx%3D%225%22%20fill%3D%22%235a4631%22%20opacity%3D%220.5%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2228%22%20width%3D%2252%22%20height%3D%228%22%20rx%3D%225%22%20fill%3D%22%23000%22%20opacity%3D%220.32%22%2F%3E%3Crect%20x%3D%2264%22%20y%3D%224%22%20width%3D%2252%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%23392c20%22%2F%3E%3Crect%20x%3D%2264%22%20y%3D%224%22%20width%3D%2252%22%20height%3D%229%22%20rx%3D%225%22%20fill%3D%22%23604a33%22%20opacity%3D%220.5%22%2F%3E%3Crect%20x%3D%2264%22%20y%3D%2228%22%20width%3D%2252%22%20height%3D%228%22%20rx%3D%225%22%20fill%3D%22%23000%22%20opacity%3D%220.32%22%2F%3E%3Crect%20x%3D%22-26%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%232a2017%22%2F%3E%3Crect%20x%3D%22-26%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%229%22%20rx%3D%225%22%20fill%3D%22%23473627%22%20opacity%3D%220.5%22%2F%3E%3Crect%20x%3D%22-26%22%20y%3D%2268%22%20width%3D%2252%22%20height%3D%228%22%20rx%3D%225%22%20fill%3D%22%23000%22%20opacity%3D%220.32%22%2F%3E%3Crect%20x%3D%2234%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%232c2118%22%2F%3E%3Crect%20x%3D%2234%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%229%22%20rx%3D%225%22%20fill%3D%22%234d3a28%22%20opacity%3D%220.5%22%2F%3E%3Crect%20x%3D%2234%22%20y%3D%2268%22%20width%3D%2252%22%20height%3D%228%22%20rx%3D%225%22%20fill%3D%22%23000%22%20opacity%3D%220.32%22%2F%3E%3Crect%20x%3D%2294%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%23352a1e%22%2F%3E%3Crect%20x%3D%2294%22%20y%3D%2244%22%20width%3D%2252%22%20height%3D%229%22%20rx%3D%225%22%20fill%3D%22%23574431%22%20opacity%3D%220.5%22%2F%3E%3Crect%20x%3D%2294%22%20y%3D%2268%22%20width%3D%2252%22%20height%3D%228%22%20rx%3D%225%22%20fill%3D%22%23000%22%20opacity%3D%220.32%22%2F%3E%3C%2Fsvg%3E");
+            background-size: auto, auto, auto, auto, 120px;
+            background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+            background-attachment: fixed, fixed, fixed, fixed, fixed;
+            color: #e8dcef;
+            font-family: 'Fredoka', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        .fantasy-font { font-family: 'Baloo 2', cursive; font-weight: 800; text-shadow: 0 2px 0 #5c2f0c, 0 0 16px rgba(255,168,30,.4); letter-spacing: .5px; }
+
+        .glass-card {
+            background: linear-gradient(180deg, #352741 0%, #251830 100%);
+            border: 3px solid #8a6a3a;
+            border-radius: 18px;
+            box-shadow: 0 5px 0 #14091c, 0 9px 16px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.07);
+        }
+
+        .hidden { display: none !important; }
+
+        .btn-primary { background: linear-gradient(180deg, #54d07f, #2e9b54); color: #0f3d22; border: 2.5px solid #160d18; border-radius: 12px; box-shadow: 0 4px 0 #1c6e3a, inset 0 1.5px 0 rgba(255,255,255,.35); font-family: 'Baloo 2', sans-serif; font-weight: 800; cursor: pointer; transition: transform .1s, filter .15s; }
+        .btn-primary:hover { filter: brightness(1.07); }
+        .btn-primary:active { transform: translateY(2px); box-shadow: 0 2px 0 #1c6e3a; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-danger { background: linear-gradient(180deg, #ef6a5a, #c23b34); color: #fff; border: 2.5px solid #160d18; border-radius: 12px; box-shadow: 0 4px 0 #7d2420, inset 0 1.5px 0 rgba(255,255,255,.3); font-family: 'Baloo 2', sans-serif; font-weight: 800; cursor: pointer; transition: transform .1s, filter .15s; }
+        .btn-danger:hover { filter: brightness(1.07); }
+        .btn-danger:active { transform: translateY(2px); box-shadow: 0 2px 0 #7d2420; }
+        .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-gold { background: linear-gradient(180deg, #ffd95a, #e0a01e); color: #3a230c; border: 2.5px solid #160d18; border-radius: 12px; box-shadow: 0 4px 0 #9c5e16, inset 0 1.5px 0 rgba(255,255,255,.5); font-family: 'Baloo 2', sans-serif; font-weight: 800; cursor: pointer; transition: transform .1s, filter .15s; }
+        .btn-gold:hover { filter: brightness(1.06); }
+        .btn-gold:active { transform: translateY(2px); box-shadow: 0 2px 0 #9c5e16; }
+
+        .btn-blue { background: linear-gradient(180deg, #5a9fd4, #2b5fa0); color: #fff; border: 2.5px solid #160d18; border-radius: 12px; box-shadow: 0 4px 0 #1a3a6b, inset 0 1.5px 0 rgba(255,255,255,.25); font-family: 'Baloo 2', sans-serif; font-weight: 800; cursor: pointer; transition: transform .1s, filter .15s; }
+        .btn-blue:hover { filter: brightness(1.07); }
+        .btn-blue:active { transform: translateY(2px); }
+        .btn-blue:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        input, select {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #5a4a2a;
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'Fredoka', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { border-color: #f3a81e; }
+        input::placeholder { color: #9a86a4; font-size: 0.85rem; }
+
+        .section-title {
+            font-size: 0.66rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffd35a;
+            font-weight: 800;
+            font-family: 'Baloo 2', sans-serif;
+            margin-bottom: 8px;
+        }
+
+        .navrh-card {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid #4a3a26;
+            border-radius: 13px;
+            padding: 12px 14px;
+        }
+
+        .valka-card {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid #c05621;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .tool-card {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid #4a3a26;
+            border-radius: 13px;
+            padding: 14px;
+        }
+        .tool-card.danger-zone { border-color: #7d2420; }
+        .tool-card.yellow-zone { border-color: #856a1a; }
+
+        .log-console {
+            background: rgba(0,0,0,0.7);
+            border: 1.5px solid #2d2d2d;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.72rem;
+            color: #86efac;
+            max-height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
+        .hrac-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.8rem;
+        }
+        .hrac-row:last-child { border-bottom: none; }
+
+        .log-zapis-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.73rem;
+            gap: 8px;
+        }
+        .log-zapis-row:last-child { border-bottom: none; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease forwards; }
+    </style>
+</head>
+<body class="p-3 flex flex-col items-center">
+
+    <h1 class="text-4xl my-5 text-yellow-500 fantasy-font tracking-wider">⚔️ VELMISTRŮV PANEL ⚔️</h1>
+
+    <!-- PŘIHLÁŠENÍ -->
+    <div id="login-screen" class="glass-card w-full max-w-sm p-6">
+        <p class="text-orange-400 text-sm mb-5 text-center font-bold" style="font-family:'Baloo 2',sans-serif;">Přístup jen pro velmistra</p>
+        <input id="admin-email"    type="email"    placeholder="E-mail" class="w-full p-3 mb-3">
+        <input id="admin-password" type="password" placeholder="Heslo"  class="w-full p-3 mb-5">
+        <button id="btn-admin-login" class="btn-blue w-full py-3 text-sm uppercase">Vstoupit do panelu</button>
+        <div id="login-error" class="text-red-400 text-xs mt-3 text-center font-bold"></div>
+    </div>
+
+    <!-- HLAVNÍ PANEL -->
+    <div id="admin-panel" class="hidden w-full max-w-2xl pb-10">
+
+        <!-- Info řádek -->
+        <div class="flex justify-between items-center mb-5">
+            <div id="admin-info" class="text-xs text-gray-400"></div>
+            <button id="btn-admin-logout" class="text-red-400 text-xs font-bold underline">Odhlásit</button>
+        </div>
+
+        <!-- ── 1. NÁVRHY PIV ─────────────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl text-orange-400 fantasy-font">📜 Návrhy piv ke schválení</h2>
+                <button id="btn-refresh" class="btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
+            </div>
+            <div id="seznam-navrhu" class="space-y-3">
+                <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
+            </div>
+        </div>
+
+        <!-- ── 2. CECHOVNÍ VÁLKY ──────────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl text-orange-400 fantasy-font">⚔️ Aktivní cechovní války</h2>
+                <button id="btn-refresh-valky" class="btn-blue px-4 py-2 text-xs uppercase">↻ Obnovit</button>
+            </div>
+            <div id="seznam-valek" class="space-y-3">
+                <p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>
+            </div>
+        </div>
+
+        <!-- ── 3. ŽEBŘÍČEK HRÁČŮ ─────────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5">
+            <h2 class="text-xl text-orange-400 fantasy-font mb-4">🏆 Top hráči (XP)</h2>
+            <div id="zebricek-hracu" class="space-y-1"></div>
+        </div>
+
+        <!-- ── 4. SPRÁVA ZÁPISŮ HRÁČE ────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5" style="border-color:#7d2420;">
+            <h2 class="text-xl text-red-400 fantasy-font mb-1">🗑️ Správa zápisů hráče</h2>
+            <p class="text-xs text-gray-500 mb-4">Vyhledej hráče e-mailem a smaž záznamy (podvádění apod.). Mazání odečte -100 XP.</p>
+
+            <div class="flex gap-2 mb-4">
+                <input id="admin-hrac-email" type="email" placeholder="E-mail hráče..." class="flex-grow p-2 text-sm">
+                <button id="btn-hledat-hrace" class="btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">🔍 Hledat</button>
+            </div>
+
+            <div id="admin-hrac-info" class="hidden mb-3 bg-black bg-opacity-40 rounded-xl p-3 text-sm border border-gray-700">
+                <span class="text-yellow-400 font-bold" id="admin-hrac-prezdivka">—</span>
+                <span class="text-gray-400 ml-2" id="admin-hrac-xp">0 XP</span>
+                <span class="text-gray-600 ml-2 text-xs" id="admin-hrac-uid"></span>
+            </div>
+
+            <div id="admin-logy-loading" class="hidden text-gray-500 italic text-sm text-center py-4">Načítám záznamy...</div>
+
+            <div id="admin-logy-box" class="hidden">
+                <div class="section-title">Posledních 50 zápisů</div>
+                <div id="admin-logy-seznam" class="bg-black bg-opacity-40 rounded-xl p-2 border border-gray-800 max-h-80 overflow-y-auto space-y-0.5"></div>
+            </div>
+        </div>
+
+        <!-- ── 5. SPRÁVA & MIGRACE ────────────────────────────────────────── -->
+        <div class="glass-card p-5 mb-5" style="border-color:#856a1a;">
+            <h2 class="text-xl text-yellow-400 fantasy-font mb-1">🔧 Správa &amp; Migrace</h2>
+            <p class="text-xs text-gray-500 mb-5">Nástroje pro údržbu databáze. Spouštěj jen když víš co děláš.</p>
+
+            <div class="space-y-4">
+
+                <!-- Přepočítat statistiky -->
+                <div class="tool-card">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1" style="font-family:'Baloo 2',sans-serif;">📊 Přepočítat statistiky piv &amp; hospod</div>
+                            <div class="text-xs text-gray-400">Projde logy všech hráčů a znovu sestaví <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code>.</div>
+                        </div>
+                        <button id="btn-migrace-statistiky" class="btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-statistiky-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Migrace schémat hráčů -->
+                <div class="tool-card">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1" style="font-family:'Baloo 2',sans-serif;">👤 Doplnit chybějící pole hráčů</div>
+                            <div class="text-xs text-gray-400">Projde všechny hráče a doplní nová pole která jim chybí (<code class="text-yellow-600">cech_zakladatel</code>, <code class="text-yellow-600">verze_schematu</code> atd.).</div>
+                        </div>
+                        <button id="btn-migrace-hraci" class="btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-hraci-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Přepočítat Království -->
+                <div class="tool-card yellow-zone">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-yellow-300 mb-1" style="font-family:'Baloo 2',sans-serif;">👑 Přepočítat Království z logů</div>
+                            <div class="text-xs text-gray-400">Projde log_piv všech hráčů pro aktuální měsíc a znovu sestaví <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>.</div>
+                        </div>
+                        <button id="btn-prepocitat-kralovstvi" class="btn-gold px-4 py-2 text-xs uppercase flex-shrink-0">Přepočítat</button>
+                    </div>
+                    <div id="prepocitat-kralovstvi-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Smazat prázdné cechy -->
+                <div class="tool-card danger-zone">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-300 mb-1" style="font-family:'Baloo 2',sans-serif;">🛡️ Smazat prázdné cechy</div>
+                            <div class="text-xs text-gray-400">Najde a smaže všechny cechy, které nemají žádného člena.</div>
+                        </div>
+                        <button id="btn-smazat-prazdne-cechy" class="btn-danger px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="prazdne-cechy-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Spárovat společné pití -->
+                <div class="tool-card">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-orange-300 mb-1" style="font-family:'Baloo 2',sans-serif;">🍻 Spárovat záznamy společného pití</div>
+                            <div class="text-xs text-gray-400">Zpětně spáruje záznamy ze stejné hospody do 5 minut od sebe. Doplní pole <code class="text-yellow-600">spolecne_s</code> u historických záznamů.</div>
+                        </div>
+                        <button id="btn-migrace-spolecne" class="btn-blue px-4 py-2 text-xs uppercase flex-shrink-0">Spustit</button>
+                    </div>
+                    <div id="migrace-spolecne-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Reset Království -->
+                <div class="tool-card danger-zone">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-300 mb-1" style="font-family:'Baloo 2',sans-serif;">👑 Ruční reset Království</div>
+                            <div class="text-xs text-gray-400">Smaže výsledky aktuálního měsíce z kolekcí <code class="text-yellow-600">kralovstvi</code> a <code class="text-yellow-600">kralovstvi_hraci</code>.</div>
+                        </div>
+                        <button id="btn-reset-kralovstvi" class="btn-danger px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
+                    </div>
+                    <div id="reset-kralovstvi-log" class="hidden log-console"></div>
+                </div>
+
+                <!-- Reset statistik -->
+                <div class="tool-card danger-zone">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-red-400 mb-1" style="font-family:'Baloo 2',sans-serif;">🗑️ Vymazat a přepočítat statistiky</div>
+                            <div class="text-xs text-gray-400">Smaže <code class="text-yellow-600">statistiky_piv</code> a <code class="text-yellow-600">statistiky_hospod</code> a sestaví je od nuly.</div>
+                        </div>
+                        <button id="btn-reset-statistiky" class="btn-danger px-4 py-2 text-xs uppercase flex-shrink-0">Reset</button>
+                    </div>
+                    <div id="reset-statistiky-log" class="hidden log-console"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /admin-panel -->
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, collectionGroup, getDocs, doc, deleteDoc, updateDoc,
+                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where, Timestamp }
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ─── FIREBASE CONFIG ──────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrtK_99uh1SGyj2KhA2ljH3aAhynDnhqI",
+            authDomain: "pivnidungeon.firebaseapp.com",
+            projectId: "pivnidungeon",
+            storageBucket: "pivnidungeon.firebasestorage.app",
+            messagingSenderId: "174543526039",
+            appId: "1:174543526039:web:be6092c458e376c306b1d2"
+        };
+
+        // ─── ADMIN UID seznam ─────────────────────────────────────────────
+        // Jak získat UID: Firebase console → Authentication → Users → zkopíruj User UID
+        const ADMIN_UIDS = [
+            "pyyRzSGXzDcpo0wV8xzi0AOcJnb2",
+        ];
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // ─── HELPERS ─────────────────────────────────────────────────────
+        function $(id) { return document.getElementById(id); }
+        function show(id) { $(id).classList.remove('hidden'); }
+        function hide(id) { $(id).classList.add('hidden'); }
+
+        function notify(msg, type = 'ok') {
+            const t = document.createElement('div');
+            t.textContent = msg;
+            const bg = type === 'err' ? '#7d2420' : type === 'warn' ? '#856a1a' : '#1c4731';
+            t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:10px 22px;border-radius:12px;z-index:9999;font-size:0.85rem;border:2px solid rgba(255,255,255,.15);font-family:'Fredoka',sans-serif;max-width:92%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.5);`;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320); }, 3200);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+
+        function logLine(boxId, text, color) {
+            const box = $(boxId);
+            box.classList.remove('hidden');
+            const line = document.createElement('div');
+            line.style.color = color || '#86efac';
+            line.textContent = `[${new Date().toLocaleTimeString('cs-CZ')}] ${text}`;
+            box.appendChild(line);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ─── AUTH ─────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                show('login-screen');
+                hide('admin-panel');
+                return;
+            }
+            // Pokud je seznam ADMIN_UIDS prázdný → dev mode (povolíme kohokoli)
+            if (ADMIN_UIDS.length > 0 && !ADMIN_UIDS.includes(user.uid)) {
+                notify('⛔ Nemáš přístup do velmistrova panelu!', 'err');
+                await signOut(auth);
+                return;
+            }
+            hide('login-screen');
+            show('admin-panel');
+            $('admin-info').textContent = `Přihlášen jako: ${user.email}`;
+            await Promise.all([nactiNavrhy(), nactiValky(), nactiZebricek()]);
+        });
+
+        $('btn-admin-login').addEventListener('click', async () => {
+            const email = $('admin-email').value.trim();
+            const pass  = $('admin-password').value;
+            $('login-error').textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch(e) {
+                $('login-error').textContent = 'Nesprávné přihlašovací údaje.';
+            }
+        });
+
+        $('admin-password').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-admin-login').click(); });
+
+        $('btn-admin-logout').addEventListener('click', () => signOut(auth));
+        $('btn-refresh').addEventListener('click', nactiNavrhy);
+        $('btn-refresh-valky').addEventListener('click', nactiValky);
+
+        // ─── 1. NÁVRHY PIV ────────────────────────────────────────────────
+        async function nactiNavrhy() {
+            const list = $('seznam-navrhu');
+            list.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám návrhy...</p>';
+            const snap = await getDocs(collection(db, "navrhy_piv"));
+            if (snap.empty) {
+                list.innerHTML = '<p class="text-green-400 text-sm text-center py-4 font-bold">✓ Žádné čekající návrhy. Sudy jsou v pořádku.</p>';
+                return;
+            }
+            list.innerHTML = '';
+            snap.forEach(d => {
+                const p = d.data();
+                const card = document.createElement('div');
+                card.className = 'navrh-card fade-in flex justify-between items-center gap-3';
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <div class="text-yellow-400 font-bold text-base" style="font-family:'Baloo 2',sans-serif;">${escapeHtml(p.nazev_piva)}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">
+                        Navrhl: <span class="text-orange-400">${escapeHtml(p.navrhl ?? '—')}</span>
+                        &nbsp;·&nbsp; Hospoda: <span class="text-gray-300">${escapeHtml(p.hospoda ?? '—')}</span>
+                    </div>`;
+                const btns = document.createElement('div');
+                btns.className = 'flex gap-2 flex-shrink-0';
+                const btnS = document.createElement('button');
+                btnS.className = 'btn-primary px-4 py-2 text-xs uppercase';
+                btnS.textContent = '✓ Schválit';
+                btnS.addEventListener('click', () => schvalit(d.id, p));
+                const btnZ = document.createElement('button');
+                btnZ.className = 'btn-danger px-3 py-2 text-xs';
+                btnZ.textContent = '✕';
+                btnZ.addEventListener('click', () => zamitnout(d.id, p.nazev_piva));
+                btns.appendChild(btnS);
+                btns.appendChild(btnZ);
+                card.appendChild(info);
+                card.appendChild(btns);
+                list.appendChild(card);
+            });
+        }
+
+        async function schvalit(id, navrh) {
+            const nazev   = navrh.nazev_piva;
+            const hracUid = navrh.navrhl_uid;
+            const hospoda = navrh.hospoda || 'Nezadáno';
+            const casNavrhu = navrh.cas || null;
+            try {
+                await addDoc(collection(db, "vsechna_piva"), { nazev });
+                if (hracUid) {
+                    const hracSnap = await getDoc(doc(db, "hraci", hracUid));
+                    if (hracSnap.exists()) {
+                        const bezTecky = hospoda.replace(/\./g, '_');
+                        await updateDoc(doc(db, "hraci", hracUid), {
+                            xp: increment(100),
+                            [`dungeony.${bezTecky}`]: increment(1)
+                        });
+                        await addDoc(collection(db, "hraci", hracUid, "log_piv"), {
+                            pivo: nazev, hospoda, cas: casNavrhu, schvaleno: true
+                        });
+                        try { await setDoc(doc(db, "statistiky_piv", nazev), { pocet: increment(1) }, { merge: true }); } catch(e) { await setDoc(doc(db, "statistiky_piv", nazev), { pocet: 1 }); }
+                        const bezTecky2 = hospoda.replace(/\./g, '_');
+                        try { await setDoc(doc(db, "statistiky_hospod", bezTecky2), { pocet: increment(1), nazev: hospoda }, { merge: true }); } catch(e) {}
+                    }
+                }
+                await deleteDoc(doc(db, "navrhy_piv", id));
+                notify(`✓ Mok "${nazev}" schválen! Hráč dostal +100 XP.`);
+                nactiNavrhy();
+            } catch (e) { notify('Chyba: ' + e.message, 'err'); }
+        }
+
+        async function zamitnout(id, nazev) {
+            if (!confirm(`Opravdu zamítnout návrh "${nazev}"?`)) return;
+            try {
+                await deleteDoc(doc(db, "navrhy_piv", id));
+                notify(`✕ Návrh "${nazev}" zamítnut.`, 'warn');
+                nactiNavrhy();
+            } catch (e) { notify('Chyba: ' + e.message, 'err'); }
+        }
+
+        // ─── 2. CECHOVNÍ VÁLKY ────────────────────────────────────────────
+        async function nactiValky() {
+            const box = $('seznam-valek');
+            box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Načítám...</p>';
+            const snap = await getDocs(collection(db, "valky"));
+            if (snap.empty) {
+                box.innerHTML = '<p class="text-gray-500 italic text-sm text-center py-4">Žádné záznamy o válkách.</p>';
+                return;
+            }
+            box.innerHTML = '';
+            for (const d of snap.docs) {
+                const v = d.data();
+                const [uSnap, oSnap] = await Promise.all([
+                    getDoc(doc(db, "cechy", v.utocnik_id)),
+                    getDoc(doc(db, "cechy", v.obrance_id))
+                ]);
+                const uNazev = uSnap.exists() ? uSnap.data().nazev : 'Zrušený cech';
+                const oNazev = oSnap.exists() ? oSnap.data().nazev : 'Zrušený cech';
+                const stavBadge = {
+                    'aktivni':  '<span class="text-green-400 font-bold">🔥 Aktivní</span>',
+                    'ceka':     '<span class="text-yellow-400 font-bold">⏳ Čeká na přijetí</span>',
+                    'skoncila': '<span class="text-gray-400">✓ Ukončena</span>'
+                }[v.stav] ?? v.stav;
+                const card = document.createElement('div');
+                card.className = 'valka-card fade-in';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-orange-300 font-bold text-sm mb-1" style="font-family:'Baloo 2',sans-serif;">
+                                ${escapeHtml(uNazev)} <span class="text-gray-500">⚔️</span> ${escapeHtml(oNazev)}
+                            </div>
+                            <div class="text-xs text-gray-400">Stav: ${stavBadge}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Skóre: <span class="text-yellow-400">${v.utocnik_bodu ?? 0}</span>
+                                 : <span class="text-red-400">${v.obrance_bodu ?? 0}</span>
+                                (cíl: ${v.cil_bodu ?? 50})
+                            </div>
+                        </div>
+                        ${v.stav !== 'skoncila' ? `<button class="btn-danger px-3 py-1 text-xs uppercase" data-vid="${d.id}">Ukončit</button>` : ''}
+                    </div>`;
+                const delBtn = card.querySelector('[data-vid]');
+                if (delBtn) {
+                    delBtn.addEventListener('click', async () => {
+                        if (!confirm('Ukončit a smazat tuto válku?')) return;
+                        await deleteDoc(doc(db, "valky", d.id));
+                        notify('Válka ukončena.', 'warn');
+                        nactiValky();
+                    });
+                }
+                box.appendChild(card);
+            }
+        }
+
+        // ─── 3. ŽEBŘÍČEK HRÁČŮ ───────────────────────────────────────────
+        async function nactiZebricek() {
+            const q = query(collection(db, "hraci"), orderBy("xp", "desc"), limit(20));
+            const snap = await getDocs(q);
+            $('zebricek-hracu').innerHTML = snap.docs.map((d, i) => {
+                const h = d.data();
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                return `<div class="hrac-row">
+                    <span>${medal} <span class="text-yellow-400 font-bold">${escapeHtml(h.prezdivka ?? h.email ?? '—')}</span></span>
+                    <span class="text-yellow-500 text-xs font-bold">${h.xp ?? 0} XP</span>
+                </div>`;
+            }).join('') || '<div class="text-gray-600 text-sm italic text-center py-2">Žádní hráči.</div>';
+        }
+
+        // ─── 4. MAZÁNÍ ZÁPISŮ HRÁČE ──────────────────────────────────────
+        let adminVybranyHracUid = null;
+
+        $('btn-hledat-hrace').addEventListener('click', async () => {
+            const email = $('admin-hrac-email').value.trim().toLowerCase();
+            if (!email) { notify('Zadej e-mail hráče!', 'warn'); return; }
+            hide('admin-hrac-info');
+            hide('admin-logy-box');
+            show('admin-logy-loading');
+            try {
+                const q = query(collection(db, "hraci"), where("email", "==", email));
+                const snap = await getDocs(q);
+                if (snap.empty) { notify('Hráč s tímto e-mailem nenalezen.', 'warn'); hide('admin-logy-loading'); return; }
+                const d = snap.docs[0];
+                const h = d.data();
+                adminVybranyHracUid = d.id;
+                $('admin-hrac-prezdivka').textContent = h.prezdivka || '—';
+                $('admin-hrac-xp').textContent = (h.xp || 0) + ' XP';
+                $('admin-hrac-uid').textContent = d.id;
+                show('admin-hrac-info');
+                const logySnap = await getDocs(query(
+                    collection(db, "hraci", d.id, "log_piv"),
+                    orderBy("cas", "desc"), limit(50)
+                ));
+                const seznam = $('admin-logy-seznam');
+                if (logySnap.empty) {
+                    seznam.innerHTML = '<div class="text-gray-600 italic text-xs text-center py-3">Žádné záznamy.</div>';
+                } else {
+                    seznam.innerHTML = logySnap.docs.map(ld => {
+                        const z = ld.data();
+                        const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+                        const datum = casObj
+                            ? casObj.toLocaleDateString('cs-CZ') + ' ' + casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})
+                            : '—';
+                        return `<div class="log-zapis-row" id="logrow-${ld.id}">
+                            <span class="min-w-0">
+                                <span class="text-yellow-400 font-bold">${escapeHtml(z.pivo || '—')}</span>
+                                <span class="text-gray-400"> @ ${escapeHtml(z.hospoda || '—')}</span>
+                                <span class="text-gray-600 text-[10px] block">${datum}</span>
+                            </span>
+                            <button onclick="adminSmazatZapis('${ld.id}','${escapeHtml(z.pivo||'')}','${escapeHtml(z.hospoda||'')}')"
+                                class="btn-danger px-2 py-1 text-xs flex-shrink-0">🗑️</button>
+                        </div>`;
+                    }).join('');
+                }
+                show('admin-logy-box');
+            } catch(e) {
+                notify('Chyba: ' + e.message, 'err');
+            } finally {
+                hide('admin-logy-loading');
+            }
+        });
+
+        $('admin-hrac-email').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-hledat-hrace').click(); });
+
+        window.adminSmazatZapis = async (logId, pivo, hospoda) => {
+            if (!adminVybranyHracUid) return;
+            if (!confirm(`Smazat záznam "${pivo}" @ ${hospoda}? Odečte -100 XP hráči.`)) return;
+            try {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, "hraci", adminVybranyHracUid, "log_piv", logId));
+                batch.update(doc(db, "hraci", adminVybranyHracUid), { xp: increment(-100) });
+                await batch.commit();
+                const bezTecky = hospoda.replace(/\./g, '_');
+                try { await updateDoc(doc(db, "statistiky_piv", pivo), { pocet: increment(-1) }); } catch(e) {}
+                try { await updateDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(-1) }); } catch(e) {}
+                const row = document.getElementById('logrow-' + logId);
+                if (row) row.remove();
+                const hSnap = await getDoc(doc(db, "hraci", adminVybranyHracUid));
+                if (hSnap.exists()) $('admin-hrac-xp').textContent = (hSnap.data().xp || 0) + ' XP';
+                notify('Záznam smazán a -100 XP odečteno.', 'warn');
+            } catch(e) { notify('Chyba při mazání: ' + e.message, 'err'); }
+        };
+
+        // ─── 5A. PŘEPOČÍTAT STATISTIKY ───────────────────────────────────
+        $('btn-migrace-statistiky').addEventListener('click', async () => {
+            if (!confirm('Spustit přepočet statistik? Stávající data budou PŘIČTENA. Pro čistý přepočet použij Reset.')) return;
+            await spustMigraciStatistik('migrace-statistiky-log', false);
+        });
+
+        $('btn-reset-statistiky').addEventListener('click', async () => {
+            if (!confirm('VAROVÁNÍ: Toto smaže a přepočítá všechny statistiky od nuly. Pokračovat?')) return;
+            await spustMigraciStatistik('reset-statistiky-log', true);
+        });
+
+        async function spustMigraciStatistik(logId, resetNejdrive) {
+            const btn = resetNejdrive ? $('btn-reset-statistiky') : $('btn-migrace-statistiky');
+            btn.disabled = true;
+            $(logId).innerHTML = '';
+            try {
+                if (resetNejdrive) {
+                    logLine(logId, 'Mažu stávající statistiky piv...');
+                    const pivSnap = await getDocs(collection(db, "statistiky_piv"));
+                    let b = writeBatch(db); let c = 0;
+                    for (const d of pivSnap.docs) { b.delete(d.ref); c++; if (c % 400 === 0) { await b.commit(); b = writeBatch(db); } }
+                    await b.commit();
+                    logLine(logId, `  → Smazáno ${c} záznamů piv.`);
+                    logLine(logId, 'Mažu stávající statistiky hospod...');
+                    const hospSnap = await getDocs(collection(db, "statistiky_hospod"));
+                    let b2 = writeBatch(db); let c2 = 0;
+                    for (const d of hospSnap.docs) { b2.delete(d.ref); c2++; if (c2 % 400 === 0) { await b2.commit(); b2 = writeBatch(db); } }
+                    await b2.commit();
+                    logLine(logId, `  → Smazáno ${c2} záznamů hospod.`);
+                }
+                logLine(logId, 'Načítám seznam hráčů...');
+                const hraciSnap = await getDocs(collection(db, "hraci"));
+                logLine(logId, `  → Nalezeno ${hraciSnap.size} hráčů.`);
+                const poctyPiv = {}, poctyHospod = {};
+                let celkemLogu = 0;
+                for (const hracDoc of hraciSnap.docs) {
+                    logLine(logId, `Čtu logy: ${hracDoc.data().prezdivka ?? hracDoc.id}...`, '#fbbf24');
+                    try {
+                        const logSnap = await getDocs(collection(db, "hraci", hracDoc.id, "log_piv"));
+                        logSnap.forEach(l => {
+                            const z = l.data();
+                            if (z.pivo)    poctyPiv[z.pivo]        = (poctyPiv[z.pivo]        || 0) + 1;
+                            if (z.hospoda) poctyHospod[z.hospoda]  = (poctyHospod[z.hospoda]  || 0) + 1;
+                            celkemLogu++;
+                        });
+                        logLine(logId, `  → ${logSnap.size} záznamů.`);
+                    } catch (e) { logLine(logId, `  ⚠ Chyba: ${e.message}`, '#f87171'); }
+                }
+                logLine(logId, `Celkem ${celkemLogu} zápisů, ${Object.keys(poctyPiv).length} piv, ${Object.keys(poctyHospod).length} hospod.`);
+                logLine(logId, 'Zapisuji statistiky piv...');
+                let pb = writeBatch(db); let pc = 0;
+                for (const [n, cnt] of Object.entries(poctyPiv)) {
+                    pb.set(doc(db, "statistiky_piv", n), { pocet: cnt }, { merge: !resetNejdrive });
+                    pc++; if (pc % 400 === 0) { await pb.commit(); pb = writeBatch(db); }
+                }
+                await pb.commit();
+                logLine(logId, `  → Zapsáno ${pc} piv.`);
+                logLine(logId, 'Zapisuji statistiky hospod...');
+                let hb = writeBatch(db); let hc = 0;
+                for (const [n, cnt] of Object.entries(poctyHospod)) {
+                    hb.set(doc(db, "statistiky_hospod", n), { pocet: cnt }, { merge: !resetNejdrive });
+                    hc++; if (hc % 400 === 0) { await hb.commit(); hb = writeBatch(db); }
+                }
+                await hb.commit();
+                logLine(logId, `  → Zapsáno ${hc} hospod.`);
+                logLine(logId, '✅ Migrace statistik dokončena!', '#34d399');
+            } catch (e) { logLine(logId, `❌ Chyba: ${e.message}`, '#f87171'); }
+            finally { btn.disabled = false; }
+        }
+
+        // ─── 5B. MIGRACE SCHÉMAT HRÁČŮ ───────────────────────────────────
+        const SCHEMA_VERZE = 4;
+
+        $('btn-migrace-hraci').addEventListener('click', async () => {
+            if (!confirm('Doplnit chybějící pole všem hráčům?')) return;
+            const logId = 'migrace-hraci-log';
+            $(logId).innerHTML = '';
+            $('btn-migrace-hraci').disabled = true;
+            try {
+                logLine(logId, 'Načítám hráče...');
+                const snap = await getDocs(collection(db, "hraci"));
+                logLine(logId, `  → ${snap.size} hráčů nalezeno.`);
+                let opraveno = 0, vporizadku = 0;
+                for (const d of snap.docs) {
+                    const h = d.data(); const opravy = {};
+                    if (!h.prezdivka)                   opravy.prezdivka        = h.email?.split('@')[0] ?? 'Hrdina';
+                    if (h.xp === undefined)             opravy.xp               = 0;
+                    if (!h.dungeony)                    opravy.dungeony         = {};
+                    if (h.cech_id === undefined)        opravy.cech_id          = null;
+                    if (h.cech_zakladatel === undefined) opravy.cech_zakladatel  = false;
+                    if (h.avatar === undefined)         opravy.avatar           = '⚔️';
+                    if (h.bio === undefined)            opravy.bio              = '';
+                    if (h.kraj === undefined)           opravy.kraj             = '';
+                    if (h.sledovani === undefined)      opravy.sledovani        = [];
+                    if ((h.verze_schematu ?? 0) < SCHEMA_VERZE) opravy.verze_schematu = SCHEMA_VERZE;
+                    if (Object.keys(opravy).length > 0) {
+                        await updateDoc(d.ref, opravy);
+                        logLine(logId, `  ✏ ${h.prezdivka ?? d.id}: doplněno ${Object.keys(opravy).join(', ')}`, '#fbbf24');
+                        opraveno++;
+                    } else { vporizadku++; }
+                }
+                logLine(logId, `✅ Hotovo! Opraveno: ${opraveno}, v pořádku: ${vporizadku}`, '#34d399');
+            } catch (e) { logLine(logId, `❌ Chyba: ${e.message}`, '#f87171'); }
+            finally { $('btn-migrace-hraci').disabled = false; }
+        });
+
+        // ─── 5C. PŘEPOČÍTAT KRÁLOVSTVÍ ───────────────────────────────────
+        $('btn-prepocitat-kralovstvi').addEventListener('click', async () => {
+            const logId = 'prepocitat-kralovstvi-log';
+            $(logId).innerHTML = '';
+            $('btn-prepocitat-kralovstvi').disabled = true;
+            try {
+                const mesic = new Date().toISOString().slice(0, 7);
+                logLine(logId, 'Spouštím přepočet pro měsíc: ' + mesic);
+                const kSnap  = await getDocs(query(collection(db, "kralovstvi"),       where("mesic", "==", mesic)));
+                const khSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
+                let delBatch = writeBatch(db); let delCount = 0;
+                kSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
+                khSnap.forEach(d => { delBatch.delete(d.ref); delCount++; });
+                if (delCount > 0) await delBatch.commit();
+                logLine(logId, 'Smazáno ' + delCount + ' starých záznamů.');
+                const hraciSnap = await getDocs(query(collection(db, "hraci"), where("kraj", "!=", null)));
+                logLine(logId, 'Nalezeno ' + hraciSnap.size + ' hráčů s krajem.');
+                const krajSoučty = {};
+                let zpracovano = 0;
+                for (const hracDoc of hraciSnap.docs) {
+                    const h = hracDoc.data();
+                    if (!h.kraj) continue;
+                    const zacatek = new Date(mesic + '-01T00:00:00');
+                    const konec   = new Date(new Date(zacatek).setMonth(zacatek.getMonth() + 1));
+                    const logSnap = await getDocs(query(
+                        collection(db, "hraci", hracDoc.id, "log_piv"),
+                        where("cas", ">=", Timestamp.fromDate(zacatek)),
+                        where("cas", "<",  Timestamp.fromDate(konec))
+                    ));
+                    const pocetPiv = logSnap.size;
+                    if (pocetPiv === 0) continue;
+                    await setDoc(doc(db, "kralovstvi_hraci", mesic + "_" + hracDoc.id), {
+                        uid: hracDoc.id, prezdivka: h.prezdivka || "—",
+                        kraj: h.kraj, mesic, piv: pocetPiv
+                    });
+                    krajSoučty[h.kraj] = (krajSoučty[h.kraj] || 0) + pocetPiv;
+                    zpracovano++;
+                }
+                logLine(logId, 'Zpracováno ' + zpracovano + ' aktivních hráčů.');
+                for (const [kraj, pocet] of Object.entries(krajSoučty)) {
+                    await setDoc(doc(db, "kralovstvi", mesic + "_" + kraj), { kraj, mesic, piv: pocet });
+                }
+                logLine(logId, 'Uloženo ' + Object.keys(krajSoučty).length + ' krajů.');
+                logLine(logId, '✅ Hotovo! Království přepočítáno.', '#34d399');
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-prepocitat-kralovstvi').disabled = false; }
+        });
+
+        // ─── 5D. SMAZAT PRÁZDNÉ CECHY ────────────────────────────────────
+        $('btn-smazat-prazdne-cechy').addEventListener('click', async () => {
+            const logId = 'prazdne-cechy-log';
+            $(logId).innerHTML = '';
+            $('btn-smazat-prazdne-cechy').disabled = true;
+            try {
+                const vsechnyCechy = await getDocs(collection(db, "cechy"));
+                logLine(logId, 'Nalezeno ' + vsechnyCechy.size + ' cechů.');
+                let smazano = 0;
+                for (const cechDoc of vsechnyCechy.docs) {
+                    const clenovSnap = await getDocs(query(collection(db, "hraci"), where("cech_id", "==", cechDoc.id)));
+                    if (clenovSnap.empty) {
+                        await deleteDoc(cechDoc.ref);
+                        logLine(logId, '🗑️ Smazán prázdný cech: ' + (cechDoc.data().nazev || cechDoc.id), '#fbbf24');
+                        smazano++;
+                    }
+                }
+                logLine(logId, '✅ Hotovo. Smazáno ' + smazano + ' prázdných cechů.', '#34d399');
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-smazat-prazdne-cechy').disabled = false; }
+        });
+
+        // ─── 5E. SPÁROVAT SPOLEČNÉ PITÍ ──────────────────────────────────
+        $('btn-migrace-spolecne').addEventListener('click', async () => {
+            const logId = 'migrace-spolecne-log';
+            $(logId).innerHTML = '';
+            $('btn-migrace-spolecne').disabled = true;
+            try {
+                logLine(logId, 'Načítám všechny hráče...');
+                const hraciSnap = await getDocs(collection(db, "hraci"));
+                logLine(logId, `Nalezeno ${hraciSnap.size} hráčů.`);
+                const podleHospody = {};
+                let celkemZaznamu = 0;
+                for (const hracDoc of hraciSnap.docs) {
+                    const logSnap = await getDocs(collection(db, "hraci", hracDoc.id, "log_piv"));
+                    logSnap.docs.forEach(d => {
+                        const data = d.data();
+                        if (!data.hospoda || !data.cas) return;
+                        if (!podleHospody[data.hospoda]) podleHospody[data.hospoda] = [];
+                        podleHospody[data.hospoda].push({
+                            ref: d.ref, uid: hracDoc.id,
+                            cas: data.cas.toDate ? data.cas.toDate() : new Date(data.cas),
+                            spolecne_s: data.spolecne_s || null
+                        });
+                        celkemZaznamu++;
+                    });
+                }
+                logLine(logId, `Nalezeno ${celkemZaznamu} záznamů celkem.`);
+                for (const h of Object.keys(podleHospody)) podleHospody[h].sort((a, b) => a.cas - b.cas);
+                let sparovano = 0;
+                for (const [hospoda, zaznamy] of Object.entries(podleHospody)) {
+                    if (zaznamy.length < 2) continue;
+                    for (let i = 0; i < zaznamy.length; i++) {
+                        const z = zaznamy[i];
+                        if (z.spolecne_s) continue;
+                        const jmena = [], uids = [];
+                        for (let j = 0; j < zaznamy.length; j++) {
+                            if (i === j || zaznamy[j].uid === z.uid) continue;
+                            if (Math.abs(z.cas - zaznamy[j].cas) <= 5 * 60 * 1000) {
+                                uids.push(zaznamy[j].uid);
+                                const hSnap = hraciSnap.docs.find(d => d.id === zaznamy[j].uid);
+                                if (hSnap) jmena.push(hSnap.data().prezdivka);
+                            }
+                        }
+                        if (jmena.length > 0) {
+                            try {
+                                await updateDoc(z.ref, { spolecne_s: jmena.join(', '), spolecne_uids: uids });
+                                sparovano++;
+                            } catch(eW) {}
+                        }
+                    }
+                }
+                logLine(logId, `✅ Hotovo! Spárováno ${sparovano} záznamů.`, '#34d399');
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-migrace-spolecne').disabled = false; }
+        });
+
+        // ─── 5F. RESET KRÁLOVSTVÍ ─────────────────────────────────────────
+        $('btn-reset-kralovstvi').addEventListener('click', async () => {
+            if (!confirm('Opravdu smazat výsledky aktuálního měsíce krajské války?')) return;
+            const logId = 'reset-kralovstvi-log';
+            $(logId).innerHTML = '';
+            $('btn-reset-kralovstvi').disabled = true;
+            try {
+                const mesic = new Date().toISOString().slice(0, 7);
+                logLine(logId, 'Mažu kraje za ' + mesic + '...');
+                const krajSnap = await getDocs(query(collection(db, "kralovstvi"),       where("mesic", "==", mesic)));
+                const hracSnap = await getDocs(query(collection(db, "kralovstvi_hraci"), where("mesic", "==", mesic)));
+                const batch = writeBatch(db);
+                krajSnap.forEach(d => batch.delete(d.ref));
+                hracSnap.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+                logLine(logId, 'Smazáno ' + (krajSnap.size + hracSnap.size) + ' záznamů.', '#34d399');
+                logLine(logId, '✅ Reset dokončen!', '#34d399');
+            } catch(e) { logLine(logId, '❌ Chyba: ' + e.message, '#f87171'); }
+            finally { $('btn-reset-kralovstvi').disabled = false; }
+        });
+
+    </script>
+</body>
+</html>
