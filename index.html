@@ -345,6 +345,12 @@
                     <div id="seznam-sledovanych" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 text-xs space-y-1 max-h-36 overflow-y-auto"></div>
                 </div>
 
+                <!-- Share tlačítka -->
+                <div class="flex gap-2 mb-4">
+                    <button id="btn-sdilet-zapis" class="hidden btn-gold flex-1 py-2 text-xs uppercase">📸 Sdílet zápis</button>
+                    <button onclick="otevritWrapped()" style="background:linear-gradient(180deg,#7b5ea7,#4a2f7a);border:2.5px solid #160d18;border-radius:12px;box-shadow:0 4px 0 #2a1050;color:#fff;font-family:'Baloo 2',sans-serif;font-weight:800;cursor:pointer;padding:8px 12px;font-size:0.75rem;text-transform:uppercase;flex:1;">🎁 Můj Wrapped</button>
+                </div>
+
                 <!-- Graf piv -->
                 <div class="mb-4">
                     <div class="flex items-center justify-between mb-2">
@@ -368,8 +374,12 @@
 
                 <!-- Log zápisů -->
                 <div class="text-left">
-                    <div class="sin-section-title">Posledních 20 zápisů</div>
-                    <div id="seznam-piv-log" class="bg-black bg-opacity-50 rounded p-3 max-h-64 overflow-y-auto border border-gray-800 space-y-2"></div>
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="sin-section-title" style="margin:0">Kronika zápisů</div>
+                        <span id="log-pocet-badge" class="text-[10px] text-gray-500"></span>
+                    </div>
+                    <div id="seznam-piv-log" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 space-y-2" style="max-height:520px;overflow-y:auto;"></div>
+                    <button id="btn-nacist-starsi" class="hidden btn-gold w-full py-2 text-xs uppercase mt-3">⏳ Načíst starší záznamy</button>
                 </div>
             </div>
 
@@ -600,6 +610,17 @@
     </div><!-- /app-screen -->
 
 
+    <!-- MODAL: Share karta -->
+    <div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:2000;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px;">
+        <div id="share-canvas-wrap" style="width:100%;max-width:380px;border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(255,211,90,0.25);"></div>
+        <div class="flex gap-3 mt-1">
+            <button id="btn-share-download" class="btn-gold px-5 py-3 text-sm uppercase">⬇️ Uložit</button>
+            <button id="btn-share-native"   class="btn-primary px-5 py-3 text-sm uppercase">📤 Sdílet</button>
+            <button onclick="zavritShareModal()" class="btn-danger px-4 py-3 text-sm">✕</button>
+        </div>
+        <p class="text-xs text-gray-500 text-center px-4">Ulož a sdílej na Instagramu 📸 jako příspěvek nebo story!</p>
+    </div>
+
     <!-- MODAL: Hráčský profil -->
     <div id="profil-modal-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
         <div class="glass-card w-full max-w-sm p-5 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
@@ -657,7 +678,7 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, collectionGroup,
-                 addDoc, query, where, getDocs, orderBy, limit, deleteDoc, writeBatch, serverTimestamp, Timestamp }
+                 addDoc, query, where, getDocs, orderBy, limit, startAfter, deleteDoc, writeBatch, serverTimestamp, Timestamp }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ─── FIREBASE CONFIG ──────────────────────────────────────────────────
@@ -963,6 +984,50 @@
                 }
             });
         }
+        // Cursor pro stránkování kroniky
+        let posledniLogDoc = null;
+        let celkemZobrazeno = 0;
+        const LOG_STRANKA = 50;
+
+        function renderLogZapis(d, idx, logBox) {
+            const z = d.data();
+            const casObj = z.cas?.toDate ? z.cas.toDate() : null;
+            const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
+            const cas   = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) : '';
+            const spolecneHtml = z.spolecne_s
+                ? '<span class="spolecne-badge">🍻 ' + z.spolecne_s + '</span>'
+                : '';
+
+            const div = document.createElement('div');
+            div.className = 'log-item fade-in';
+            div.innerHTML =
+                '<div class="flex justify-between items-start gap-1">' +
+                    '<div class="min-w-0">' +
+                        '<span class="text-yellow-400 font-bold">🍺 ' + (z.pivo || '—') + '</span>' +
+                        '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
+                        '<span class="block text-gray-600 text-[10px] mt-0.5">' +
+                            datum + (cas ? ' · ' + cas : '') +
+                        '</span>' +
+                        (spolecneHtml ? '<span class="block mt-1">' + spolecneHtml + '</span>' : '') +
+                    '</div>' +
+                    '<div class="log-akce flex-shrink-0">' +
+                        (idx === 0 ? '<button class="log-btn log-btn-repeat" title="Zopakovat zápis">🔁</button>' : '') +
+                        '<button class="log-btn log-btn-delete" title="Smazat záznam">🗑️</button>' +
+                    '</div>' +
+                '</div>';
+
+            if (idx === 0) {
+                div.querySelector('.log-btn-repeat').addEventListener('click', () => {
+                    zopakovatzapis(z.pivo, z.hospoda, d.id);
+                });
+            }
+            div.querySelector('.log-btn-delete').addEventListener('click', () => {
+                smazatZapis(d.id, d.ref, z);
+            });
+
+            logBox.appendChild(div);
+        }
+
         async function vykresliDenicek() {
             // Dungeony
             const dBox = $('seznam-dungeonu');
@@ -970,81 +1035,104 @@
                 const sorted = Object.entries(userData.dungeony).sort((a, b) => b[1] - a[1]);
                 dBox.innerHTML = sorted.map(([n, p]) => {
                     const star = p >= 10 ? '🌟' : p >= 5 ? '⭐' : '🔸';
-                    const nazev = n.replace(/_/g, '.'); // zpět tečky
+                    const nazev = n.replace(/_/g, '.');
                     return `<div class="log-item flex justify-between"><span>${star} ${nazev}</span><span class="text-yellow-500">${p}× návštěv</span></div>`;
                 }).join('');
             } else {
                 dBox.innerHTML = '<div class="text-gray-600 italic text-center py-2">Žádné dungeony zatím nenavštíveny.</div>';
             }
 
-            // Log piv (subkollekce) + počítání pro graf
+            // Reset stránkování
+            posledniLogDoc = null;
+            celkemZobrazeno = 0;
             const logBox = $('seznam-piv-log');
+            logBox.innerHTML = '';
+            hide('btn-nacist-starsi');
+            $('log-pocet-badge').textContent = '';
+
             try {
-                const q = query(
+                // Graf: načti až 500 záznamů pro přesné statistiky
+                const grafSnap = await getDocs(query(
                     collection(db, "hraci", currentUser.uid, "log_piv"),
                     orderBy("cas", "desc"),
-                    limit(200)   // více pro přesný graf
-                );
-                const snap = await getDocs(q);
+                    limit(500)
+                ));
 
-                if (snap.empty) {
+                if (grafSnap.empty) {
                     logBox.innerHTML = '<div class="text-gray-600 italic text-center py-2">Deník je prázdný.</div>';
                     vykresliGraf({});
                     return;
                 }
 
-                // Spočítej piva pro graf
+                // Graf
                 const pocty = {};
-                snap.docs.forEach(d => {
+                grafSnap.docs.forEach(d => {
                     const pivo = d.data().pivo;
                     if (pivo) pocty[pivo] = (pocty[pivo] || 0) + 1;
                 });
                 vykresliGraf(pocty);
 
-                // Zobraz posledních 20 s akcemi
-                logBox.innerHTML = '';
-                snap.docs.slice(0, 20).forEach((d, idx) => {
-                    const z = d.data();
-                    const casObj = z.cas?.toDate ? z.cas.toDate() : null;
-                    const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
-                    const cas = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'}) : '';
-                    const spolecneHtml = z.spolecne_s
-                        ? ' · <span class="spolecne-badge">🍻 s ' + z.spolecne_s + '</span>'
-                        : '';
+                // Zobraz první stránku (LOG_STRANKA zápisů)
+                const prvniStranka = grafSnap.docs.slice(0, LOG_STRANKA);
+                prvniStranka.forEach((d, idx) => renderLogZapis(d, idx, logBox));
+                celkemZobrazeno = prvniStranka.length;
+                posledniLogDoc  = prvniStranka[prvniStranka.length - 1];
 
-                    const div = document.createElement('div');
-                    div.className = 'log-item fade-in';
-                    div.innerHTML =
-                        '<div class="flex justify-between items-start">' +
-                            '<div>' +
-                                '<span class="text-yellow-400 font-bold">🍺 ' + (z.pivo || '—') + '</span>' +
-                                '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
-                                '<span class="block text-gray-600 text-[10px]">' + datum + (cas ? ' · ' + cas : '') + spolecneHtml + '</span>' +
-                            '</div>' +
-                            '<div class="log-akce">' +
-                                (idx === 0 ? '<button class="log-btn log-btn-repeat" title="Zopakovat zápis">🔁</button>' : '') +
-                                '<button class="log-btn log-btn-delete" title="Smazat záznam">🗑️</button>' +
-                            '</div>' +
-                        '</div>';
+                $('log-pocet-badge').textContent = celkemZobrazeno + ' zápisů';
 
-                    // 🔁 Zopakovat — jen u prvního záznamu
-                    if (idx === 0) {
-                        div.querySelector('.log-btn-repeat').addEventListener('click', () => {
-                            zopakovatzapis(z.pivo, z.hospoda, d.id);
-                        });
-                    }
+                // Pokud je víc než první stránka → zobraz tlačítko
+                if (grafSnap.docs.length > LOG_STRANKA) {
+                    // Zbývající z předem načtených
+                    const zbytek = grafSnap.docs.slice(LOG_STRANKA);
+                    $('btn-nacist-starsi').classList.remove('hidden');
+                    $('btn-nacist-starsi').onclick = async () => {
+                        // Zobraz všechny zbývající z grafu (byly načteny)
+                        const offset = celkemZobrazeno;
+                        zbytek.forEach((d, idx) => renderLogZapis(d, offset + idx === 0 ? 0 : offset + idx, logBox));
+                        celkemZobrazeno += zbytek.length;
+                        $('log-pocet-badge').textContent = celkemZobrazeno + ' zápisů';
+                        posledniLogDoc = zbytek[zbytek.length - 1];
+                        hide('btn-nacist-starsi');
 
-                    // 🗑️ Smazat
-                    div.querySelector('.log-btn-delete').addEventListener('click', () => {
-                        smazatZapis(d.id, d.ref, z);
-                    });
-
-                    logBox.appendChild(div);
-                });
+                        // Pokud bylo přesně 500 → může být ještě víc ve Firestore
+                        if (grafSnap.docs.length === 500) {
+                            await nacistDalsiStranku(logBox);
+                        }
+                    };
+                } else if (grafSnap.docs.length === 500) {
+                    // Přesně 500 = může být víc
+                    $('btn-nacist-starsi').classList.remove('hidden');
+                    $('btn-nacist-starsi').onclick = () => nacistDalsiStranku(logBox);
+                }
 
             } catch (e) {
                 logBox.innerHTML = '<div class="text-red-500 text-xs">Chyba načítání deníčku.</div>';
             }
+        }
+
+        async function nacistDalsiStranku(logBox) {
+            if (!posledniLogDoc) return;
+            hide('btn-nacist-starsi');
+            try {
+                const q = query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc"),
+                    startAfter(posledniLogDoc),
+                    limit(LOG_STRANKA)
+                );
+                const snap = await getDocs(q);
+                if (snap.empty) return;
+
+                snap.docs.forEach((d, idx) => renderLogZapis(d, celkemZobrazeno + idx, logBox));
+                celkemZobrazeno += snap.docs.length;
+                posledniLogDoc = snap.docs[snap.docs.length - 1];
+                $('log-pocet-badge').textContent = celkemZobrazeno + ' zápisů';
+
+                if (snap.docs.length === LOG_STRANKA) {
+                    $('btn-nacist-starsi').classList.remove('hidden');
+                    $('btn-nacist-starsi').onclick = () => nacistDalsiStranku(logBox);
+                }
+            } catch(e) { notify('Chyba načítání: ' + e.message); }
         }
 
         // ─── MAPA ─────────────────────────────────────────────────────────────
@@ -1280,6 +1368,14 @@
 
                 $('beer-name-input').value = '';
                 $('beer-modal').classList.add('hidden');
+                // Zobraz share tlačítko v deníku
+                posledniZapis = { pivo: bN, hospoda: pN };
+                const sBtn = $('btn-sdilet-zapis');
+                sBtn.classList.remove('hidden');
+                sBtn.onclick = async () => {
+                    const c = await vygenerujPivniKartu(posledniZapis.hospoda, posledniZapis.pivo);
+                    otevritShareModal(c);
+                };
                 await loadUserData();
                 nactiGlobalniLog(); // refresh live feed
             } catch (e) {
@@ -2408,6 +2504,302 @@
             } catch(e) {
                 $('profil-loading').textContent = 'Chyba: ' + e.message;
             }
+        };
+
+        // ─── SHARE KARTY ──────────────────────────────────────────────────────────
+        let posledniZapis = null;
+
+        function kresliZaokrRekt(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x+r, y);
+            ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+            ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+            ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+            ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+            ctx.closePath();
+        }
+
+        function fitText(ctx, text, maxW, maxSize) {
+            ctx.font = `bold ${maxSize}px Arial, sans-serif`;
+            if (ctx.measureText(text).width <= maxW) return;
+            const scale = maxW / ctx.measureText(text).width;
+            ctx.font = `bold ${Math.floor(maxSize * scale)}px Arial, sans-serif`;
+        }
+
+        async function vygenerujPivniKartu(pubName, beerName) {
+            const W = 1080, H = 1080;
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            const ctx = c.getContext('2d');
+
+            // Pozadí
+            const bg = ctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, '#1a0f2e'); bg.addColorStop(0.5, '#160f08'); bg.addColorStop(1, '#0a0618');
+            ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+            // Záře nahoře
+            const glow = ctx.createRadialGradient(W/2, 80, 20, W/2, 80, 500);
+            glow.addColorStop(0, 'rgba(255,168,30,0.3)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+            // Rám zlatý
+            ctx.strokeStyle = '#ffd35a'; ctx.lineWidth = 10;
+            ctx.strokeRect(20, 20, W-40, H-40);
+            ctx.strokeStyle = 'rgba(255,211,90,0.22)'; ctx.lineWidth = 2;
+            ctx.strokeRect(38, 38, W-76, H-76);
+
+            ctx.textAlign = 'center';
+
+            // Header
+            ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 62px Arial, sans-serif';
+            ctx.fillText('PIVNÍ DUNGEON', W/2, 112);
+            ctx.fillStyle = 'rgba(255,211,90,0.45)'; ctx.font = '28px Arial, sans-serif';
+            ctx.fillText('pivnidungeon.cz', W/2, 155);
+
+            // Dělicí čára
+            ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(80, 180); ctx.lineTo(W-80, 180); ctx.stroke();
+
+            // Velký emoji piva
+            ctx.font = '210px serif'; ctx.fillStyle = '#fff';
+            ctx.fillText('🍺', W/2, 420);
+
+            // "PRÁVĚ PIJU"
+            ctx.fillStyle = 'rgba(255,255,255,0.42)'; ctx.font = 'bold 42px Arial, sans-serif';
+            ctx.fillText('P R Á V Ě   P I J U', W/2, 555);
+
+            // Název piva
+            ctx.fillStyle = '#ffffff';
+            fitText(ctx, beerName, 900, 74);
+            ctx.fillText(beerName, W/2, 648);
+
+            // "v hospodě"
+            ctx.fillStyle = 'rgba(243,168,30,0.65)'; ctx.font = '32px Arial, sans-serif';
+            ctx.fillText('v hospodě', W/2, 708);
+
+            // Název hospody
+            ctx.fillStyle = '#f3a81e';
+            fitText(ctx, pubName, 900, 54);
+            ctx.fillText(pubName, W/2, 772);
+
+            // Dělicí čára
+            ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(80, 812); ctx.lineTo(W-80, 812); ctx.stroke();
+
+            // Hráčské info
+            const av  = userData?.avatar      || '⚔️';
+            const nik = userData?.prezdivka   || 'Hrdina';
+            const xp  = userData?.xp          || 0;
+            const { lvl } = xpLevel(xp);
+
+            ctx.font = '54px serif'; ctx.fillStyle = '#fff';
+            ctx.fillText(av, W/2, 892);
+            ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 40px Arial, sans-serif';
+            ctx.fillText(nik, W/2, 946);
+            ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '26px Arial, sans-serif';
+            ctx.fillText(`Úroveň ${lvl}  ·  ${xp} XP`, W/2, 988);
+
+            // Datum
+            const now = new Date();
+            ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = '22px Arial, sans-serif';
+            ctx.fillText(
+                now.toLocaleDateString('cs-CZ') + ' ' +
+                now.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}),
+                W/2, 1038
+            );
+            return c;
+        }
+
+        async function otevritWrapped() {
+            notify('Generuji Wrapped... 🍺', 'ok');
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc")
+                ));
+
+                const poctyPiv = {}, mesicePocty = {}, spoluhraciPocty = {};
+                snap.forEach(d => {
+                    const z = d.data();
+                    if (z.pivo) poctyPiv[z.pivo] = (poctyPiv[z.pivo] || 0) + 1;
+                    if (z.cas) {
+                        const m = (z.cas.toDate ? z.cas.toDate() : new Date(z.cas)).toISOString().slice(0,7);
+                        mesicePocty[m] = (mesicePocty[m] || 0) + 1;
+                    }
+                    if (z.spolecne_s) {
+                        z.spolecne_s.split(', ').forEach(j => {
+                            if (j.trim()) spoluhraciPocty[j.trim()] = (spoluhraciPocty[j.trim()] || 0) + 1;
+                        });
+                    }
+                });
+
+                const celkemPiv    = snap.size;
+                const ruznych      = Object.keys(poctyPiv).length;
+                const hospod       = Object.keys(userData?.dungeony || {}).length;
+                const oblPivo      = Object.entries(poctyPiv).sort((a,b)=>b[1]-a[1])[0];
+                const oblHosp      = Object.entries(userData?.dungeony || {}).sort((a,b)=>b[1]-a[1])[0];
+                const nejMesic     = Object.entries(mesicePocty).sort((a,b)=>b[1]-a[1])[0];
+                const nejSpoluhrac = Object.entries(spoluhraciPocty).sort((a,b)=>b[1]-a[1])[0];
+                const { lvl }      = xpLevel(userData?.xp || 0);
+
+                const mesicNazvy = ['Led','Úno','Bře','Dub','Kvě','Čer','Čvc','Srp','Zář','Říj','Lis','Pro'];
+                function formatMesic(iso) {
+                    if (!iso) return '—';
+                    const [y, m] = iso.split('-');
+                    return mesicNazvy[parseInt(m)-1] + ' ' + y;
+                }
+
+                const c = await vygenerujWrappedCanvas({
+                    celkemPiv, ruznych, hospod,
+                    oblPivo:      oblPivo  ? { nazev: oblPivo[0],                        pocet: oblPivo[1] }  : null,
+                    oblHosp:      oblHosp  ? { nazev: oblHosp[0].replace(/_/g,'.'),      pocet: oblHosp[1] }  : null,
+                    nejMesic:     nejMesic ? { nazev: formatMesic(nejMesic[0]),           pocet: nejMesic[1] } : null,
+                    nejSpoluhrac: nejSpoluhrac ? { nazev: nejSpoluhrac[0], pocet: nejSpoluhrac[1] }           : null,
+                    lvl, xp: userData?.xp || 0,
+                    nick: userData?.prezdivka || 'Hrdina',
+                    avatar: userData?.avatar  || '⚔️'
+                });
+                otevritShareModal(c);
+            } catch(e) { notify('Chyba generování: ' + e.message, 'err'); }
+        }
+
+        async function vygenerujWrappedCanvas(s) {
+            const W = 1080, H = 1380;
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            const ctx = c.getContext('2d');
+
+            // Pozadí
+            const bg = ctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, '#1a0f2e'); bg.addColorStop(0.45, '#160f08'); bg.addColorStop(1, '#08050f');
+            ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+            // Záře
+            const glow = ctx.createRadialGradient(W/2, H*0.22, 60, W/2, H*0.22, 520);
+            glow.addColorStop(0, 'rgba(255,168,30,0.22)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+            // Rám
+            ctx.strokeStyle = '#ffd35a'; ctx.lineWidth = 10; ctx.strokeRect(20, 20, W-40, H-40);
+            ctx.strokeStyle = 'rgba(255,211,90,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(38, 38, W-76, H-76);
+
+            ctx.textAlign = 'center';
+
+            // Header
+            ctx.fillStyle = 'rgba(255,211,90,0.5)'; ctx.font = '34px Arial, sans-serif';
+            ctx.fillText('🍻  PIVNÍ DUNGEON  🍺', W/2, 105);
+
+            ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 94px Arial, sans-serif';
+            ctx.fillText('MŮJ WRAPPED', W/2, 218);
+
+            ctx.font = '52px serif'; ctx.fillStyle = '#fff';
+            ctx.fillText(s.avatar + '  ' + s.nick, W/2, 298);
+
+            ctx.strokeStyle = 'rgba(255,211,90,0.22)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(80, 326); ctx.lineTo(W-80, 326); ctx.stroke();
+
+            // Tiles 2×3 mřížka + extra řádek pokud máme spoluhrače
+            const tiles = [
+                { emoji:'🍺', value: s.celkemPiv.toString(),     label: 'piv celkem'         },
+                { emoji:'🌈', value: s.ruznych.toString(),        label: 'různých druhů'      },
+                { emoji:'🏰', value: s.hospod.toString(),         label: 'hospod navštíveno'  },
+                { emoji:'⭐', value: `Úr. ${s.lvl}`,             label: `${s.xp} XP celkem`  },
+                { emoji:'🥇', value: s.oblPivo  ? s.oblPivo.nazev       : '—',
+                               label: s.oblPivo  ? `${s.oblPivo.pocet}× vypito`        : 'oblíbené pivo'    },
+                { emoji:'🏠', value: s.oblHosp  ? s.oblHosp.nazev       : '—',
+                               label: s.oblHosp  ? `${s.oblHosp.pocet}× návštěv`       : 'oblíbená hospoda' },
+            ];
+            if (s.nejSpoluhrac) {
+                tiles.push(
+                    { emoji:'📅', value: s.nejMesic ? s.nejMesic.nazev   : '—',
+                                  label: s.nejMesic ? `${s.nejMesic.pocet} piv`          : 'nejlepší měsíc'   },
+                    { emoji:'🍻', value: s.nejSpoluhrac.nazev,            label: `${s.nejSpoluhrac.pocet}× spolu` }
+                );
+            } else if (s.nejMesic) {
+                tiles.push({ emoji:'📅', value: s.nejMesic.nazev,       label: `${s.nejMesic.pocet} piv — nejlepší měsíc` });
+            }
+
+            const tW = 458, tH = 172, gap = 16;
+            const startY = 355;
+            const cols = [60, W - 60 - tW];
+
+            tiles.forEach((tile, i) => {
+                const col = i % 2, row = Math.floor(i / 2);
+                const x = cols[col], y = startY + row * (tH + gap);
+
+                // Tile bg
+                const tGrad = ctx.createLinearGradient(x, y, x, y + tH);
+                tGrad.addColorStop(0, 'rgba(255,211,90,0.13)');
+                tGrad.addColorStop(1, 'rgba(255,211,90,0.04)');
+                ctx.fillStyle = tGrad;
+                kresliZaokrRekt(ctx, x, y, tW, tH, 18); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,211,90,0.32)'; ctx.lineWidth = 1.5;
+                kresliZaokrRekt(ctx, x, y, tW, tH, 18); ctx.stroke();
+
+                const cx = x + tW/2;
+                ctx.fillStyle = '#fff'; ctx.font = '38px serif'; ctx.textAlign = 'center';
+                ctx.fillText(tile.emoji, cx, y + 50);
+
+                ctx.fillStyle = '#fff';
+                fitText(ctx, tile.value, tW - 24, 36);
+                ctx.fillText(tile.value, cx, y + 103);
+
+                ctx.fillStyle = 'rgba(255,211,90,0.62)'; ctx.font = '21px Arial, sans-serif';
+                const shortLabel = tile.label.length > 22 ? tile.label.slice(0,21)+'…' : tile.label;
+                ctx.fillText(shortLabel, cx, y + 138);
+            });
+
+            // Footer
+            const footerY = startY + Math.ceil(tiles.length / 2) * (tH + gap) + 24;
+            ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(80, footerY); ctx.lineTo(W-80, footerY); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,211,90,0.38)'; ctx.font = '27px Arial, sans-serif';
+            ctx.fillText('🍻  PIVNÍ DUNGEON  ·  pivnidungeon.cz  🍺', W/2, footerY + 46);
+
+            return c;
+        }
+
+        function otevritShareModal(canvas) {
+            const wrap = $('share-canvas-wrap');
+            wrap.innerHTML = '';
+            const previewW = Math.min(window.innerWidth - 48, 400);
+            canvas.style.cssText = `width:${previewW}px;height:auto;border-radius:12px;display:block;`;
+            wrap.appendChild(canvas);
+
+            const modal = $('share-modal');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+
+            $('btn-share-download').onclick = () => {
+                const a = document.createElement('a');
+                a.download = 'pivni-dungeon-share.png';
+                a.href = canvas.toDataURL('image/png');
+                a.click();
+            };
+
+            $('btn-share-native').onclick = async () => {
+                try {
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    const file = new File([blob], 'pivni-dungeon.png', { type: 'image/png' });
+                    if (navigator.share && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            text: '🍺 Pivní Dungeon — pivnidungeon.cz'
+                        });
+                    } else {
+                        $('btn-share-download').click();
+                    }
+                } catch(e) {
+                    if (e.name !== 'AbortError') $('btn-share-download').click();
+                }
+            };
+        }
+
+        window.zavritShareModal = () => {
+            const modal = $('share-modal');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            $('share-canvas-wrap').innerHTML = '';
         };
 
     </script>
