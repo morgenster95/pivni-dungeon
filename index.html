@@ -304,6 +304,18 @@
         .dungeon-circle-bg { font-size: 32px; position: absolute; top: 0; left: 0; z-index: 1; filter: drop-shadow(0 0 3px rgba(0,0,0,0.8)); }
         .dungeon-beer-fg { font-size: 18px; position: absolute; z-index: 2; top: 7px; left: 9px; }
 
+        /* Teardrop piny na mapě */
+        .dungeon-pin { width:38px; height:38px; border-radius:50% 50% 50% 4px; transform:rotate(-45deg);
+          border:2.5px solid #241505; display:flex; align-items:center; justify-content:center;
+          box-shadow:0 4px 5px rgba(0,0,0,.5); }
+        .dungeon-pin__icon { transform:rotate(45deg); display:flex; }
+        .dungeon-pin--new     { background: linear-gradient(160deg,#ef6a5a,#a52620); }
+        .dungeon-pin--partial { background: linear-gradient(160deg,#ffe27a,#d47d12); }
+        .dungeon-pin--visited { background: linear-gradient(160deg,#8fbf5e,#3f5a24); }
+        .pd-map-wrap { position:relative; }
+        .pd-map-overlay { position:absolute; inset:0; pointer-events:none; border-radius:12px; z-index:2;
+          background: radial-gradient(120% 90% at 50% 40%, transparent 45%, rgba(4,3,1,.5) 92%); }
+
         .btn-primary { background: linear-gradient(180deg, #54d07f, #2e9b54); color: #0f3d22; border: 2.5px solid #160d18; border-radius: 12px; box-shadow: 0 4px 0 #1c6e3a, inset 0 1.5px 0 rgba(255,255,255,.35); font-family: 'Baloo 2', sans-serif; font-weight: 800; cursor: pointer; transition: transform .1s, filter .15s; }
         .btn-primary:hover { filter: brightness(1.07); }
         .btn-primary:active { transform: translateY(2px); box-shadow: 0 2px 0 #1c6e3a, inset 0 1.5px 0 rgba(255,255,255,.35); }
@@ -814,7 +826,10 @@
 
             <!-- TAB: MAPA -->
             <div id="obsah-mapa" class="hidden">
-                <div id="map"></div>
+                <div class="pd-map-wrap">
+                    <div id="map"></div>
+                    <div class="pd-map-overlay"></div>
+                </div>
                 <button id="btn-hledej" class="btn-primary w-full py-3 uppercase text-sm mt-3 mb-4">🔍 Najít dungeony v okolí</button>
 
                 <!-- Globální log aktivit -->
@@ -2100,10 +2115,10 @@
                 if (!hLat || !hLon) return;
                 const n = h.tags?.name || 'Krčma';
                 const p = (userData.dungeony && userData.dungeony[n]) || 0;
-                const b = p >= 5 ? '🟢' : p > 0 ? '🟠' : '🔴';
+                const trida = p >= 5 ? 'dungeon-pin--visited' : p > 0 ? 'dungeon-pin--partial' : 'dungeon-pin--new';
                 const icon = L.divIcon({
-                    html: `<div class="dungeon-icon-wrapper"><span class="dungeon-circle-bg">${b}</span><span class="dungeon-beer-fg"><svg class="pd-ico" style="width:18px;height:18px"><use href="#ic-mug"/></svg></span></div>`,
-                    className: '', iconSize: [40, 40]
+                    html: `<div class="dungeon-pin ${trida}"><span class="dungeon-pin__icon"><svg class="pd-ico" style="width:18px;height:18px"><use href="#ic-mug"/></svg></span></div>`,
+                    className: '', iconSize: [38, 38], iconAnchor: [19, 36]
                 });
                 L.marker([hLat, hLon], { icon })
                     .addTo(map)
