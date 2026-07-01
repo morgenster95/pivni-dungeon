@@ -427,6 +427,13 @@
         .piva-sort-btn.active { border-color:#ffd35a; color:#ffd35a; background:rgba(255,211,90,0.08); }
 
         .kraj-card { background: rgba(0,0,0,0.3); border: 2px solid #4a3a26; border-radius: 13px; padding: 11px 13px; margin-bottom: 8px; }
+        .pd-kraj-row { display:flex; flex-direction:column; gap:4px;
+          background: radial-gradient(80% 60% at 30% 20%, var(--pd-stone-1), var(--pd-stone-2));
+          border: 2px solid var(--pd-stone-border); border-radius: 11px; padding: 9px 11px; margin-bottom:8px; }
+        .pd-kraj-row--leading { background:
+            linear-gradient(180deg,rgba(255,215,140,.1),rgba(20,10,4,.34)),
+            repeating-linear-gradient(89deg,var(--pd-wood-1) 0 9px,var(--pd-wood-2) 9px 18px);
+          border-color: var(--pd-danger); box-shadow: 0 4px 0 #241811; }
         .kraj-bar-outer { background: rgba(0,0,0,0.5); border: 2px solid #160d18; border-radius: 7px; height: 11px; overflow: hidden; margin-top: 4px; }
         .kraj-bar-inner { background: linear-gradient(180deg, #ffe27a, #f3a81e); height: 100%; border-radius: 5px; transition: width 0.6s ease; }
         .avatar-option { font-size: 1.8rem; cursor: pointer; padding: 6px; border-radius: 10px; border: 2.5px solid transparent; transition: all 0.15s; }
@@ -1121,8 +1128,8 @@
 
                     <!-- SVG mapa ČR -->
                     <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-map"/></svg> Mapa Království</div>
-                    <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 mb-4">
-                        <svg id="mapa-cr" viewBox="0 0 800 480" style="width:100%;height:auto;">
+                    <div class="pd-panel pd-panel--parchment mb-4">
+                        <svg id="mapa-cr" viewBox="0 0 800 480" style="width:100%;height:auto;filter:drop-shadow(0 2px 3px rgba(90,60,20,.3));">
                             <!-- Zjednodušené kraje ČR jako obdélníky/mnohoúhelníky -->
                             <!-- Karlovarský -->
                             <g class="kraj-svg" data-kraj="Karlovarský" onclick="kliknoutKraj('Karlovarský')">
@@ -3449,21 +3456,24 @@
                 // Žebříček
                 const box = $('kral-zebricek');
                 if (snap.empty) {
-                    box.innerHTML = '<div class="text-gray-600 italic text-center text-xs py-2">Zatím žádná piva. Začni psát za svůj kraj!</div>';
+                    box.innerHTML = pdStateSleep('Sudovous podřimuje', 'Zatím žádná piva. Začni psát za svůj kraj!');
                 } else {
                     const max = snap.docs[0].data().piv || 1;
                     box.innerHTML = snap.docs.map((d, i) => {
                         const k = d.data();
                         const isMe = k.kraj === userData.kraj;
+                        const isVedouci = i === 0;
                         const pct = Math.round((k.piv / max) * 100);
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
-                        return '<div class="kraj-card' + (isMe ? ' border-yellow-600' : '') + '">' +
-                            '<div class="flex justify-between items-center">' +
-                            '<span class="text-sm ' + (isMe ? 'text-yellow-400 font-bold' : 'text-gray-300') + '">' + medal + ' ' + k.kraj + (isMe ? ' 👈' : '') + '</span>' +
-                            '<span class="text-yellow-500 font-bold">' + k.piv + ' 🍺</span>' +
-                            '</div>' +
-                            '<div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:' + pct + '%"></div></div>' +
-                            '</div>';
+                        const znacka = isVedouci
+                            ? `<svg class="pd-ico" style="width:1.2em;height:1.2em;vertical-align:-3px"><use href="#ic-crown"/></svg>`
+                            : (i+1) + '.';
+                        return `<div class="pd-kraj-row${isVedouci ? ' pd-kraj-row--leading' : ''}">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm ${isMe ? 'text-yellow-400 font-bold' : 'text-gray-300'}">${znacka} ${escapeHtml(k.kraj)}${isMe ? ' 👈' : ''}</span>
+                                <span class="text-yellow-500 font-bold">${k.piv} 🍺</span>
+                            </div>
+                            <div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:${pct}%"></div></div>
+                        </div>`;
                     }).join('');
                 }
 
