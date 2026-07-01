@@ -679,12 +679,55 @@
                 <div class="text-xs text-gray-400 mt-1"><span id="user-xp-display" class="text-yellow-300 font-bold">0</span> XP</div>
                 <div class="xp-bar-outer w-40 mt-1"><div id="xp-bar" class="xp-bar-inner" style="width:0%"></div></div>
             </div>
-            <button id="btn-logout" class="text-red-500 text-xs font-bold underline">Odhlásit</button>
+            <div class="text-right flex flex-col items-end gap-2">
+                <div class="flex items-center gap-2">
+                    <button id="btn-tolary-badge" onclick="window.otevritTolaryModal()" class="flex items-center gap-1 text-yellow-300 font-bold text-sm" style="background:rgba(0,0,0,0.3);border:1px solid #8a5a17;border-radius:8px;padding:3px 8px;">
+                        <svg class="pd-ico" style="width:1.1em;height:1.1em"><use href="#ic-coin"/></svg><span id="tolary-badge-pocet">0</span>
+                    </button>
+                    <button id="btn-notifikace" onclick="window.otevritNotifikaceModal()" style="position:relative;font-size:1.3rem;line-height:1;">
+                        🔔<span id="notifikace-badge" class="hidden" style="position:absolute;top:-6px;right:-8px;background:#c23b34;color:#fff;font-size:0.6rem;border-radius:999px;padding:1px 5px;font-weight:bold;">0</span>
+                    </button>
+                </div>
+                <button id="btn-logout" class="text-red-500 text-xs font-bold underline">Odhlásit</button>
+            </div>
+        </div>
+
+        <!-- MODAL: Tolary (zůstatek + historie) -->
+        <div id="tolary-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+            <div class="glass-card w-full max-w-sm p-4 border border-yellow-700" style="max-height:90vh;overflow-y:auto;">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl text-yellow-400 fantasy-font"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-coin"/></svg> Tolary</h3>
+                    <button onclick="$('tolary-modal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+                </div>
+                <div class="text-center mb-3">
+                    <div class="text-3xl text-yellow-300 font-bold" id="tolary-modal-zustatek">0</div>
+                    <div class="text-xs text-gray-400">aktuální zůstatek</div>
+                </div>
+                <div class="text-xs text-orange-400 uppercase font-bold mb-2">Poslední pohyby</div>
+                <div id="tolary-historie-box" class="space-y-1 text-xs mb-3">
+                    <div class="text-gray-600 italic text-center py-2">Načítám...</div>
+                </div>
+                <div class="text-center text-xs text-gray-500 italic border-t border-gray-800 pt-3">🛠️ Obchod za Tolary připravujeme, vrať se brzy!</div>
+            </div>
+        </div>
+
+        <!-- MODAL: Notifikace -->
+        <div id="notifikace-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+            <div class="glass-card w-full max-w-sm p-4 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl text-yellow-400 fantasy-font">🔔 Zvonek</h3>
+                    <button onclick="$('notifikace-modal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+                </div>
+                <div id="notifikace-box" class="space-y-1 text-xs">
+                    <div class="text-gray-600 italic text-center py-2">Načítám...</div>
+                </div>
+            </div>
         </div>
 
         <!-- Tabs -->
         <div class="flex w-full mb-[-1px] z-10 justify-between">
-            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn active flex-1" style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-map"/></svg><span>Mapa</span></button>
+            <button id="tab-krcma"      onclick="switchTab('krcma')"      class="tab-btn active flex-1" style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-clink"/></svg><span>Krčma</span></button>
+            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-map"/></svg><span>Mapa</span></button>
             <button id="tab-denik"      onclick="switchTab('denik')"      class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-journal"/></svg><span>Deník</span></button>
             <button id="tab-piva"       onclick="switchTab('piva')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><span>Piva</span></button>
             <button id="tab-cech"       onclick="switchTab('cech')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-banner"/></svg><span>Cech</span></button>
@@ -694,8 +737,15 @@
 
         <div class="glass-card w-full p-4 rounded-tl-none">
 
+            <!-- TAB: KRČMA (domov) -->
+            <div id="obsah-krcma">
+                <div id="krcma-obsah-box">
+                    <div class="text-gray-600 italic text-center py-4">Načítám...</div>
+                </div>
+            </div>
+
             <!-- TAB: MAPA -->
-            <div id="obsah-mapa">
+            <div id="obsah-mapa" class="hidden">
                 <div id="map"></div>
                 <button id="btn-hledej" class="btn-primary w-full py-3 uppercase text-sm mt-3 mb-4">🔍 Najít dungeony v okolí</button>
 
@@ -1210,7 +1260,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, collectionGroup,
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion, collection, collectionGroup,
                  addDoc, query, where, getDocs, orderBy, limit, startAfter, deleteDoc, writeBatch, serverTimestamp, Timestamp }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -1239,18 +1289,20 @@
 
         // Zvyšuj při každé nové funkci která přidává pole do hráčova dokumentu.
         // Hráč s nižší verzi bude automaticky upgradován při příštím přihlášení.
-        const SCHEMA_VERZE = 4;
+        const SCHEMA_VERZE = 5;
 
         // Co každá verze přidává:
         // v1 → email, prezdivka, xp, dungeony, cech_id
         // v2 → cech_zakladatel
         // v3 → registraci_cas
         // v4 → avatar, bio, kraj, sledovani
+        // v5 → tolary, ochutnana_piva, hospoda_tolary_datum, tolary_denni, denni_ukol, tydenni_vyzva
         // ← sem přidávej nové verze
 
         // ─── STAV ─────────────────────────────────────────────────────────────
         let map = null, userLatLng = null, currentPubLatLng = null;
         let currentUser = null, userData = {};
+        let posledniStats = null; // cache osobních statistik pro Krčmu (invaliduje se po zápisu piva)
 
         // ─── HELPERS ──────────────────────────────────────────────────────────
         function $(id) { return document.getElementById(id); }
@@ -1277,6 +1329,113 @@
             return { lvl, prog };
         }
 
+        // ─── TOLARY (herní měna) ──────────────────────────────────────────────
+        function dnesniDatum() { return new Date().toISOString().slice(0, 10); } // "2026-07-02"
+
+        function isoTyden(d = new Date()) {
+            // ISO 8601 týden ve formátu "2026-W27"
+            const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const den = (dt.getUTCDay() + 6) % 7;
+            dt.setUTCDate(dt.getUTCDate() - den + 3);
+            const prvniCtvrtek = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
+            const tyden = 1 + Math.round(((dt - prvniCtvrtek) / 86400000 - 3 + (prvniCtvrtek.getUTCDay() + 6) % 7) / 7);
+            return `${dt.getUTCFullYear()}-W${tyden}`;
+        }
+
+        function hashRetezce(str) {
+            let h = 0;
+            for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+            return h;
+        }
+
+        // Připíše tolary hráči + zaznamená transakci do historie + zobrazí toast.
+        async function udelTolary(mnozstvi, duvod) {
+            if (!currentUser || !mnozstvi) return;
+            try {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { tolary: increment(mnozstvi) });
+                await addDoc(collection(db, "hraci", currentUser.uid, "tolary_transakce"), {
+                    mnozstvi, duvod, cas: serverTimestamp()
+                });
+                userData.tolary = (userData.tolary || 0) + mnozstvi;
+                if (typeof vykresliTolaryBadge === 'function') vykresliTolaryBadge();
+                notify(`🪙 +${mnozstvi} Tolarů — ${duvod}`);
+            } catch (e) { console.warn('Chyba připsání Tolarů:', e.message); }
+        }
+
+        // ─── DENNÍ ÚKOL & TÝDENNÍ VÝZVA ───────────────────────────────────────
+        const DENNI_UKOLY_DEF = [
+            { typ: 'pocet_piv',    cil: 1, popis: 'Zapiš 1 pivo' },
+            { typ: 'pocet_piv',    cil: 2, popis: 'Zapiš 2 piva' },
+            { typ: 'pocet_piv',    cil: 3, popis: 'Zapiš 3 piva' },
+            { typ: 'nova_hospoda', cil: 1, popis: 'Zapiš pivo v nové hospodě' },
+            { typ: 'nove_pivo',    cil: 1, popis: 'Ochutnej nové pivo' },
+            { typ: 'hodnoceni',    cil: 1, popis: 'Ohodnoť pivo nebo hospodu' },
+            { typ: 'hodnoceni',    cil: 2, popis: 'Ohodnoť 2× pivo nebo hospodu' },
+            { typ: 'spolecne',     cil: 1, popis: 'Zapiš pivo s kamarádem' },
+        ];
+        const TYDENNI_VYZVY_DEF = [
+            { cil: 5,  odmena: 30 },
+            { cil: 8,  odmena: 45 },
+            { cil: 10, odmena: 60 },
+        ];
+
+        // Vygeneruje (nebo vrátí existující) denní úkol pro dnešek — deterministicky dle uid+datum.
+        function zajistiDenniUkol() {
+            const dnes = dnesniDatum();
+            if (userData.denni_ukol && userData.denni_ukol.datum === dnes) return userData.denni_ukol;
+            const def = DENNI_UKOLY_DEF[hashRetezce(currentUser.uid + dnes) % DENNI_UKOLY_DEF.length];
+            const novy = { datum: dnes, typ: def.typ, cil: def.cil, popis: def.popis, progress: 0, splneno: false };
+            userData.denni_ukol = novy;
+            updateDoc(doc(db, "hraci", currentUser.uid), { denni_ukol: novy }).catch(e => console.warn(e.message));
+            return novy;
+        }
+
+        // Vygeneruje (nebo vrátí existující) týdenní výzvu — deterministicky dle ISO týdne.
+        function zajistiTydenniVyzvu() {
+            const tyden = isoTyden();
+            if (userData.tydenni_vyzva && userData.tydenni_vyzva.tyden_id === tyden) return userData.tydenni_vyzva;
+            const def = TYDENNI_VYZVY_DEF[hashRetezce(tyden) % TYDENNI_VYZVY_DEF.length];
+            const nova = { tyden_id: tyden, cil: def.cil, odmena: def.odmena, progress: 0, splneno: false };
+            userData.tydenni_vyzva = nova;
+            updateDoc(doc(db, "hraci", currentUser.uid), { tydenni_vyzva: nova }).catch(e => console.warn(e.message));
+            return nova;
+        }
+
+        async function pripoctiUkolProgress(typ, delta = 1) {
+            const ukol = zajistiDenniUkol();
+            if (ukol.splneno || ukol.typ !== typ) return;
+            ukol.progress = Math.min(ukol.cil, ukol.progress + delta);
+            const dokonceno = ukol.progress >= ukol.cil;
+            if (dokonceno) ukol.splneno = true;
+            try {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { denni_ukol: ukol });
+                if (dokonceno) {
+                    await updateDoc(doc(db, "hraci", currentUser.uid), { xp: increment(50) });
+                    userData.xp = (userData.xp || 0) + 50;
+                    vykresliHeader();
+                    await udelTolary(10, `Denní úkol splněn: ${ukol.popis}`);
+                    notify(`✅ Úkol splněn: ${ukol.popis}! +50 XP`);
+                }
+                if (typeof vykresliKrcmu === 'function' && !$('obsah-krcma').classList.contains('hidden')) vykresliKrcmu();
+            } catch (e) { console.warn('Chyba ukládání denního úkolu:', e.message); }
+        }
+
+        async function pripoctiTydenniProgress(delta = 1) {
+            const vyzva = zajistiTydenniVyzvu();
+            if (vyzva.splneno) return;
+            vyzva.progress = Math.min(vyzva.cil, vyzva.progress + delta);
+            const dokonceno = vyzva.progress >= vyzva.cil;
+            if (dokonceno) vyzva.splneno = true;
+            try {
+                await updateDoc(doc(db, "hraci", currentUser.uid), { tydenni_vyzva: vyzva });
+                if (dokonceno) {
+                    await udelTolary(vyzva.odmena, `Týdenní výzva splněna (${vyzva.cil} piv)`);
+                    notify(`🏆 Týdenní výzva splněna!`);
+                }
+                if (typeof vykresliKrcmu === 'function' && !$('obsah-krcma').classList.contains('hidden')) vykresliKrcmu();
+            } catch (e) { console.warn('Chyba ukládání týdenní výzvy:', e.message); }
+        }
+
         // ─── AUTH ─────────────────────────────────────────────────────────────
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -1290,6 +1449,7 @@
                     await Promise.all([nactiPiva(), loadUserData()]);
                     initMap();
                     nactiGlobalniLog();
+                    vykresliKrcmu();
                 } catch (e) { console.error("Start error:", e); }
             } else {
                 currentUser = null;
@@ -1332,6 +1492,12 @@
                     kraj: '',
                     sledovani: [],
                     registraci_cas: serverTimestamp(),
+                    tolary: 0,
+                    ochutnana_piva: [],
+                    hospoda_tolary_datum: {},
+                    tolary_denni: { datum: '', pocet_piv: 0, pocet_hodnoceni: 0 },
+                    denni_ukol: null,
+                    tydenni_vyzva: null,
                     verze_schematu: SCHEMA_VERZE
                 });
             } catch(e) { $('auth-error').textContent = 'Chyba: ' + e.message; }
@@ -1356,6 +1522,12 @@
                     dungeony: {},
                     cech_id: null,
                     cech_zakladatel: false,
+                    tolary: 0,
+                    ochutnana_piva: [],
+                    hospoda_tolary_datum: {},
+                    tolary_denni: { datum: '', pocet_piv: 0, pocet_hodnoceni: 0 },
+                    denni_ukol: null,
+                    tydenni_vyzva: null,
                     verze_schematu: SCHEMA_VERZE
                 };
                 await setDoc(ref, userData);
@@ -1392,8 +1564,18 @@
                     if (userData.sledovani === undefined) opravy.sledovani = [];
                 }
 
+                // v5 → Tolary (peněženka), denní úkoly, týdenní výzvy
+                if (aktualniVerze < 5) {
+                    if (userData.tolary === undefined)              opravy.tolary = 0;
+                    if (userData.ochutnana_piva === undefined)      opravy.ochutnana_piva = [];
+                    if (userData.hospoda_tolary_datum === undefined) opravy.hospoda_tolary_datum = {};
+                    if (userData.tolary_denni === undefined)        opravy.tolary_denni = { datum: '', pocet_piv: 0, pocet_hodnoceni: 0 };
+                    if (userData.denni_ukol === undefined)          opravy.denni_ukol = null;
+                    if (userData.tydenni_vyzva === undefined)       opravy.tydenni_vyzva = null;
+                }
+
                 // ← sem přidávej nové verze migrace:
-                // if (aktualniVerze < 4) { opravy.nove_pole = defaultniHodnota; }
+                // if (aktualniVerze < 6) { opravy.nove_pole = defaultniHodnota; }
 
                 opravy.verze_schematu = SCHEMA_VERZE;
                 await updateDoc(ref, opravy);
@@ -1402,6 +1584,7 @@
             }
 
             vykresliHeader();
+            aktualizujPocetNotifikaci();
             await vykresliDenicek();
         }
 
@@ -1415,7 +1598,90 @@
             const { lvl, prog } = xpLevel(xp);
             $('user-xp-display').textContent = `${xp} XP  |  Úroveň ${lvl}`;
             $('xp-bar').style.width = prog + '%';
+            vykresliTolaryBadge();
         }
+
+        function vykresliTolaryBadge() {
+            const el = $('tolary-badge-pocet');
+            if (el) el.textContent = userData.tolary || 0;
+        }
+
+        window.otevritTolaryModal = async function() {
+            $('tolary-modal').classList.remove('hidden');
+            $('tolary-modal-zustatek').textContent = userData.tolary || 0;
+            const box = $('tolary-historie-box');
+            box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Načítám...</div>';
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "tolary_transakce"),
+                    orderBy("cas", "desc"), limit(10)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Zatím žádné pohyby.</div>';
+                    return;
+                }
+                box.innerHTML = snap.docs.map(d => {
+                    const t = d.data();
+                    const cas = t.cas?.toDate ? t.cas.toDate().toLocaleDateString('cs-CZ') : '';
+                    const znamenko = t.mnozstvi >= 0 ? '+' : '';
+                    const barva = t.mnozstvi >= 0 ? '#f3d371' : '#e05a5a';
+                    return `<div class="flex justify-between items-center border-b border-gray-800 py-1">
+                        <span>${escapeHtml(t.duvod || '')}</span>
+                        <span style="color:${barva};font-weight:bold;white-space:nowrap;margin-left:8px;">${znamenko}${t.mnozstvi} <span class="text-gray-600">· ${cas}</span></span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                box.innerHTML = `<div style="color:#e05a5a">⚠️ Chyba: ${escapeHtml(e.message)}</div>`;
+            }
+        };
+
+        // ─── NOTIFIKACE (zvonek) ──────────────────────────────────────────────
+        async function aktualizujPocetNotifikaci() {
+            if (!currentUser) return;
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "notifikace"),
+                    where("precteno", "==", false), limit(20)
+                ));
+                const badge = $('notifikace-badge');
+                if (snap.size > 0) { badge.textContent = snap.size; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+            } catch (e) { console.warn('Chyba počtu notifikací:', e.message); }
+        }
+
+        window.otevritNotifikaceModal = async function() {
+            $('notifikace-modal').classList.remove('hidden');
+            const box = $('notifikace-box');
+            box.innerHTML = '<div class="text-gray-600 italic text-center py-2">Načítám...</div>';
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "notifikace"),
+                    orderBy("cas", "desc"), limit(20)
+                ));
+                if (snap.empty) {
+                    box.innerHTML = '<div class="text-gray-600 italic text-center py-2">😴 Zatím žádné zprávy.</div>';
+                } else {
+                    box.innerHTML = snap.docs.map(d => {
+                        const n = d.data();
+                        const cas = n.cas?.toDate ? n.cas.toDate().toLocaleDateString('cs-CZ') : '';
+                        return `<div class="border-b border-gray-800 py-2">
+                            <div>${escapeHtml(n.text || '')}</div>
+                            <div class="text-gray-600" style="font-size:0.62rem;">${cas}</div>
+                        </div>`;
+                    }).join('');
+                }
+                // Označ vše jako přečtené
+                const neprectene = snap.docs.filter(d => d.data().precteno === false);
+                if (neprectene.length > 0) {
+                    const batch = writeBatch(db);
+                    neprectene.forEach(d => batch.update(d.ref, { precteno: true }));
+                    await batch.commit();
+                }
+                $('notifikace-badge').classList.add('hidden');
+            } catch (e) {
+                box.innerHTML = `<div style="color:#e05a5a">⚠️ Chyba: ${escapeHtml(e.message)}</div>`;
+            }
+        };
 
         // ─── PIVA ─────────────────────────────────────────────────────────────
         let schvalenaPiva = new Set(); // množina schválených piv pro validaci při zápisu
@@ -1609,6 +1875,7 @@
 
                 // Osobní statistiky + odznaky
                 const stats = vypoctiStatsZLogy(grafSnap.docs);
+                posledniStats = stats;
                 vykresliOsobniStats(stats);
                 zkontrolujAVykresliOdznaky(stats);
 
@@ -1843,6 +2110,52 @@
 
                 await batch.commit();
 
+                // ── TOLARY + ÚKOLY ──────────────────────────────────────────────
+                try {
+                    const dnes = dnesniDatum();
+                    if (!userData.tolary_denni || userData.tolary_denni.datum !== dnes) {
+                        userData.tolary_denni = { datum: dnes, pocet_piv: 0, pocet_hodnoceni: 0 };
+                    }
+                    userData.tolary_denni.pocet_piv++;
+                    const poradiPiva = userData.tolary_denni.pocet_piv;
+                    await updateDoc(hracRef, { tolary_denni: userData.tolary_denni });
+                    if (poradiPiva === 1) await udelTolary(5, 'První pivo dne');
+                    else if (poradiPiva === 2) await udelTolary(3, 'Druhé pivo dne');
+
+                    // Nové pivo objeveno
+                    if (!(userData.ochutnana_piva || []).includes(bN)) {
+                        await updateDoc(hracRef, { ochutnana_piva: arrayUnion(bN) });
+                        userData.ochutnana_piva = [...(userData.ochutnana_piva || []), bN];
+                        await udelTolary(8, `Nové pivo: ${bN}`);
+                        await pripoctiUkolProgress('nove_pivo', 1);
+                    }
+
+                    // Nová hospoda / opakovaná návštěva (jen při první pivu v rámci seance)
+                    if (jeNovyNavsteva) {
+                        const predPocetNavstev = userData.dungeony?.[bezTecky] || 0;
+                        if (predPocetNavstev === 0) {
+                            await udelTolary(15, `Nová hospoda: ${pN}`);
+                            await updateDoc(hracRef, { [`hospoda_tolary_datum.${bezTecky}`]: dnes });
+                            if (!userData.hospoda_tolary_datum) userData.hospoda_tolary_datum = {};
+                            userData.hospoda_tolary_datum[bezTecky] = dnes;
+                            await pripoctiUkolProgress('nova_hospoda', 1);
+                        } else {
+                            const posledni = userData.hospoda_tolary_datum?.[bezTecky];
+                            const dnyOd = posledni ? (Date.now() - new Date(posledni).getTime()) / 86400000 : Infinity;
+                            if (dnyOd >= 7) {
+                                await udelTolary(3, `Návrat do hospody: ${pN}`);
+                                await updateDoc(hracRef, { [`hospoda_tolary_datum.${bezTecky}`]: dnes });
+                                if (!userData.hospoda_tolary_datum) userData.hospoda_tolary_datum = {};
+                                userData.hospoda_tolary_datum[bezTecky] = dnes;
+                            }
+                        }
+                    }
+
+                    await pripoctiUkolProgress('pocet_piv', 1);
+                    await pripoctiTydenniProgress(1);
+                    posledniStats = null; // vynuť přepočet pro Krčmu
+                } catch (eTolary) { console.warn('Chyba Tolary/úkoly:', eTolary.message); }
+
                 // Globální statistiky — increment() nefunguje v batch.set(), musíme použít updateDoc se set+merge zvlášť
                 try {
                     await setDoc(doc(db, "statistiky_piv", bN), { pocet: increment(1) }, { merge: true });
@@ -1911,6 +2224,7 @@
 
                         if (spoluhraciList.length > 0) {
                             const jmena = spoluhraciList.map(s => s.prezdivka).join(', ');
+                            await pripoctiUkolProgress('spolecne', 1);
 
                             // Načti právě zapsaný záznam (nejnovější v mém log_piv)
                             const mojLogSnap = await getDocs(query(
@@ -1980,12 +2294,13 @@
 
         // ─── TABY ─────────────────────────────────────────────────────────────
         window.switchTab = (tabName) => {
-            ['mapa', 'denik', 'piva', 'cech', 'kralovstvi', 'sin'].forEach(t => {
+            ['krcma', 'mapa', 'denik', 'piva', 'cech', 'kralovstvi', 'sin'].forEach(t => {
                 $(`tab-${t}`).classList.remove('active');
                 $(`obsah-${t}`).classList.add('hidden');
             });
             $(`tab-${tabName}`).classList.add('active');
             $(`obsah-${tabName}`).classList.remove('hidden');
+            if (tabName === 'krcma') vykresliKrcmu();
             if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
             if (tabName === 'mapa') nactiGlobalniLog();
             if (tabName === 'denik') { vykresliDenicek(); vykresliEditProfil(); nactiSledovane(); }
@@ -2403,6 +2718,7 @@
                     // Odměna
                     await updateDoc(doc(db, "cechy", userData.cech_id), { skore: increment(10) });
                     notify('🏆 Váš cech vyhrál válku! +10 bonusových bodů!');
+                    await notifikujKonecValky(vData.utocnik_id, vData.obrance_id, userData.cech_id);
                 } else {
                     await updateDoc(doc(db, "valky", v.id), updateData);
                 }
@@ -2414,6 +2730,26 @@
                 ? vData.utocnik_id : vData.obrance_id;
             await updateDoc(doc(db, "valky", valkaId), { stav: 'skoncila', vitez });
             await updateDoc(doc(db, "cechy", vitez), { skore: increment(5) });
+            await notifikujKonecValky(vData.utocnik_id, vData.obrance_id, vitez);
+        }
+
+        // Zapíše notifikaci "konec války" všem členům obou zúčastněných cechů.
+        async function notifikujKonecValky(utocnikId, obranceId, vitezId) {
+            try {
+                const [snapU, snapO] = await Promise.all([
+                    getDocs(query(collection(db, "hraci"), where("cech_id", "==", utocnikId))),
+                    getDocs(query(collection(db, "hraci"), where("cech_id", "==", obranceId)))
+                ]);
+                const zapisy = [];
+                snapU.forEach(d => zapisy.push({ uid: d.id, vyhral: utocnikId === vitezId }));
+                snapO.forEach(d => zapisy.push({ uid: d.id, vyhral: obranceId === vitezId }));
+                await Promise.all(zapisy.map(z => addDoc(collection(db, "hraci", z.uid, "notifikace"), {
+                    typ: 'valka',
+                    text: z.vyhral ? '🏆 Tvůj cech vyhrál válku!' : '⚔️ Tvůj cech prohrál válku.',
+                    cas: serverTimestamp(),
+                    precteno: false
+                })));
+            } catch (e) { console.warn('Chyba notifikace konce války:', e.message); }
         }
 
         // ─── SÍŇ SLÁVY ───────────────────────────────────────────────────────
@@ -3245,6 +3581,20 @@
                 noveOdznaky.forEach((a, i) => {
                     setTimeout(() => notify(`🏅 Nový odznak: ${a.nazev}! ${a.ikona}`), i * 800);
                 });
+
+                // Tolary za odznak (dle stupně) + zápis do zvonku notifikací
+                const TOLARY_ZA_STUPEN = { bronz: 10, stribro: 35, zlato: 100 };
+                for (const a of noveOdznaky) {
+                    await udelTolary(TOLARY_ZA_STUPEN[a.stupen] || 10, `Odznak: ${a.nazev}`);
+                    try {
+                        await addDoc(collection(db, "hraci", currentUser.uid, "notifikace"), {
+                            typ: 'odznak',
+                            text: `Nový odznak: ${a.nazev} ${a.ikona}`,
+                            cas: serverTimestamp(),
+                            precteno: false
+                        });
+                    } catch (eNotif) { console.warn('Chyba zápisu notifikace odznaku:', eNotif.message); }
+                }
             }
 
             // Vykresli mřížku
@@ -3273,6 +3623,95 @@
 
             $('odznak-pocet').textContent = `${ziskaných} / ${ACHIEVEMENTY_DEF.length}`;
         }
+
+        // ─── KRČMA (domovská obrazovka) ───────────────────────────────────────
+        async function ziskejKrcmaStats() {
+            if (posledniStats) return posledniStats;
+            try {
+                const snap = await getDocs(query(
+                    collection(db, "hraci", currentUser.uid, "log_piv"),
+                    orderBy("cas", "desc"), limit(500)
+                ));
+                posledniStats = vypoctiStatsZLogy(snap.docs);
+            } catch (e) {
+                console.warn('Chyba načtení statistik pro Krčmu:', e.message);
+                posledniStats = { celkemPiv: 0, streakAkt: 0 };
+            }
+            return posledniStats;
+        }
+
+        window.vykresliKrcmu = async function() {
+            if (!currentUser) return;
+            const box = $('krcma-obsah-box');
+            const stats = await ziskejKrcmaStats();
+            const ukol  = zajistiDenniUkol();
+            const vyzva = zajistiTydenniVyzvu();
+            const { lvl } = xpLevel(userData.xp || 0);
+
+            // Poslední získaný odznak
+            const achievementy = userData.achievementy || [];
+            let posledniOdznak = null;
+            if (achievementy.length > 0) {
+                const serazene = [...achievementy].sort((a, b) => new Date(b.ziskano) - new Date(a.ziskano));
+                posledniOdznak = ACHIEVEMENTY_DEF.find(d => d.id === serazene[0].id) || null;
+            }
+
+            // Souhrn aktivní cechovní války
+            let valkaHtml = '';
+            if (userData.cech_id) {
+                try {
+                    const [q1, q2] = await Promise.all([
+                        getDocs(query(collection(db, "valky"), where("utocnik_id", "==", userData.cech_id), where("stav", "==", "aktivni"))),
+                        getDocs(query(collection(db, "valky"), where("obrance_id", "==", userData.cech_id), where("stav", "==", "aktivni")))
+                    ]);
+                    const vsechny = [];
+                    q1.forEach(d => vsechny.push({ ...d.data(), smer: 'utocnik' }));
+                    q2.forEach(d => vsechny.push({ ...d.data(), smer: 'obrance' }));
+                    if (vsechny.length > 0) {
+                        const v = vsechny[0];
+                        const nase   = v.smer === 'utocnik' ? (v.utocnik_bodu || 0) : (v.obrance_bodu || 0);
+                        const jejich = v.smer === 'utocnik' ? (v.obrance_bodu || 0) : (v.utocnik_bodu || 0);
+                        valkaHtml = `
+                            <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
+                                <div class="text-xs text-orange-400 uppercase font-bold mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Probíhá cechovní válka</div>
+                                <div class="text-sm">Náš cech ${nase} : ${jejich} soupeř</div>
+                            </div>`;
+                    }
+                } catch (e) { console.warn('Chyba načtení války pro Krčmu:', e.message); }
+            }
+
+            box.innerHTML = `
+                <div class="text-center mb-3">
+                    <div class="text-lg text-yellow-400 fantasy-font">Vítej v Krčmě, ${escapeHtml(userData.prezdivka || 'Hrdino')}!</div>
+                    <div class="text-xs text-gray-400">Úroveň ${lvl}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <div class="stat-tile"><div style="font-size:1.1rem;">🪙</div><div class="stat-tile-val">${userData.tolary || 0}</div><div class="stat-tile-label">Tolarů</div></div>
+                    <div class="stat-tile"><div style="font-size:1.1rem;">🔥</div><div class="stat-tile-val">${stats.streakAkt || 0}d</div><div class="stat-tile-label">Série</div></div>
+                    <div class="stat-tile"><div style="font-size:1.1rem;">🍺</div><div class="stat-tile-val">${stats.celkemPiv || 0}</div><div class="stat-tile-label">Piv celkem</div></div>
+                </div>
+                <button class="btn-gold w-full py-3 uppercase text-sm mb-3" onclick="switchTab('mapa')">🍺 Zapsat pivo</button>
+                <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">📜 Denní úkol</div>
+                    <div class="text-sm mb-1">${escapeHtml(ukol.popis)}</div>
+                    <div class="xp-bar-outer"><div class="xp-bar-inner" style="width:${Math.min(100, ukol.progress / ukol.cil * 100)}%"></div></div>
+                    <div class="text-[10px] text-gray-500 mt-1">${ukol.progress}/${ukol.cil}${ukol.splneno ? ' · ✅ Splněno' : ''}</div>
+                </div>
+                <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">🗓️ Týdenní výzva</div>
+                    <div class="text-sm mb-1">Zapiš ${vyzva.cil} piv tento týden (+${vyzva.odmena} 🪙)</div>
+                    <div class="xp-bar-outer"><div class="xp-bar-inner" style="width:${Math.min(100, vyzva.progress / vyzva.cil * 100)}%"></div></div>
+                    <div class="text-[10px] text-gray-500 mt-1">${vyzva.progress}/${vyzva.cil}${vyzva.splneno ? ' · ✅ Splněno' : ''}</div>
+                </div>
+                <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">🏅 Poslední odznak</div>
+                    ${posledniOdznak
+                        ? `<div class="text-sm">${posledniOdznak.ikona} ${escapeHtml(posledniOdznak.nazev)}</div>`
+                        : `<div class="text-gray-600 italic text-sm">Zatím žádný odznak — vyraz na dungeony!</div>`}
+                </div>
+                ${valkaHtml}
+            `;
+        };
 
         // ─── ZÁLOŽKA PIVA ─────────────────────────────────────────────────────────
 
@@ -3493,6 +3932,20 @@
                 const zobraz = typ === 'pivo' ? klic : (vsechnaHospodyData.find(h=>h.id===klic)?.nazev || klic);
                 notify(`${stars}★ uloženo pro ${zobraz}`);
                 renderPivaSeznamu();
+
+                // Tolary za hodnocení — max 3× denně
+                try {
+                    const dnes = dnesniDatum();
+                    if (!userData.tolary_denni || userData.tolary_denni.datum !== dnes) {
+                        userData.tolary_denni = { datum: dnes, pocet_piv: 0, pocet_hodnoceni: 0 };
+                    }
+                    if (userData.tolary_denni.pocet_hodnoceni < 3) {
+                        userData.tolary_denni.pocet_hodnoceni++;
+                        await updateDoc(doc(db, "hraci", currentUser.uid), { tolary_denni: userData.tolary_denni });
+                        await udelTolary(1, 'Hodnocení');
+                    }
+                    await pripoctiUkolProgress('hodnoceni', 1);
+                } catch (eTolary) { console.warn('Chyba Tolary za hodnocení:', eTolary.message); }
             } catch(e) { notify('Chyba: ' + e.message, 'err'); }
         }
 
