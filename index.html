@@ -189,6 +189,28 @@
         .pd-tag--epic      { color:#2c1148; background:linear-gradient(180deg,#c79af0,#9a5cd0); border-color:#4a2a70; }
         .pd-tag--legendary { color:#4a2e08; background:linear-gradient(180deg,#ffe680,#f3b224); border-color:#8a5a17; }
 
+        /* ---------- AVATAR ŠTÍT + LEVEL BADGE + TITUL ---------- */
+        .pd-avatar-shield { position:relative; width:100%; height:100%;
+          clip-path: polygon(50% 0,100% 22%,100% 70%,50% 100%,0 70%,0 22%);
+          background: linear-gradient(160deg, var(--pd-gold), var(--pd-gold-deep));
+          display:flex; align-items:center; justify-content:center;
+          box-shadow: 0 0 14px rgba(255,190,50,.4); flex-shrink:0; }
+        .pd-avatar-shield__inner { width:86%; height:86%;
+          clip-path: polygon(50% 0,100% 22%,100% 70%,50% 100%,0 70%,0 22%);
+          background: linear-gradient(160deg,#3a2a15,#241a10);
+          display:flex; align-items:center; justify-content:center; }
+        .pd-level-badge { position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
+          clip-path: polygon(50% 0,100% 26%,86% 100%,14% 100%,0 26%);
+          background: linear-gradient(160deg, var(--pd-gold), var(--pd-gold-deep));
+          display:flex; align-items:center; justify-content:center;
+          font-family:var(--pd-font-head); font-weight:900; color:#4a2e08;
+          box-shadow:0 2px 4px rgba(0,0,0,.4); white-space:nowrap; }
+        .pd-title-pill { display:inline-block;
+          font-family:var(--pd-font-head); letter-spacing:1px;
+          color:#3a230c; background:linear-gradient(180deg,#e8c778,#c99a3e);
+          border:1.5px solid #7a531e; border-radius:999px;
+          text-transform:uppercase; white-space:nowrap; }
+
         .pd-title { font-family:var(--pd-font-head); font-weight:700; color:var(--pd-gold); letter-spacing:.5px; }
         .pd-display { font-family:var(--pd-font-title); font-weight:900; color:var(--pd-gold);
                       text-shadow:0 3px 0 #5c2f0c, 0 0 26px rgba(255,168,30,.45); }
@@ -820,10 +842,16 @@
                     </div>
                     <!-- Zobrazení -->
                     <div id="profil-zobrazeni" class="flex items-center gap-3">
-                        <div class="text-3xl" id="muj-avatar-display">⚔️</div>
+                        <div style="position:relative;width:56px;height:64px;flex-shrink:0;">
+                            <div class="pd-avatar-shield">
+                                <div class="pd-avatar-shield__inner" id="muj-avatar-display" style="font-size:1.6rem;">⚔️</div>
+                            </div>
+                            <div class="pd-level-badge" id="muj-level-badge" style="width:26px;height:19px;font-size:10px;">1</div>
+                        </div>
                         <div>
                             <div class="text-yellow-400 font-bold" id="muj-nick-display">—</div>
-                            <div class="text-xs text-gray-400" id="muj-bio-display"></div>
+                            <div class="pd-title-pill" id="muj-titul-display" style="font-size:9px;padding:2px 9px;margin-top:3px;">🌱 Nováček</div>
+                            <div class="text-xs text-gray-400 mt-1" id="muj-bio-display"></div>
                             <div class="text-xs text-orange-400" id="muj-kraj-display"></div>
                         </div>
                     </div>
@@ -1389,6 +1417,14 @@
             const lvl = Math.floor(xp / 1000) + 1;
             const prog = (xp % 1000) / 1000 * 100;
             return { lvl, prog };
+        }
+
+        // Titul postavy odvozený z levelu (bez nutnosti nového pole)
+        function titulPostavy(lvl) {
+            if (lvl >= 20) return '⚜ Pivní Legenda';
+            if (lvl >= 10) return '⚜ Rytíř Zlatého Ležáku';
+            if (lvl >= 5)  return '🍺 Zdatný Pijan';
+            return '🌱 Nováček';
         }
 
         // ─── TOLARY (herní měna) ──────────────────────────────────────────────
@@ -3172,6 +3208,9 @@
             $('muj-nick-display').textContent = userData.prezdivka || '—';
             $('muj-bio-display').textContent = userData.bio || '';
             $('muj-kraj-display').textContent = userData.kraj ? '📍 ' + userData.kraj : 'Kraj nezvolén';
+            const { lvl } = xpLevel(userData.xp || 0);
+            $('muj-level-badge').textContent = lvl;
+            $('muj-titul-display').textContent = titulPostavy(lvl);
 
             // Nastav hodnoty formuláře
             $('edit-prezdivka').value = userData.prezdivka || '';
