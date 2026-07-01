@@ -506,8 +506,29 @@
         .odznak-stit.zlato   { background: linear-gradient(155deg, var(--pd-gold) 0%, var(--pd-gold-deep) 100%); }
         .odznak-nazev.ziskano { color: var(--pd-gold); }
 
-        /* Piva karty */
-        .pivo-karta { background: rgba(20,14,8,.45); border-color: var(--pd-brass); }
+        /* Piva karty — sudová etiketa */
+        .pivo-karta {
+            background:
+                linear-gradient(180deg,rgba(255,215,140,.08),rgba(20,10,4,.34)),
+                repeating-linear-gradient(89deg,var(--pd-wood-1) 0 9px,var(--pd-wood-2) 9px 18px);
+            border-color: var(--pd-brass); border-width:2.5px;
+            box-shadow: 0 5px 0 #241811, inset 0 2px 0 rgba(255,220,150,.2);
+            position: relative;
+        }
+        .pivo-ikona {
+            background: radial-gradient(120% 100% at 50% 0%, var(--pd-parch-1), var(--pd-parch-2));
+            border: 2px solid var(--pd-parch-border); border-radius: 9px;
+            width:48px; height:56px; display:flex; align-items:center; justify-content:center;
+        }
+        .pivo-ikona img { width:100%; height:100%; object-fit:cover; border-radius:7px; }
+        .pivo-karta .pd-tag { position:absolute; top:10px; right:11px; }
+        .pd-btn-parchment {
+            background: radial-gradient(120% 100% at 50% 0%, var(--pd-parch-1), var(--pd-parch-2));
+            color: var(--pd-parch-ink); border: 2px dashed var(--pd-parch-border);
+            border-radius: var(--pd-r-lg); padding: 12px;
+            font-family: var(--pd-font-head); font-weight:700; font-size:13px;
+            display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+        }
         .piva-sort-btn { background: linear-gradient(180deg, var(--pd-wood-hi), var(--pd-wood-deep)); border-color: var(--pd-brass); color: var(--pd-ink-muted); }
         .piva-sort-btn.active { border-color: var(--pd-gold); color: var(--pd-gold); background: rgba(255,216,104,.1); }
 
@@ -1187,6 +1208,10 @@
                     <button id="sort-vypitost"  class="piva-sort-btn"        onclick="setPivaSort('vypitost')"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Nejvíce pito</button>
                     <button id="sort-abeceda"   class="piva-sort-btn"        onclick="setPivaSort('abeceda')">🔤 A–Z</button>
                 </div>
+
+                <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" class="pd-btn-parchment w-full mb-3">
+                    <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-journal"/></svg> Navrhnout nové pivo
+                </button>
 
                 <div id="piva-loading" class="text-gray-500 italic text-sm text-center py-8">Načítám...</div>
                 <div id="piva-seznam" class="space-y-2 hidden"></div>
@@ -3956,7 +3981,7 @@
                 const mojeHv      = moje[klic] || 0;
 
                 const ikonaHtml = (pivaTyp === 'piva' && item.obrazek_url)
-                    ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
+                    ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona">`
                     : `<div class="pivo-ikona"><svg class="pd-ico" style="width:1.5em;height:1.5em"><use href="#${pivaTyp === 'piva' ? 'ic-mug' : 'ic-home'}"/></svg></div>`;
 
                 const prumHtml = hlasu > 0
@@ -3967,9 +3992,17 @@
                     ? `Vypito ${item.mujPocet}×`
                     : `Navštíveno ${item.mujPocet}×`;
 
+                // Vzácnost dle průměrného hodnocení: <3.5 Běžné, 3.5–4.4 Vzácné, ≥4.5 Legenda
+                const vzacnost = hlasu === 0 || prumerne < 3.5
+                    ? { trida: 'pd-tag--common', text: 'Běžné' }
+                    : prumerne < 4.5
+                        ? { trida: 'pd-tag--rare', text: 'Vzácné' }
+                        : { trida: 'pd-tag--legendary', text: 'Legenda' };
+
                 const karta = document.createElement('div');
                 karta.className = 'pivo-karta fade-in';
                 karta.innerHTML = `
+                    <span class="pd-tag ${vzacnost.trida}">${vzacnost.text}</span>
                     ${ikonaHtml}
                     <div class="flex-grow min-w-0">
                         <div class="pivo-nazev">${escapeHtml(zobrazNazev)}</div>
