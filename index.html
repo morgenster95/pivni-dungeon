@@ -193,6 +193,23 @@
         .pd-display { font-family:var(--pd-font-title); font-weight:900; color:var(--pd-gold);
                       text-shadow:0 3px 0 #5c2f0c, 0 0 26px rgba(255,168,30,.45); }
 
+        /* ---------- STAVY: prázdno / spí / načítám / chyba ---------- */
+        .pd-state { text-align:center; padding:26px 20px; }
+        .pd-state__icon { width:64px; height:74px; margin:0 auto 12px;
+          display:flex; align-items:center; justify-content:center;
+          clip-path: polygon(14% 0,86% 0,100% 16%,100% 62%,50% 100%,0 62%,0 16%);
+          background:linear-gradient(155deg,#3a3730,#22201b); }
+        .pd-state__icon span { font-size:26px; opacity:.4; }
+        .pd-state__title { font-family:var(--pd-font-head); font-weight:700; color:var(--pd-ink-muted); font-size:15px; }
+        .pd-state__hint { font-size:12px; color:var(--pd-ink-faint); margin-top:4px; line-height:1.45; font-style:italic; }
+        .pd-state--error { border-color:#7a4a2a !important; }
+        .pd-state--error .pd-state__title { color:#ef8a7a; }
+        .pd-mug-loading { width:56px; height:64px; margin:0 auto 12px; position:relative;
+          border:3px solid #241505; border-radius:8px 8px 12px 12px; overflow:hidden; background:rgba(0,0,0,.3); }
+        .pd-mug-loading__foam { position:absolute; left:0; right:0; bottom:0;
+          background:linear-gradient(180deg,#ffd35a,#e0a01e); animation:pd-foam 1.4s ease-in-out infinite alternate; }
+        .pd-mug-loading__head { position:absolute; left:3px; right:3px; top:6px; height:9px; border-radius:6px; background:#fbf3df; opacity:.9; }
+
         @keyframes pd-foam { 0%{height:34%} 100%{height:72%} }
         @keyframes pd-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
         @keyframes pd-spark { 0%,100%{opacity:.4;transform:scale(.8)} 50%{opacity:1;transform:scale(1.25)} }
@@ -732,7 +749,11 @@
             <!-- TAB: KRČMA (domov) -->
             <div id="obsah-krcma">
                 <div id="krcma-obsah-box">
-                    <div class="text-gray-600 italic text-center py-4">Načítám...</div>
+                    <div class="pd-panel pd-panel--stone pd-state">
+                        <div class="pd-mug-loading"><div class="pd-mug-loading__foam"></div><div class="pd-mug-loading__head"></div></div>
+                        <div class="pd-state__title">Načítám…</div>
+                        <div class="pd-state__hint">„Točíme čerstvé. Pěna se usazuje…“</div>
+                    </div>
                 </div>
             </div>
 
@@ -905,7 +926,11 @@
                     </div>
                     <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-3" style="position:relative;height:220px;">
                         <canvas id="graf-piv"></canvas>
-                        <div id="graf-prazdny" class="hidden text-gray-600 italic text-xs text-center pt-16">Zatím žádná piva nezapsána.</div>
+                        <div id="graf-prazdny" class="hidden text-center" style="padding-top:36px;">
+                            <div style="font-size:30px;filter:grayscale(.3);">😴</div>
+                            <div class="pd-state__title" style="font-size:13px;">Sudovous podřimuje</div>
+                            <div class="pd-state__hint" style="font-size:10px;">„Zatím žádná piva nezapsána.“</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1137,7 +1162,7 @@
 
                 <div id="piva-loading" class="text-gray-500 italic text-sm text-center py-8">Načítám...</div>
                 <div id="piva-seznam" class="space-y-2 hidden"></div>
-                <div id="piva-prazdno" class="hidden text-gray-600 italic text-sm text-center py-6">Žádné záznamy nenalezeny.</div>
+                <div id="piva-prazdno" class="hidden"></div>
             </div>
 
             <!-- TAB: SÍŇ SLÁVY -->
@@ -1145,7 +1170,11 @@
                 <h3 class="text-yellow-500 fantasy-font text-2xl mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-trophy"/></svg> Síň Slávy</h3>
                 <p class="text-xs text-gray-500 mb-4">Největší hrdinové Pivního Dungeonu</p>
 
-                <div id="sin-loading" class="text-gray-500 italic text-sm text-center py-6">Načítám anály...</div>
+                <div id="sin-loading" class="pd-panel pd-panel--stone pd-state">
+                    <div class="pd-mug-loading"><div class="pd-mug-loading__foam"></div><div class="pd-mug-loading__head"></div></div>
+                    <div class="pd-state__title">Načítám anály…</div>
+                    <div class="pd-state__hint">„Listujeme kronikou hrdinů…“</div>
+                </div>
 
                 <div id="sin-obsah" class="hidden space-y-3">
 
@@ -1324,6 +1353,36 @@
         }
         function zavritModal() { $('modal-overlay').classList.add('hidden'); $('navrh-piva-input').value = ''; }
         window.zavritModal = zavritModal;
+
+        // ─── ZNOVUPOUŽITELNÉ STAVY (prázdno/spí/načítám/chyba) ────────────────
+        function pdStateEmpty(title, hint) {
+            return `<div class="pd-panel pd-panel--stone pd-state">
+                <div class="pd-state__icon"><span>🕸️</span></div>
+                <div class="pd-state__title">${escapeHtml(title)}</div>
+                <div class="pd-state__hint">„${escapeHtml(hint)}“</div>
+            </div>`;
+        }
+        function pdStateSleep(title, hint) {
+            return `<div class="pd-panel pd-panel--stone pd-state">
+                <div style="font-size:44px;margin-bottom:8px;filter:grayscale(.3);">😴</div>
+                <div class="pd-state__title">${escapeHtml(title)}</div>
+                <div class="pd-state__hint">„${escapeHtml(hint)}“</div>
+            </div>`;
+        }
+        function pdStateLoading(text) {
+            return `<div class="pd-panel pd-panel--stone pd-state">
+                <div class="pd-mug-loading"><div class="pd-mug-loading__foam"></div><div class="pd-mug-loading__head"></div></div>
+                <div class="pd-state__title">${escapeHtml(text || 'Načítám…')}</div>
+                <div class="pd-state__hint">„Točíme čerstvé. Pěna se usazuje…“</div>
+            </div>`;
+        }
+        function pdStateError(msg) {
+            return `<div class="pd-panel pd-panel--stone pd-state pd-state--error">
+                <div style="font-size:44px;margin-bottom:8px;">💥</div>
+                <div class="pd-state__title">No to nám přeteklo…</div>
+                <div class="pd-state__hint">„${escapeHtml(msg || 'Něco se rozlilo. Zkus to prosím znovu, hrdino.')}“</div>
+            </div>`;
+        }
 
         // XP level (každých 1000 XP = 1 level)
         function xpLevel(xp) {
@@ -2396,7 +2455,7 @@
             const cSnap = await getDoc(doc(db, "cechy", userData.cech_id));
             const zakladatelUid = cSnap.data().zakladatel;
             const box = $('cech-zebricek');
-            if (snap.empty) { box.innerHTML = '<div class="text-gray-600">Žádní členové.</div>'; return; }
+            if (snap.empty) { box.innerHTML = pdStateEmpty('Prázdná síň', 'V cechu zatím nejsou žádní členové.'); return; }
             // Seřaď podle XP v JS
             const sorted = snap.docs.slice().sort((a,b) => (b.data().xp||0) - (a.data().xp||0));
             box.innerHTML = sorted.map((d, i) => {
@@ -2580,7 +2639,7 @@
             }
 
             if (valky.length === 0) {
-                box.innerHTML = '<div class="text-gray-600 italic text-xs text-center py-1">Žádné aktivní ani čekající války.</div>';
+                box.innerHTML = pdStateSleep('Sudovous podřimuje', 'Žádné aktivní ani čekající války.');
                 return;
             }
 
@@ -2877,7 +2936,7 @@
                 hide('sin-loading');
                 show('sin-obsah');
             } catch (e) {
-                $('sin-loading').textContent = 'Chyba načítání: ' + e.message;
+                $('sin-loading').innerHTML = pdStateError('Chyba načítání: ' + e.message);
             }
         }
 
@@ -3835,9 +3894,9 @@
                 $('piva-seznam').classList.add('hidden');
                 const prazdno = $('piva-prazdno');
                 prazdno.classList.remove('hidden');
-                prazdno.textContent = hledani
-                    ? `Žádný výsledek pro "${hledani}"`
-                    : (pivaTyp === 'piva' ? 'Žádná piva v historii.' : 'Žádné hospody v historii.');
+                prazdno.innerHTML = hledani
+                    ? pdStateEmpty('Nic nenalezeno', `Žádný výsledek pro "${hledani}"`)
+                    : pdStateSleep('Sudovous podřimuje', pivaTyp === 'piva' ? 'Zatím žádná piva v historii.' : 'Zatím žádné hospody v historii.');
                 return;
             }
 
