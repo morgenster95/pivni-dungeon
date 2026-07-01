@@ -487,7 +487,7 @@
         .glog-item { background: rgba(20,14,8,.5); border-left: 4px solid var(--pd-brass); }
 
         /* Válka → železo */
-        .war-card { background: linear-gradient(180deg,#2c2820,#1a1712); border: 2px solid var(--pd-iron-border); box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+        .war-card { background: linear-gradient(180deg,#2c2820,#1a1712); border: 3px solid #7a4a2a; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
         .war-progress-bar { border-color: #17110a; }
         .war-bar-left  { background: linear-gradient(90deg, var(--pd-gold), var(--pd-gold-deep)); }
         .war-bar-right { background: linear-gradient(90deg, #fc8181, var(--pd-danger)); }
@@ -522,6 +522,18 @@
         }
         .pivo-ikona img { width:100%; height:100%; object-fit:cover; border-radius:7px; }
         .pivo-karta .pd-tag { position:absolute; top:10px; right:11px; }
+        .pd-guild-banner { width:70px; height:88px; margin:0 auto 4px; position:relative;
+          filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); }
+        .pd-guild-banner__bar { position:absolute; top:0; left:6px; right:6px; height:5px; border-radius:3px;
+          background: var(--pd-brass-hi); border:1.5px solid #3a2408; }
+        .pd-guild-banner__flag { position:absolute; top:4px; left:10px; right:10px; bottom:0;
+          background: linear-gradient(180deg,#c0392b,#7d201a);
+          clip-path: polygon(0 0,100% 0,100% 100%,50% 82%,0 100%);
+          border:2px solid #3a1410; display:flex; align-items:flex-start; justify-content:center; padding-top:14px; }
+        .pd-cech-row { display:flex; align-items:center; gap:9px;
+          background: radial-gradient(80% 60% at 30% 20%, var(--pd-stone-1), var(--pd-stone-2));
+          border: 2px solid var(--pd-stone-border); border-radius: 11px; padding: 6px 9px; margin-bottom:6px; }
+        .pd-cech-row:last-child { margin-bottom:0; }
         .pd-btn-parchment {
             background: radial-gradient(120% 100% at 50% 0%, var(--pd-parch-1), var(--pd-parch-2));
             color: var(--pd-parch-ink); border: 2px dashed var(--pd-parch-border);
@@ -1016,6 +1028,10 @@
 
                 <!-- Je v cechu -->
                 <div id="cech-existuje" class="hidden">
+                    <div class="pd-guild-banner">
+                        <div class="pd-guild-banner__bar"></div>
+                        <div class="pd-guild-banner__flag"><svg class="pd-ico" style="width:34px;height:34px"><use href="#ic-banner"/></svg></div>
+                    </div>
                     <div class="flex items-center justify-center gap-2 mb-1">
                         <h2 id="cech-nazev-zobrazeni" class="text-3xl text-yellow-500 fantasy-font">...</h2>
                     </div>
@@ -2522,9 +2538,16 @@
             box.innerHTML = sorted.map((d, i) => {
                 const h = d.data(); const isZ = d.id === zakladatelUid;
                 const isMe = d.id === currentUser.uid;
-                return `<div class="flex justify-between items-center">
-                    <span>${i+1}. <span class="${isMe ? '' : 'profil-link'}" ${isMe ? '' : 'onclick="otevritProfil(\'' + d.id + '\')"'}>${h.prezdivka}</span> ${isZ ? '<span class="rank-badge rank-zakladatel">Zakladatel</span>' : ''}</span>
-                    <span class="text-yellow-500">${h.xp ?? 0} XP</span>
+                const { lvl } = xpLevel(h.xp || 0);
+                return `<div class="pd-cech-row">
+                    <div class="pd-avatar-shield" style="width:30px;height:36px;">
+                        <div class="pd-avatar-shield__inner" style="font-size:0.85rem;">${escapeHtml(h.avatar || '⚔️')}</div>
+                    </div>
+                    <div class="flex-grow min-w-0 text-left">
+                        <span class="${isMe ? '' : 'profil-link'}" ${isMe ? '' : `onclick="otevritProfil('${d.id}')"`}>${i+1}. ${escapeHtml(h.prezdivka || '—')}</span>
+                        <div style="font-size:0.6rem;color:#9d8b6c;">úroveň ${lvl} · ${h.xp ?? 0} XP</div>
+                    </div>
+                    <span class="rank-badge ${isZ ? 'rank-zakladatel' : 'rank-clen'}">${isZ ? 'Zakladatel' : 'Člen'}</span>
                 </div>`;
             }).join('');
             } catch(e) { $('cech-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání členů: ' + e.message + '</div>'; }
