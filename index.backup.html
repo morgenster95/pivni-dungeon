@@ -8,194 +8,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Cinzel+Decorative:wght@700;900&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
 
         @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@400;500;600;700&display=swap');
-
-        /* ============================================================
-           PIVNÍ DUNGEON · DESIGN TOKENS (redesign vrstva)
-           ============================================================ */
-        :root {
-          --pd-charcoal:      #14100b;
-          --pd-charcoal-2:    #171009;
-          --pd-wood-1:        #4a3320;
-          --pd-wood-2:        #523827;
-          --pd-wood-deep:     #3a2817;
-          --pd-wood-hi:       #5a3f24;
-          --pd-stone-1:       #403c33;
-          --pd-stone-2:       #26231d;
-          --pd-stone-border:  #565043;
-          --pd-iron:          #2c2820;
-          --pd-iron-border:   #6b675d;
-
-          --pd-brass:         #a9762f;
-          --pd-brass-hi:      #c9973f;
-          --pd-amber:         #e8a13a;
-          --pd-gold:          #ffd868;
-          --pd-gold-deep:     #d99a1e;
-          --pd-copper:        #c98a5a;
-
-          --pd-parch-1:       #f1ddb0;
-          --pd-parch-2:       #e2c684;
-          --pd-parch-border:  #c19a55;
-          --pd-parch-ink:     #4a3316;
-          --pd-parch-ink-2:   #6b4518;
-
-          --pd-ink:           #efe2cc;
-          --pd-ink-muted:     #cbb794;
-          --pd-ink-faint:     #9d8b6c;
-          --pd-heading:       #f3d79a;
-
-          --pd-common:        #6faf54;
-          --pd-rare:          #4a90d9;
-          --pd-epic:          #9a5cd0;
-          --pd-legendary:     #f3b224;
-          --pd-danger:        #d23b34;
-
-          --pd-r-sm: 9px; --pd-r-md: 13px; --pd-r-lg: 16px; --pd-r-xl: 20px; --pd-r-pill: 999px;
-
-          --pd-sh-wood:  0 6px 0 #241811, 0 12px 22px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,220,150,.22);
-          --pd-sh-stone: inset 0 3px 10px rgba(0,0,0,.55), 0 6px 0 #14120d;
-          --pd-sh-btn:   0 5px 0 #9c5e16, inset 0 2px 0 rgba(255,255,255,.55);
-          --pd-sh-glow:  0 0 14px rgba(255,200,74,.55);
-
-          --pd-font-title: 'Cinzel Decorative', serif;
-          --pd-font-head:  'Cinzel', serif;
-          --pd-font-body:  'Fredoka', system-ui, sans-serif;
-
-          --pd-s1: 4px; --pd-s2: 8px; --pd-s3: 12px; --pd-s4: 16px; --pd-s5: 22px; --pd-s6: 32px;
-        }
-
-        /* ---------- App / screen background ---------- */
-        .pd-app {
-          background-color: var(--pd-charcoal);
-          background-image:
-            radial-gradient(52% 30% at 50% -4%, rgba(255,180,74,.30), transparent 70%),
-            radial-gradient(130% 100% at 50% 40%, transparent 30%, rgba(6,4,2,.82) 92%),
-            repeating-linear-gradient(90deg,#191308 0 3px,#1d160b 3px 6px);
-          color: var(--pd-ink);
-          font-family: var(--pd-font-body);
-        }
-
-        /* ---------- PANELS (materials) ---------- */
-        .pd-panel { border-radius: var(--pd-r-lg); padding: var(--pd-s4); }
-        .pd-panel--wood {
-          background:
-            linear-gradient(180deg, rgba(255,215,140,.08), rgba(20,10,4,.34)),
-            repeating-linear-gradient(89deg, var(--pd-wood-1) 0 9px, var(--pd-wood-2) 9px 18px);
-          border: 3px solid var(--pd-brass);
-          box-shadow: var(--pd-sh-wood);
-        }
-        .pd-panel--stone {
-          background:
-            radial-gradient(70% 55% at 28% 18%, var(--pd-stone-1), var(--pd-stone-2)),
-            radial-gradient(60% 50% at 82% 92%, #38342b, #221f19);
-          border: 3px solid var(--pd-stone-border);
-          box-shadow: var(--pd-sh-stone);
-        }
-        .pd-panel--parchment {
-          background: radial-gradient(120% 100% at 50% 0%, var(--pd-parch-1), var(--pd-parch-2));
-          border: 2px solid var(--pd-parch-border);
-          box-shadow: inset 0 0 34px rgba(150,110,50,.42), 0 6px 16px rgba(0,0,0,.45);
-          color: var(--pd-parch-ink);
-        }
-        .pd-panel--iron {
-          background: linear-gradient(180deg,#2c2820,#1a1712);
-          border: 4px solid var(--pd-iron-border);
-          box-shadow: 0 6px 16px rgba(0,0,0,.5), inset 0 0 0 1.5px rgba(0,0,0,.5);
-        }
-
-        /* ---------- BUTTONS ---------- */
-        .pd-btn {
-          font-family: var(--pd-font-head);
-          font-weight: 900; text-transform: uppercase; letter-spacing: .5px;
-          border: 2.5px solid #1c120a; border-radius: var(--pd-r-md);
-          padding: 14px 24px; cursor: pointer; font-size: 14px;
-          display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-          transition: transform .06s ease, box-shadow .06s ease;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .pd-btn:active { transform: translateY(3px); }
-        .pd-btn:focus-visible { outline: 3px solid var(--pd-gold); outline-offset: 2px; }
-        .pd-btn--gold   { background:linear-gradient(180deg,#ffdd6b,#e0a01e); color:#3a230c; box-shadow:var(--pd-sh-btn); }
-        .pd-btn--gold:active   { box-shadow:0 2px 0 #9c5e16, inset 0 2px 0 rgba(255,255,255,.55); }
-        .pd-btn--green  { background:linear-gradient(180deg,#5fd383,#2e9b54); color:#0f3d22; box-shadow:0 5px 0 #1c6e3a, inset 0 2px 0 rgba(255,255,255,.4); }
-        .pd-btn--green:active  { box-shadow:0 2px 0 #1c6e3a, inset 0 2px 0 rgba(255,255,255,.4); }
-        .pd-btn--wood   { background:linear-gradient(180deg,#6a5334,#43321d); color:#f0dcb4; box-shadow:0 5px 0 #241811, inset 0 2px 0 rgba(255,220,150,.25); }
-        .pd-btn--wood:active   { box-shadow:0 2px 0 #241811, inset 0 2px 0 rgba(255,220,150,.25); }
-        .pd-btn--danger { background:linear-gradient(180deg,#ef6a5a,#c23b34); color:#fff; box-shadow:0 5px 0 #7d2420, inset 0 2px 0 rgba(255,255,255,.3); }
-        .pd-btn--danger:active { box-shadow:0 2px 0 #7d2420, inset 0 2px 0 rgba(255,255,255,.3); }
-        .pd-btn:disabled, .pd-btn[disabled] {
-          background:linear-gradient(180deg,#48423a,#332e28); color:#8a8272;
-          border-color:#211d18; box-shadow:inset 0 2px 4px rgba(0,0,0,.4);
-          cursor:not-allowed; opacity:.75; transform:none;
-        }
-        .pd-btn--block { width:100%; }
-
-        /* ---------- ICONS ---------- */
-        .pd-ico { width:1.5em; height:1.5em; display:inline-block; vertical-align:middle;
-                  filter: drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
-        .pd-ico--dim { filter: saturate(.5) brightness(.82); opacity:.75; }
-        .pd-ico--glow{ filter: drop-shadow(0 0 5px rgba(255,210,90,.85)); }
-
-        /* ---------- BOTTOM NAV ---------- */
-        .pd-nav {
-          background: linear-gradient(180deg, var(--pd-wood-hi), var(--pd-wood-deep));
-          border-top: 3px solid var(--pd-brass);
-          display:flex; justify-content:space-between;
-          padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-          box-shadow: 0 -6px 16px rgba(0,0,0,.4);
-        }
-        .pd-nav__item { flex:1; display:flex; flex-direction:column; align-items:center;
-                        gap:3px; padding:7px 2px 5px; border-radius:var(--pd-r-md);
-                        color: var(--pd-ink-muted); font-size:9.5px; font-weight:600;
-                        background:none; border:none; cursor:pointer; }
-        .pd-nav__item--active {
-          color:#ffe9ad;
-          background: linear-gradient(180deg,#7a5a2f,#4a3419);
-          border: 2px solid #ffce47;
-          box-shadow: var(--pd-sh-glow), inset 0 2px 0 rgba(255,235,180,.35);
-          transform: translateY(-8px);
-        }
-
-        /* ---------- XP / PROGRESS BAR ---------- */
-        .pd-bar { height:13px; border-radius:7px; background:rgba(0,0,0,.5);
-                  border:2px solid #17110a; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.6); }
-        .pd-bar__fill { height:100%; border-radius:5px;
-                        background:linear-gradient(180deg,#ffe98a,#f3a81e 60%,#d98014);
-                        box-shadow:0 0 8px rgba(255,180,40,.6); transition:width .5s ease; }
-
-        /* ---------- BADGES (shield + rarity) ---------- */
-        .pd-badge { width:78px; height:90px; position:relative;
-          clip-path: polygon(14% 0,86% 0,100% 16%,100% 62%,50% 100%,0 62%,0 16%);
-          display:flex; align-items:center; justify-content:center;
-          box-shadow: inset 0 0 0 3px rgba(0,0,0,.25); }
-        .pd-badge--common    { background:linear-gradient(155deg,#8fbf5e,#3f5a24); }
-        .pd-badge--rare      { background:linear-gradient(155deg,#8fc4f0,#2f5f9e); filter:drop-shadow(0 0 6px rgba(74,144,217,.5)); }
-        .pd-badge--epic      { background:linear-gradient(155deg,#c79af0,#6a2fa0); filter:drop-shadow(0 0 9px rgba(154,92,208,.6)); }
-        .pd-badge--legendary { background:linear-gradient(155deg,#ffe98a,#c98915); filter:drop-shadow(0 0 12px rgba(255,190,50,.75)); }
-        .pd-badge--locked    { background:linear-gradient(155deg,#3a3730,#22201b); }
-        .pd-badge--locked > * { opacity:.3; filter:grayscale(1); }
-
-        .pd-tag { font-family:var(--pd-font-head); font-size:9px; letter-spacing:.5px;
-                  text-transform:uppercase; border-radius:6px; padding:2px 7px; border:1.5px solid; }
-        .pd-tag--common    { color:#20330f; background:linear-gradient(180deg,#8fbf5e,#6faf54); border-color:#40602a; }
-        .pd-tag--rare      { color:#0e2540; background:linear-gradient(180deg,#8fc4f0,#4a90d9); border-color:#24506f; }
-        .pd-tag--epic      { color:#2c1148; background:linear-gradient(180deg,#c79af0,#9a5cd0); border-color:#4a2a70; }
-        .pd-tag--legendary { color:#4a2e08; background:linear-gradient(180deg,#ffe680,#f3b224); border-color:#8a5a17; }
-
-        .pd-title { font-family:var(--pd-font-head); font-weight:700; color:var(--pd-gold); letter-spacing:.5px; }
-        .pd-display { font-family:var(--pd-font-title); font-weight:900; color:var(--pd-gold);
-                      text-shadow:0 3px 0 #5c2f0c, 0 0 26px rgba(255,168,30,.45); }
-
-        @keyframes pd-foam { 0%{height:34%} 100%{height:72%} }
-        @keyframes pd-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
-        @keyframes pd-spark { 0%,100%{opacity:.4;transform:scale(.8)} 50%{opacity:1;transform:scale(1.25)} }
-        @media (prefers-reduced-motion: reduce) {
-          *, .pd-bar__fill { animation: none !important; transition: none !important; }
-        }
 
         :root {
             --bg: #160f08;
@@ -381,266 +196,11 @@
         .follow-btn { font-size: 0.7rem; padding: 4px 11px; border-radius: 8px; font-family: 'Baloo 2', sans-serif; font-weight: 700; cursor: pointer; border: 2px solid #160d18; transition: all 0.2s; }
         .follow-btn.sleduju { background: linear-gradient(180deg,#54d07f,#2e9b54); color: #0f3d22; box-shadow: 0 2px 0 #1c6e3a; }
         .follow-btn.nesleduju { background: linear-gradient(180deg,#ffd95a,#e0a01e); color: #3a230c; box-shadow: 0 2px 0 #9c5e16; }
-
-        /* ============================================================
-           PIVNÍ DUNGEON · REDESIGN — přemapování existujících tříd
-           na herní materiály (dřevo/kámen/pergamen/železo) a tokeny.
-           Beze změny markup, ID, onclick, JS logiky.
-           ============================================================ */
-
-        body { font-family: var(--pd-font-body); }
-        .fantasy-font { font-family: var(--pd-font-title) !important; color: var(--pd-gold); text-shadow: 0 3px 0 #5c2f0c, 0 0 22px rgba(255,168,30,.4); letter-spacing: .5px; }
-
-        /* Karty → tesané dřevo */
-        .glass-card {
-            background:
-                linear-gradient(180deg, rgba(255,215,140,.08), rgba(20,10,4,.34)),
-                repeating-linear-gradient(89deg, var(--pd-wood-1) 0 9px, var(--pd-wood-2) 9px 18px);
-            border: 3px solid var(--pd-brass);
-            border-radius: var(--pd-r-lg);
-            box-shadow: var(--pd-sh-wood);
-        }
-
-        /* Navigace záložek → dřevěný trám */
-        .tab-btn {
-            background: linear-gradient(180deg, var(--pd-wood-hi), var(--pd-wood-deep));
-            color: var(--pd-ink-muted);
-            border-radius: var(--pd-r-md) var(--pd-r-md) 0 0;
-            border: 2.5px solid var(--pd-brass);
-            border-bottom: none;
-            font-family: var(--pd-font-head);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 2px;
-        }
-        .tab-btn.active {
-            background: linear-gradient(180deg,#7a5a2f,#4a3419);
-            color: #ffe9ad;
-            border-color: var(--pd-gold);
-            box-shadow: var(--pd-sh-glow), inset 0 2px 0 rgba(255,235,180,.35);
-            transform: translateY(-3px);
-        }
-        .tab-btn svg.pd-ico { filter: saturate(.5) brightness(.82); opacity:.75; }
-        .tab-btn.active svg.pd-ico { filter: drop-shadow(0 0 5px rgba(255,210,90,.85)); opacity:1; }
-
-        /* Tlačítka → kovová/dřevěná */
-        .btn-primary, .btn-gold, .btn-danger, .btn-war {
-            font-family: var(--pd-font-head);
-            font-weight: 900;
-        }
-        .btn-primary { background: linear-gradient(180deg,#5fd383,#2e9b54); box-shadow: 0 5px 0 #1c6e3a, inset 0 2px 0 rgba(255,255,255,.4); }
-        .btn-gold    { background: linear-gradient(180deg,#ffdd6b,#e0a01e); box-shadow: var(--pd-sh-btn); }
-        .btn-danger  { background: linear-gradient(180deg,#ef6a5a,#c23b34); box-shadow: 0 5px 0 #7d2420, inset 0 2px 0 rgba(255,255,255,.3); }
-        .btn-war     { background: linear-gradient(180deg,#f0894a,#c0561e); box-shadow: 0 5px 0 #7a3410, inset 0 2px 0 rgba(255,255,255,.32); }
-
-        /* Vstupy → tmavý pergamen s mosazným rámem */
-        input, select { border-color: var(--pd-brass); border-radius: var(--pd-r-md); }
-        input:focus, select:focus { border-color: var(--pd-gold); }
-
-        /* XP bar */
-        .xp-bar-outer { border-color: #17110a; }
-        .xp-bar-inner { background: linear-gradient(180deg,#ffe98a,#f3a81e 60%,#d98014); box-shadow: 0 0 8px rgba(255,180,40,.6); }
-
-        /* Zápisy v kronice → dřevo */
-        .log-item { background: rgba(20,14,8,.5); border-left: 4px solid var(--pd-amber); }
-        .glog-item { background: rgba(20,14,8,.5); border-left: 4px solid var(--pd-brass); }
-
-        /* Válka → železo */
-        .war-card { background: linear-gradient(180deg,#2c2820,#1a1712); border: 2px solid var(--pd-iron-border); box-shadow: 0 6px 16px rgba(0,0,0,.5); }
-        .war-progress-bar { border-color: #17110a; }
-        .war-bar-left  { background: linear-gradient(90deg, var(--pd-gold), var(--pd-gold-deep)); }
-        .war-bar-right { background: linear-gradient(90deg, #fc8181, var(--pd-danger)); }
-
-        /* Odznaky rolí */
-        .rank-zakladatel { background: linear-gradient(180deg,#ffdd6b,#e0a01e); color:#3a230c; }
-        .rank-clen { background: rgba(20,14,8,.5); color: var(--pd-ink-muted); }
-
-        /* Síň slávy / statistiky → kámen */
-        .sin-card, .stat-tile, .kraj-card { background: linear-gradient(180deg,#403c33,#26231d); border-color: var(--pd-stone-border); }
-        .sin-section-title, .stat-tile-val { font-family: var(--pd-font-head); color: var(--pd-gold); }
-
-        /* Odznaky-štíty → shodný tvar štítu jako pd-badge, přebarveno na kov */
-        .odznak-stit.bronz   { background: linear-gradient(155deg, var(--pd-copper) 0%, #5a2f10 100%); }
-        .odznak-stit.stribro { background: linear-gradient(155deg,#e2e6ec 0%,#868c99 100%); }
-        .odznak-stit.zlato   { background: linear-gradient(155deg, var(--pd-gold) 0%, var(--pd-gold-deep) 100%); }
-        .odznak-nazev.ziskano { color: var(--pd-gold); }
-
-        /* Piva karty */
-        .pivo-karta { background: rgba(20,14,8,.45); border-color: var(--pd-brass); }
-        .piva-sort-btn { background: linear-gradient(180deg, var(--pd-wood-hi), var(--pd-wood-deep)); border-color: var(--pd-brass); color: var(--pd-ink-muted); }
-        .piva-sort-btn.active { border-color: var(--pd-gold); color: var(--pd-gold); background: rgba(255,216,104,.1); }
-
-        /* Kraj / cechy */
-        .kraj-bar-inner { background: linear-gradient(180deg, var(--pd-gold), var(--pd-amber)); }
-        .follow-btn.sleduju   { background: linear-gradient(180deg,#5fd383,#2e9b54); }
-        .follow-btn.nesleduju { background: linear-gradient(180deg,#ffdd6b,#e0a01e); }
-        .avatar-option.selected { border-color: var(--pd-gold); background: rgba(169,118,47,.35); }
-        .chart-toggle button.active { background: linear-gradient(180deg,#ffdd6b,#e0a01e); }
-        .profil-link { color: var(--pd-gold); }
-        .profil-link:hover { color: var(--pd-amber); }
-        .spolecne-badge { background: linear-gradient(180deg,#5fd383,#2e9b54); }
-        .hvezdicky .hv.filled { color: var(--pd-gold); }
-        .hvezdicky .hv.moje   { color: var(--pd-amber); text-shadow: 0 0 6px rgba(232,161,58,.7); }
     </style>
 </head>
-<body class="p-2 flex flex-col items-center text-center pd-app">
+<body class="p-2 flex flex-col items-center text-center">
 
-<svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
-    <defs>
-      <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"></stop><stop offset="1" stop-color="#d99a1e"></stop></linearGradient>
-      <linearGradient id="g-amber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe07a"></stop><stop offset=".55" stop-color="#f4b02e"></stop><stop offset="1" stop-color="#d47d12"></stop></linearGradient>
-      <linearGradient id="g-parch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e8c3"></stop><stop offset="1" stop-color="#e3c88a"></stop></linearGradient>
-      <linearGradient id="g-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d5330"></stop><stop offset="1" stop-color="#472e17"></stop></linearGradient>
-      <linearGradient id="g-stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#585245"></stop><stop offset="1" stop-color="#332f27"></stop></linearGradient>
-      <linearGradient id="g-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2e6ec"></stop><stop offset="1" stop-color="#868c99"></stop></linearGradient>
-      <linearGradient id="g-leather" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d5028"></stop><stop offset="1" stop-color="#472c16"></stop></linearGradient>
-      <linearGradient id="g-fire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd44a"></stop><stop offset="1" stop-color="#e0631a"></stop></linearGradient>
-      <linearGradient id="g-red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0554a"></stop><stop offset="1" stop-color="#8a2018"></stop></linearGradient>
-      <radialGradient id="g-glow" cx="50%" cy="42%" r="62%"><stop offset="0" stop-color="#ffcf6a"></stop><stop offset="1" stop-color="#6f4310"></stop></radialGradient>
-
-      <symbol id="ic-home" viewBox="0 0 48 48">
-        <path d="M7 42 V21 a17 17 0 0 1 34 0 v21 Z" fill="url(#g-stone)" stroke="#241505" stroke-width="2.4" stroke-linejoin="round"></path>
-        <path d="M7 29 h34 M24 29 V42 M15 21 v8 M33 21 v8" stroke="#1c1204" stroke-width="1.3" opacity=".35"></path>
-        <path d="M15 42 V25 a9 9 0 0 1 18 0 v17 Z" fill="url(#g-glow)" stroke="#241505" stroke-width="2"></path>
-        <path d="M21 31 h6 v7 a2 2 0 0 1-2 2 h-2 a2 2 0 0 1-2-2 Z" fill="#3a2410" stroke="#1c1204" stroke-width="1.3"></path>
-        <path d="M27 32.5 h1.6 a2 2 0 0 1 0 4 H27" fill="none" stroke="#1c1204" stroke-width="1.3"></path>
-      </symbol>
-
-      <symbol id="ic-map" viewBox="0 0 48 48">
-        <path d="M9 12 L19 9 L29 12 L39 9 V36 L29 39 L19 36 L9 39 Z" fill="url(#g-parch)" stroke="#7a4e1c" stroke-width="2.3" stroke-linejoin="round"></path>
-        <path d="M19 9 V36 M29 12 V39" stroke="#b8863a" stroke-width="1.5" opacity=".7"></path>
-        <path d="M13 31 q5 -7 10 -3.5 t10 -6.5" stroke="#c23b34" stroke-width="2.1" stroke-dasharray="1.6 3.2" fill="none" stroke-linecap="round"></path>
-        <path d="M31 15 l3 3 M34 15 l-3 3" stroke="#8a2018" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M15 23 a3.4 3.4 0 1 1 6.8 0 c0 3.4 -3.4 5.6 -3.4 5.6 s-3.4 -2.2 -3.4 -5.6 Z" fill="#c23b34" stroke="#241505" stroke-width="1.5"></path>
-        <circle cx="18.4" cy="23" r="1.3" fill="#ffe4de"></circle>
-      </symbol>
-
-      <symbol id="ic-journal" viewBox="0 0 48 48">
-        <rect x="12" y="10" width="24" height="29" rx="2" fill="url(#g-parch)" stroke="#7a4e1c" stroke-width="2.2"></rect>
-        <path d="M17 18 h14 M17 23 h14 M17 28 h9" stroke="#b8863a" stroke-width="2" stroke-linecap="round"></path>
-        <rect x="9" y="7" width="30" height="5.4" rx="2.7" fill="#caa25a" stroke="#5a3a12" stroke-width="2"></rect>
-        <rect x="9" y="35.6" width="30" height="5.4" rx="2.7" fill="#caa25a" stroke="#5a3a12" stroke-width="2"></rect>
-        <circle cx="30" cy="31" r="5.2" fill="url(#g-red)" stroke="#5a1712" stroke-width="1.7"></circle>
-        <path d="M27.6 31 l1.8 1.9 3 -3" stroke="#ffdad3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-      </symbol>
-
-      <symbol id="ic-mug" viewBox="0 0 48 48">
-        <path d="M31 20 h5 a6 6 0 0 1 0 12 h-5" fill="none" stroke="#241505" stroke-width="6.6" stroke-linecap="round"></path>
-        <path d="M31 21 h5 a5 5 0 0 1 0 10 h-5" fill="none" stroke="#e0a63a" stroke-width="3.2" stroke-linecap="round"></path>
-        <rect x="12" y="17" width="21" height="24" rx="4" fill="url(#g-amber)" stroke="#241505" stroke-width="2.4"></rect>
-        <rect x="15.5" y="21" width="4.2" height="15" rx="2.1" fill="#fff3c9" opacity=".55"></rect>
-        <rect x="12" y="28" width="21" height="3" fill="#241505" opacity=".22"></rect>
-        <path d="M11 17 c-1.2-5 5-6.2 6.6-2.6 1.2-4 7.2-3.4 7.4 .8 1.5-3 6.8-1.7 6.5 2.2 v.6 H11 Z" fill="#fbf3df" stroke="#241505" stroke-width="2.2" stroke-linejoin="round"></path>
-        <circle cx="16" cy="12.4" r="1.3" fill="#fff"></circle>
-      </symbol>
-
-      <symbol id="ic-mug-stamp" viewBox="0 0 48 48">
-        <path d="M13 18 h20 v18 a4 4 0 0 1-4 4 H17 a4 4 0 0 1-4-4 Z" fill="currentColor"></path>
-        <path d="M33 21 h3.5 a5 5 0 0 1 0 10 H33" fill="none" stroke="currentColor" stroke-width="4"></path>
-        <path d="M13 18 c0-3.4 4.4-4.2 6-2 1.4-3 5.6-2.6 6 .6 1.4-2.4 5-1 5 1.4 v0 Z" fill="currentColor"></path>
-      </symbol>
-
-      <symbol id="ic-banner" viewBox="0 0 48 48">
-        <rect x="9" y="8" width="30" height="4.4" rx="2.2" fill="#b8863a" stroke="#3a2408" stroke-width="1.8"></rect>
-        <path d="M12 11.5 h24 v22 l-5.5 -4.4 -6.5 4.4 -6.5 -4.4 -5.5 4.4 Z" fill="url(#g-red)" stroke="#241505" stroke-width="2.3" stroke-linejoin="round"></path>
-        <path d="M20 17 h8 v7 a2.4 2.4 0 0 1-2.4 2.4 h-3.2 A2.4 2.4 0 0 1 20 24 Z" fill="#ffd35a" stroke="#241505" stroke-width="1.6"></path>
-        <path d="M28 18.4 h2 a2.4 2.4 0 0 1 0 4.8 h-2" fill="none" stroke="#241505" stroke-width="1.6"></path>
-      </symbol>
-
-      <symbol id="ic-crown" viewBox="0 0 48 48">
-        <path d="M8 18 L13 33 h22 l5 -15 -8.5 6.5 L24 12 l-8.5 8.5 Z" fill="url(#g-gold)" stroke="#241505" stroke-width="2.4" stroke-linejoin="round"></path>
-        <rect x="12" y="32.5" width="24" height="5.5" rx="1.6" fill="#e0a628" stroke="#241505" stroke-width="2"></rect>
-        <circle cx="9" cy="17" r="2.5" fill="#ffe680" stroke="#241505" stroke-width="1.6"></circle>
-        <circle cx="39" cy="17" r="2.5" fill="#ffe680" stroke="#241505" stroke-width="1.6"></circle>
-        <circle cx="24" cy="11" r="2.5" fill="#ffe680" stroke="#241505" stroke-width="1.6"></circle>
-        <circle cx="24" cy="35.3" r="2.1" fill="#c23b34" stroke="#241505" stroke-width="1.3"></circle>
-        <circle cx="17.5" cy="35.3" r="1.7" fill="#4a90d9" stroke="#241505" stroke-width="1.1"></circle>
-        <circle cx="30.5" cy="35.3" r="1.7" fill="#4a90d9" stroke="#241505" stroke-width="1.1"></circle>
-      </symbol>
-
-      <symbol id="ic-trophy" viewBox="0 0 48 48">
-        <path d="M15 8 h18 v6 a9 9 0 0 1-18 0 Z" fill="url(#g-gold)" stroke="#241505" stroke-width="2.4"></path>
-        <path d="M15 10 H9 a4.5 4.5 0 0 0 6.5 6.4" fill="none" stroke="#241505" stroke-width="2.4"></path>
-        <path d="M33 10 h6 a4.5 4.5 0 0 1-6.5 6.4" fill="none" stroke="#241505" stroke-width="2.4"></path>
-        <rect x="21.6" y="24" width="4.8" height="6" fill="#c98915" stroke="#241505" stroke-width="1.6"></rect>
-        <path d="M15 39 h18 l-2.4 -6 h-13.2 Z" fill="url(#g-gold)" stroke="#241505" stroke-width="2.2" stroke-linejoin="round"></path>
-        <path d="M24 10.5 l1.5 3.2 3.5 .3 -2.6 2.3 .8 3.4 -3.2 -1.8 -3.2 1.8 .8 -3.4 -2.6 -2.3 3.5 -.3 Z" fill="#fff3c9" stroke="#8a5a17" stroke-width=".8"></path>
-      </symbol>
-
-      <symbol id="ic-xp" viewBox="0 0 48 48">
-        <path d="M24 6 C16 18 13 22 13 28 a11 11 0 0 0 22 0 c0-6-3-10-11-22 Z" fill="url(#g-amber)" stroke="#241505" stroke-width="2.4"></path>
-        <path d="M18.5 28 a5.5 5.5 0 0 0 5.5 5.5" stroke="#fff3c9" stroke-width="2.3" fill="none" stroke-linecap="round"></path>
-        <circle cx="24" cy="19" r="2.1" fill="#fff" opacity=".7"></circle>
-      </symbol>
-
-      <symbol id="ic-shield" viewBox="0 0 48 48">
-        <path d="M24 5 L40 10 v13 c0 11-7.5 17-16 20 C15.5 40 8 34 8 23 V10 Z" fill="url(#g-wood)" stroke="#241505" stroke-width="2.6" stroke-linejoin="round"></path>
-        <path d="M24 5 L40 10 v13 c0 11-7.5 17-16 20 Z" fill="#000" opacity=".13"></path>
-        <circle cx="24" cy="21" r="6.6" fill="url(#g-gold)" stroke="#241505" stroke-width="2"></circle>
-        <circle cx="24" cy="21" r="2.4" fill="#8a5a17"></circle>
-        <circle cx="13" cy="13" r="1.6" fill="#ffce6a"></circle>
-        <circle cx="35" cy="13" r="1.6" fill="#ffce6a"></circle>
-      </symbol>
-
-      <symbol id="ic-streak" viewBox="0 0 48 48">
-        <path d="M31 24 h4 a5 5 0 0 1 0 10 h-4" fill="none" stroke="#241505" stroke-width="6" stroke-linecap="round"></path>
-        <path d="M31 25 h4 a4 4 0 0 1 0 8 h-4" fill="none" stroke="#e0a63a" stroke-width="2.8" stroke-linecap="round"></path>
-        <rect x="14" y="21" width="18" height="20" rx="3.6" fill="url(#g-amber)" stroke="#241505" stroke-width="2.3"></rect>
-        <rect x="17" y="24.5" width="3.4" height="13" rx="1.7" fill="#fff3c9" opacity=".5"></rect>
-        <path d="M23 20 c-5.5-3-2.5-8.5 0-11.5 1.6 4.8 6.5 3.2 4.8 9.4 2.7-1.3 2.7-4.3 1-6.4 3.3 2.2 3.8 8.6-1.8 10.2" fill="url(#g-fire)" stroke="#7a2408" stroke-width="1.6" stroke-linejoin="round"></path>
-      </symbol>
-
-      <symbol id="ic-chest" viewBox="0 0 48 48">
-        <path d="M9 22 v-1 a15 9 0 0 1 30 0 v1 Z" fill="url(#g-wood)" stroke="#241505" stroke-width="2.2" stroke-linejoin="round"></path>
-        <rect x="9" y="21" width="30" height="17" rx="2" fill="url(#g-wood)" stroke="#241505" stroke-width="2.2"></rect>
-        <rect x="9" y="21" width="30" height="4.4" fill="#a9762f" stroke="#241505" stroke-width="1.4"></rect>
-        <path d="M14 21 v17 M34 21 v17" stroke="#a9762f" stroke-width="2.4"></path>
-        <rect x="21" y="18.5" width="6" height="9" rx="1.6" fill="url(#g-gold)" stroke="#241505" stroke-width="1.7"></rect>
-        <circle cx="24" cy="23.5" r="1.5" fill="#8a5a17"></circle>
-      </symbol>
-
-      <symbol id="ic-bell" viewBox="0 0 48 48">
-        <path d="M12 32 c0-4 2-5 2-10 a10 10 0 0 1 20 0 c0 5 2 6 2 10 Z" fill="url(#g-gold)" stroke="#241505" stroke-width="2.3" stroke-linejoin="round"></path>
-        <path d="M20 33.5 a4 4 0 0 0 8 0" fill="#c98915" stroke="#241505" stroke-width="1.9"></path>
-        <path d="M18 16 a7 7 0 0 1 8 -3" stroke="#fff3c9" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"></path>
-        <circle cx="24" cy="9" r="2.4" fill="#ffe680" stroke="#241505" stroke-width="1.6"></circle>
-      </symbol>
-
-      <symbol id="ic-bag" viewBox="0 0 48 48">
-        <path d="M13 18 c1.6-3.2 4.6-4 11-4 s9.4 .8 11 4 c4.2 4.6 4.2 15.4 0 20 -1.6 3-4.6 3-11 3 s-9.4 0-11-3 c-4.2-4.6-4.2-15.4 0-20 Z" fill="url(#g-leather)" stroke="#241505" stroke-width="2.3" stroke-linejoin="round"></path>
-        <path d="M17 15 a7 6 0 0 1 14 0" fill="none" stroke="#241505" stroke-width="2.2"></path>
-        <path d="M13.5 23 h21" stroke="#241505" stroke-width="1.8" opacity=".55"></path>
-        <rect x="21.5" y="20.5" width="5" height="5" rx="1.2" fill="#ffd35a" stroke="#241505" stroke-width="1.5"></rect>
-      </symbol>
-
-      <symbol id="ic-gear" viewBox="0 0 48 48">
-        <path d="M24 6 l3 4.2 5-1.2 1 5.2 4.8 2.8 -2.4 4.6 2.4 4.6 -4.8 2.8 -1 5.2 -5 -1.2 -3 4.2 -3 -4.2 -5 1.2 -1 -5.2 -4.8 -2.8 2.4 -4.6 -2.4 -4.6 4.8 -2.8 1 -5.2 5 1.2 Z" fill="url(#g-steel)" stroke="#241505" stroke-width="2.3" stroke-linejoin="round"></path>
-        <circle cx="24" cy="24" r="6.4" fill="url(#g-gold)" stroke="#241505" stroke-width="2"></circle>
-        <circle cx="24" cy="24" r="2.3" fill="#5a3a12"></circle>
-      </symbol>
-
-      <symbol id="ic-coin" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r="16" fill="url(#g-gold)" stroke="#241505" stroke-width="2.5"></circle>
-        <circle cx="24" cy="24" r="11.5" fill="none" stroke="#8a5a17" stroke-width="1.6" opacity=".8"></circle>
-        <path d="M24 16 l1.8 3.8 4.2 .4 -3.1 2.8 .9 4.1 -3.8 -2.2 -3.8 2.2 .9 -4.1 -3.1 -2.8 4.2 -.4 Z" fill="#fff3c9" stroke="#8a5a17" stroke-width=".9"></path>
-      </symbol>
-
-      <symbol id="ic-clink" viewBox="0 0 48 48">
-        <g transform="rotate(-13 16 26)">
-          <rect x="8" y="19" width="13" height="17" rx="3" fill="url(#g-amber)" stroke="#241505" stroke-width="2.1"></rect>
-          <path d="M21 22 h3 a4 4 0 0 1 0 8 h-3" fill="none" stroke="#241505" stroke-width="4.6" stroke-linecap="round"></path>
-          <path d="M8 19 c0-2.6 3.4-3.2 4.6-1.4 1-2.2 4.4-1.8 4.6 .6 1-1.8 3.8-.8 3.8 1.2 v0 Z" fill="#fbf3df" stroke="#241505" stroke-width="2"></path>
-        </g>
-        <g transform="rotate(13 32 26)">
-          <rect x="27" y="19" width="13" height="17" rx="3" fill="url(#g-amber)" stroke="#241505" stroke-width="2.1"></rect>
-          <path d="M27 22 h-3 a4 4 0 0 0 0 8 h3" fill="none" stroke="#241505" stroke-width="4.6" stroke-linecap="round"></path>
-          <path d="M27 19 c0-2.6 3.4-3.2 4.6-1.4 1-2.2 4.4-1.8 4.6 .6 1-1.8 3.8-.8 3.8 1.2 v0 Z" fill="#fbf3df" stroke="#241505" stroke-width="2"></path>
-        </g>
-        <path d="M24 8 l1.4 3.4 M24 8 l-1.4 3.4 M24 8 v3.6" stroke="#ffd35a" stroke-width="1.8" stroke-linecap="round"></path>
-      </symbol>
-    </defs>
-</svg>
-
-    <h1 class="text-5xl my-4 pd-display tracking-wider"><svg class="pd-ico" style="width:1.2em;height:1.2em"><use href="#ic-mug"/></svg> PIVNÍ DUNGEON</h1>
+    <h1 class="text-5xl my-4 text-yellow-500 fantasy-font tracking-wider">🍻 PIVNÍ DUNGEON</h1>
 
     <!-- MODAL: Návrh nového piva -->
     <div id="modal-overlay" class="hidden">
@@ -649,7 +209,7 @@
             <p class="text-xs text-gray-400 mb-4">Navrhni nové pivo – velmistr ho posoudí a ty získáš odměnu.</p>
             <input id="navrh-piva-input" type="text" placeholder="Název piva..." class="w-full p-3 mb-4">
             <div class="flex gap-2">
-                <button id="btn-odeslat-navrh" class="btn-primary flex-grow py-3 text-xs uppercase"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug-stamp"/></svg> Navrhnout</button>
+                <button id="btn-odeslat-navrh" class="btn-primary flex-grow py-3 text-xs uppercase">⚔️ Navrhnout</button>
                 <button onclick="zavritModal()" class="btn-danger px-4 py-3 text-xs">✕</button>
             </div>
         </div>
@@ -662,7 +222,7 @@
         <input id="auth-email" type="email" placeholder="E-mail" class="w-full p-3 mb-3">
         <input id="auth-password" type="password" placeholder="Heslo" class="w-full p-3 mb-5">
         <button id="btn-login" class="btn-primary w-full mb-3 py-3 uppercase text-sm">Přihlásit se</button>
-        <button id="btn-register" class="btn-gold w-full py-3 uppercase text-xs"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Založit hrdinu</button>
+        <button id="btn-register" class="btn-gold w-full py-3 uppercase text-xs">⚔️ Založit hrdinu</button>
         <div id="auth-error" class="text-red-400 text-xs mt-3 font-bold"></div>
     </div>
 
@@ -684,12 +244,12 @@
 
         <!-- Tabs -->
         <div class="flex w-full mb-[-1px] z-10 justify-between">
-            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn active flex-1" style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-map"/></svg><span>Mapa</span></button>
-            <button id="tab-denik"      onclick="switchTab('denik')"      class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-journal"/></svg><span>Deník</span></button>
-            <button id="tab-piva"       onclick="switchTab('piva')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><span>Piva</span></button>
-            <button id="tab-cech"       onclick="switchTab('cech')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-banner"/></svg><span>Cech</span></button>
-            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-crown"/></svg><span>Kraj</span></button>
-            <button id="tab-sin"        onclick="switchTab('sin')"        class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-trophy"/></svg><span>Síň</span></button>
+            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn active flex-1" style="font-size:0.62rem">🗺️ Mapa</button>
+            <button id="tab-denik"      onclick="switchTab('denik')"      class="tab-btn flex-1"        style="font-size:0.62rem">📜 Deník</button>
+            <button id="tab-piva"       onclick="switchTab('piva')"       class="tab-btn flex-1"        style="font-size:0.62rem">🍺 Piva</button>
+            <button id="tab-cech"       onclick="switchTab('cech')"       class="tab-btn flex-1"        style="font-size:0.62rem">🛡️ Cech</button>
+            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn flex-1"        style="font-size:0.62rem">👑 Kraj</button>
+            <button id="tab-sin"        onclick="switchTab('sin')"        class="tab-btn flex-1"        style="font-size:0.62rem">🏆 Síň</button>
         </div>
 
         <div class="glass-card w-full p-4 rounded-tl-none">
@@ -702,7 +262,7 @@
                 <!-- Globální log aktivit -->
                 <div class="mb-2">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="sin-section-title" style="margin:0"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Poslední akce hráčů</div>
+                        <div class="sin-section-title" style="margin:0">🍺 Poslední akce hráčů</div>
                         <button id="btn-global-log-vice" class="text-xs text-orange-400 underline">Celý log →</button>
                     </div>
                     <div id="global-log-box" class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 space-y-1 text-xs">
@@ -715,7 +275,7 @@
             <div id="global-log-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
                 <div class="glass-card w-full max-w-sm p-4 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-xl text-yellow-400 fantasy-font"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-journal"/></svg> Kronika Dungeonu</h3>
+                        <h3 class="text-xl text-yellow-400 fantasy-font">📜 Kronika Dungeonu</h3>
                         <button id="btn-zavrit-global-log" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
                     </div>
                     <div id="global-log-modal-box" class="space-y-1 text-xs">
@@ -737,7 +297,7 @@
                     <div class="flex gap-2 mb-4">
                         <input id="beer-name-input" list="seznam-piv" placeholder="Vyber nebo napiš pivo..." class="flex-grow p-3">
                         <datalist id="seznam-piv"></datalist>
-                        <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" title="Navrhnout chybějící pivo" class="btn-gold px-3 rounded text-lg"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug-stamp"/></svg></button>
+                        <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" title="Navrhnout chybějící pivo" class="btn-gold px-3 rounded text-lg">❗</button>
                     </div>
                     <button id="btn-claim" class="btn-primary w-full py-4 text-xl font-black uppercase shadow-lg">🍺 Zapsat pivo (+100 XP)</button>
                     <!-- Skryté inputy pro kompatibilitu -->
@@ -895,7 +455,7 @@
                     <h3 class="text-orange-400 fantasy-font text-xl mb-3">Bez cechu jsi pouhý tulák</h3>
                     <p class="text-xs text-gray-400 mb-4">Založ vlastní cech nebo počkej na pozvánku od jiných hrdinů.</p>
                     <input id="novy-cech-nazev" type="text" placeholder="Název cechu..." class="w-full p-2 mb-2">
-                    <button id="btn-zalozit-cech" class="btn-gold w-full py-2 uppercase text-sm mb-2"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Založit Cech</button>
+                    <button id="btn-zalozit-cech" class="btn-gold w-full py-2 uppercase text-sm mb-2">⚔️ Založit Cech</button>
                 </div>
 
                 <!-- Je v cechu -->
@@ -903,7 +463,7 @@
                     <div class="flex items-center justify-center gap-2 mb-1">
                         <h2 id="cech-nazev-zobrazeni" class="text-3xl text-yellow-500 fantasy-font">...</h2>
                     </div>
-                    <p class="text-orange-400 text-sm mb-1">Skóre cechu: <span id="cech-skore-zobrazeni" class="text-white font-bold">0</span> <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg></p>
+                    <p class="text-orange-400 text-sm mb-1">Skóre cechu: <span id="cech-skore-zobrazeni" class="text-white font-bold">0</span> 🍺</p>
                     <div id="cech-role-display" class="text-xs text-gray-400 mb-4"></div>
 
                     <!-- Žebříček členů cechu -->
@@ -923,7 +483,7 @@
 
                     <!-- Cechovní války -->
                     <div class="mb-4">
-                        <div class="text-xs text-gray-400 uppercase font-bold mb-2"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Cechovní Války</div>
+                        <div class="text-xs text-gray-400 uppercase font-bold mb-2">⚔️ Cechovní Války</div>
                         <div id="panel-valky" class="space-y-2 text-xs"></div>
                         <div id="panel-vyhlasit-valku" class="hidden mt-2">
                             <select id="select-rival-cech" class="w-full p-2 text-sm mb-2">
@@ -946,7 +506,7 @@
 
             <!-- TAB: KRÁLOVSTVÍ -->
             <div id="obsah-kralovstvi" class="hidden">
-                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-crown"/></svg> Království</h3>
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">👑 Království</h3>
                 <p class="text-xs text-gray-500 mb-1">Krajská válka — piješ za svůj kraj</p>
                 <div id="kral-reset-info" class="text-xs text-orange-400 mb-4 text-center"></div>
 
@@ -969,11 +529,11 @@
                     </div>
 
                     <!-- Žebříček krajů -->
-                    <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Pořadí krajů (aktuální kolo)</div>
+                    <div class="sin-section-title">⚔️ Pořadí krajů (aktuální kolo)</div>
                     <div id="kral-zebricek" class="space-y-2 mb-4"></div>
 
                     <!-- SVG mapa ČR -->
-                    <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-map"/></svg> Mapa Království</div>
+                    <div class="sin-section-title">🗺️ Mapa Království</div>
                     <div class="bg-black bg-opacity-50 rounded border border-gray-800 p-2 mb-4">
                         <svg id="mapa-cr" viewBox="0 0 800 480" style="width:100%;height:auto;">
                             <!-- Zjednodušené kraje ČR jako obdélníky/mnohoúhelníky -->
@@ -1074,13 +634,13 @@
 
             <!-- TAB: PIVA -->
             <div id="obsah-piva" class="hidden">
-                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Moje moky</h3>
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🍺 Moje moky</h3>
                 <p class="text-xs text-gray-500 mb-3">Hodnoť hvězdičkami — každý mok nebo dungeon jednou, tvoje hodnocení se počítá do průměru</p>
 
                 <!-- Toggle Piva / Hospody -->
                 <div class="flex gap-2 mb-3">
-                    <button id="piva-typ-piva"    class="piva-sort-btn active flex-1" onclick="setPivaTyp('piva')"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Piva</button>
-                    <button id="piva-typ-hospody" class="piva-sort-btn flex-1"        onclick="setPivaTyp('hospody')"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-home"/></svg> Hospody</button>
+                    <button id="piva-typ-piva"    class="piva-sort-btn active flex-1" onclick="setPivaTyp('piva')">🍺 Piva</button>
+                    <button id="piva-typ-hospody" class="piva-sort-btn flex-1"        onclick="setPivaTyp('hospody')">🏰 Hospody</button>
                 </div>
 
                 <!-- Hledání -->
@@ -1089,7 +649,7 @@
                 <!-- Řazení -->
                 <div class="flex gap-2 mb-4 flex-wrap">
                     <button id="sort-hodnoceni" class="piva-sort-btn active" onclick="setPivaSort('hodnoceni')">⭐ Hodnocení</button>
-                    <button id="sort-vypitost"  class="piva-sort-btn"        onclick="setPivaSort('vypitost')"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Nejvíce pito</button>
+                    <button id="sort-vypitost"  class="piva-sort-btn"        onclick="setPivaSort('vypitost')">🍺 Nejvíce pito</button>
                     <button id="sort-abeceda"   class="piva-sort-btn"        onclick="setPivaSort('abeceda')">🔤 A–Z</button>
                 </div>
 
@@ -1100,7 +660,7 @@
 
             <!-- TAB: SÍŇ SLÁVY -->
             <div id="obsah-sin" class="hidden">
-                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-trophy"/></svg> Síň Slávy</h3>
+                <h3 class="text-yellow-500 fantasy-font text-2xl mb-1">🏆 Síň Slávy</h3>
                 <p class="text-xs text-gray-500 mb-4">Největší hrdinové Pivního Dungeonu</p>
 
                 <div id="sin-loading" class="text-gray-500 italic text-sm text-center py-6">Načítám anály...</div>
@@ -1109,25 +669,25 @@
 
                     <!-- Top hráči -->
                     <div class="sin-card">
-                        <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Největší pijaři (XP)</div>
+                        <div class="sin-section-title">⚔️ Největší pijaři (XP)</div>
                         <div id="sin-hraci"></div>
                     </div>
 
                     <!-- Top cechy -->
                     <div class="sin-card">
-                        <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg> Nejmocnější cechy</div>
+                        <div class="sin-section-title">🛡️ Nejmocnější cechy</div>
                         <div id="sin-cechy"></div>
                     </div>
 
                     <!-- Top piva -->
                     <div class="sin-card">
-                        <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Nejpitější moky (globálně)</div>
+                        <div class="sin-section-title">🍺 Nejpitější moky (globálně)</div>
                         <div id="sin-piva"></div>
                     </div>
 
                     <!-- Top hospody -->
                     <div class="sin-card">
-                        <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-home"/></svg> Nejnavštěvovanější dungeony</div>
+                        <div class="sin-section-title">🏰 Nejnavštěvovanější dungeony</div>
                         <div id="sin-hospody"></div>
                     </div>
 
@@ -1147,8 +707,8 @@
     <div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:2000;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:14px;">
         <div id="share-canvas-wrap" style="width:100%;max-width:380px;border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(255,211,90,0.25);"></div>
         <div class="flex gap-3 mt-1">
-            <button id="btn-share-download" class="btn-gold px-5 py-3 text-sm uppercase"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-chest"/></svg> Uložit</button>
-            <button id="btn-share-native"   class="btn-primary px-5 py-3 text-sm uppercase"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-clink"/></svg> Sdílet</button>
+            <button id="btn-share-download" class="btn-gold px-5 py-3 text-sm uppercase">⬇️ Uložit</button>
+            <button id="btn-share-native"   class="btn-primary px-5 py-3 text-sm uppercase">📤 Sdílet</button>
             <button onclick="zavritShareModal()" class="btn-danger px-4 py-3 text-sm">✕</button>
         </div>
         <p class="text-xs text-gray-500 text-center px-4">Ulož a sdílej na Instagramu 📸 jako příspěvek nebo story!</p>
@@ -1530,7 +1090,7 @@
             const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
             const cas   = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) : '';
             const spolecneHtml = z.spolecne_s
-                ? '<span class="spolecne-badge"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-clink"/></svg> ' + z.spolecne_s + '</span>'
+                ? '<span class="spolecne-badge">🍻 ' + z.spolecne_s + '</span>'
                 : '';
 
             const div = document.createElement('div');
@@ -1538,7 +1098,7 @@
             div.innerHTML =
                 '<div class="flex justify-between items-start gap-1">' +
                     '<div class="min-w-0">' +
-                        '<span class="text-yellow-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> ' + (z.pivo || '—') + '</span>' +
+                        '<span class="text-yellow-400 font-bold">🍺 ' + (z.pivo || '—') + '</span>' +
                         '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
                         '<span class="block text-gray-600 text-[10px] mt-0.5">' +
                             datum + (cas ? ' · ' + cas : '') +
@@ -1696,7 +1256,7 @@
                 const p = (userData.dungeony && userData.dungeony[n]) || 0;
                 const b = p >= 5 ? '🟢' : p > 0 ? '🟠' : '🔴';
                 const icon = L.divIcon({
-                    html: `<div class="dungeon-icon-wrapper"><span class="dungeon-circle-bg">${b}</span><span class="dungeon-beer-fg"><svg class="pd-ico" style="width:18px;height:18px"><use href="#ic-mug"/></svg></span></div>`,
+                    html: `<div class="dungeon-icon-wrapper"><span class="dungeon-circle-bg">${b}</span><span class="dungeon-beer-fg">🍺</span></div>`,
                     className: '', iconSize: [40, 40]
                 });
                 L.marker([hLat, hLon], { icon })
@@ -1760,7 +1320,7 @@
             return `<b style="font-family:Cinzel,serif">${name}</b><br>
                 <button onclick="window.pickPub('${safeName}',${lat},${lon})"
                     style="background:#c05621;color:#fff;padding:4px 8px;border-radius:6px;margin-top:6px;width:100%;font-size:11px;font-weight:bold;font-family:Cinzel,serif;border:none;cursor:pointer;">
-                    <svg class="pd-ico" style="width:1em;height:1em;vertical-align:middle"><use href="#ic-mug"/></svg> Tady piju!
+                    🍺 Tady piju!
                 </button>`;
         }
 
@@ -2048,9 +1608,7 @@
             $('cech-skore-zobrazeni').textContent = cech.skore ?? 0;
 
             const jeZakladatel = cech.zakladatel === currentUser.uid;
-            $('cech-role-display').innerHTML = jeZakladatel
-                ? '<svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-crown"/></svg> Zakladatel cechu'
-                : '<svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Člen cechu';
+            $('cech-role-display').textContent = jeZakladatel ? '👑 Zakladatel cechu' : '⚔️ Člen cechu';
 
             // Tlačítko rozpustit jen pro zakladatele, pozvat také jen pro zakladatele
             if (jeZakladatel) { show('btn-rozpustit-cech'); show('panel-pozvat'); }
@@ -2282,9 +1840,9 @@
                 const muzePrijmout = v.stav === 'ceka' && v.mujSmer === 'obrance';
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-orange-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> vs. ${soupeřNazev}</span>
+                        <span class="text-orange-400 font-bold">⚔️ vs. ${soupeřNazev}</span>
                         <span class="text-[10px] ${v.stav === 'aktivni' ? 'text-green-400' : 'text-yellow-500'}">
-                            ${v.stav === 'aktivni' ? '<svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-streak"/></svg> Aktivní' : '⏳ Čeká na přijetí'}
+                            ${v.stav === 'aktivni' ? '🔥 Aktivní' : '⏳ Čeká na přijetí'}
                         </span>
                     </div>
                     ${v.stav === 'aktivni' ? `
@@ -2300,7 +1858,7 @@
                     <div class="text-[10px] text-gray-600 mt-1">Konec: ${konecStr}</div>
                     ` : ''}
                     ${muzePrijmout ? `
-                    <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${v.id}"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Přijmout výzvu</button>
+                    <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${v.id}">⚔️ Přijmout výzvu</button>
                     ` : ''}
                 `;
 
@@ -2463,8 +2021,8 @@
                     const isMe = d.id === userData.cech_id;
                     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                     return `<div class="sin-row${isMe ? ' me' : ''}">
-                        <span>${medal} ${c.nazev}${isMe ? ' <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg>' : ''}</span>
-                        <span class="text-yellow-500">${c.skore ?? 0} <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg></span>
+                        <span>${medal} ${c.nazev}${isMe ? ' 🛡️' : ''}</span>
+                        <span class="text-yellow-500">${c.skore ?? 0} 🍺</span>
                     </div>`;
                 });
                 if (radkyCechy.length === 0) radkyCechy.push('<div class="sin-row"><span class="text-gray-600 italic">Žádné cechy zatím.</span></div>');
@@ -3411,7 +2969,7 @@
 
                 const ikonaHtml = (pivaTyp === 'piva' && item.obrazek_url)
                     ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona" style="width:42px;height:42px;object-fit:cover;border-radius:8px;">`
-                    : `<div class="pivo-ikona"><svg class="pd-ico" style="width:1.5em;height:1.5em"><use href="#${pivaTyp === 'piva' ? 'ic-mug' : 'ic-home'}"/></svg></div>`;
+                    : `<div class="pivo-ikona">${pivaTyp === 'piva' ? '🍺' : '🏰'}</div>`;
 
                 const prumHtml = hlasu > 0
                     ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}★</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu}×)</span>`
