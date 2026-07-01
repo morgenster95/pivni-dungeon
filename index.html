@@ -147,6 +147,9 @@
           display:flex; justify-content:space-between;
           padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
           box-shadow: 0 -6px 16px rgba(0,0,0,.4);
+          position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+          width: 100%; max-width: 28rem; z-index: 40;
+          border-radius: var(--pd-r-lg) var(--pd-r-lg) 0 0;
         }
         .pd-nav__item { flex:1; display:flex; flex-direction:column; align-items:center;
                         gap:3px; padding:7px 2px 5px; border-radius:var(--pd-r-md);
@@ -724,18 +727,7 @@
             </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex w-full mb-[-1px] z-10 justify-between">
-            <button id="tab-krcma"      onclick="switchTab('krcma')"      class="tab-btn active flex-1" style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-clink"/></svg><span>Krčma</span></button>
-            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-map"/></svg><span>Mapa</span></button>
-            <button id="tab-denik"      onclick="switchTab('denik')"      class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-journal"/></svg><span>Deník</span></button>
-            <button id="tab-piva"       onclick="switchTab('piva')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><span>Piva</span></button>
-            <button id="tab-cech"       onclick="switchTab('cech')"       class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-banner"/></svg><span>Cech</span></button>
-            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-crown"/></svg><span>Kraj</span></button>
-            <button id="tab-sin"        onclick="switchTab('sin')"        class="tab-btn flex-1"        style="font-size:0.62rem"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-trophy"/></svg><span>Síň</span></button>
-        </div>
-
-        <div class="glass-card w-full p-4 rounded-tl-none">
+        <div class="glass-card w-full p-4" style="padding-bottom:88px;">
 
             <!-- TAB: KRČMA (domov) -->
             <div id="obsah-krcma">
@@ -1190,6 +1182,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- Spodní navigace -->
+        <nav class="pd-nav">
+            <button id="tab-krcma"      onclick="switchTab('krcma')"      class="pd-nav__item pd-nav__item--active"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-clink"/></svg><span>Krčma</span></button>
+            <button id="tab-mapa"       onclick="switchTab('mapa')"       class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-map"/></svg><span>Mapa</span></button>
+            <button id="tab-denik"      onclick="switchTab('denik')"      class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-journal"/></svg><span>Deník</span></button>
+            <button id="tab-piva"       onclick="switchTab('piva')"       class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><span>Piva</span></button>
+            <button id="tab-cech"       onclick="switchTab('cech')"       class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-banner"/></svg><span>Cech</span></button>
+            <button id="tab-kralovstvi" onclick="switchTab('kralovstvi')" class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-crown"/></svg><span>Kraj</span></button>
+            <button id="tab-sin"        onclick="switchTab('sin')"        class="pd-nav__item"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-trophy"/></svg><span>Síň</span></button>
+        </nav>
     </div><!-- /app-screen -->
 
 
@@ -2301,10 +2304,10 @@
         // ─── TABY ─────────────────────────────────────────────────────────────
         window.switchTab = (tabName) => {
             ['krcma', 'mapa', 'denik', 'piva', 'cech', 'kralovstvi', 'sin'].forEach(t => {
-                $(`tab-${t}`).classList.remove('active');
+                $(`tab-${t}`).classList.remove('pd-nav__item--active');
                 $(`obsah-${t}`).classList.add('hidden');
             });
-            $(`tab-${tabName}`).classList.add('active');
+            $(`tab-${tabName}`).classList.add('pd-nav__item--active');
             $(`obsah-${tabName}`).classList.remove('hidden');
             if (tabName === 'krcma') vykresliKrcmu();
             if (tabName === 'mapa' && map) setTimeout(() => map.invalidateSize(), 50);
