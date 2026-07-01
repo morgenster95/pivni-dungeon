@@ -2111,6 +2111,7 @@
                 await batch.commit();
 
                 // ── TOLARY + ÚKOLY ──────────────────────────────────────────────
+                let tolaruZaTentoZapis = 0; // uloží se na log_piv záznam, aby admin mohl při smazání přesně vrátit
                 try {
                     const dnes = dnesniDatum();
                     if (!userData.tolary_denni || userData.tolary_denni.datum !== dnes) {
@@ -2119,14 +2120,15 @@
                     userData.tolary_denni.pocet_piv++;
                     const poradiPiva = userData.tolary_denni.pocet_piv;
                     await updateDoc(hracRef, { tolary_denni: userData.tolary_denni });
-                    if (poradiPiva === 1) await udelTolary(5, 'První pivo dne');
-                    else if (poradiPiva === 2) await udelTolary(3, 'Druhé pivo dne');
+                    if (poradiPiva === 1) { await udelTolary(5, 'První pivo dne'); tolaruZaTentoZapis += 5; }
+                    else if (poradiPiva === 2) { await udelTolary(3, 'Druhé pivo dne'); tolaruZaTentoZapis += 3; }
 
                     // Nové pivo objeveno
                     if (!(userData.ochutnana_piva || []).includes(bN)) {
                         await updateDoc(hracRef, { ochutnana_piva: arrayUnion(bN) });
                         userData.ochutnana_piva = [...(userData.ochutnana_piva || []), bN];
                         await udelTolary(8, `Nové pivo: ${bN}`);
+                        tolaruZaTentoZapis += 8;
                         await pripoctiUkolProgress('nove_pivo', 1);
                     }
 
@@ -2135,6 +2137,7 @@
                         const predPocetNavstev = userData.dungeony?.[bezTecky] || 0;
                         if (predPocetNavstev === 0) {
                             await udelTolary(15, `Nová hospoda: ${pN}`);
+                            tolaruZaTentoZapis += 15;
                             await updateDoc(hracRef, { [`hospoda_tolary_datum.${bezTecky}`]: dnes });
                             if (!userData.hospoda_tolary_datum) userData.hospoda_tolary_datum = {};
                             userData.hospoda_tolary_datum[bezTecky] = dnes;
@@ -2144,6 +2147,7 @@
                             const dnyOd = posledni ? (Date.now() - new Date(posledni).getTime()) / 86400000 : Infinity;
                             if (dnyOd >= 7) {
                                 await udelTolary(3, `Návrat do hospody: ${pN}`);
+                                tolaruZaTentoZapis += 3;
                                 await updateDoc(hracRef, { [`hospoda_tolary_datum.${bezTecky}`]: dnes });
                                 if (!userData.hospoda_tolary_datum) userData.hospoda_tolary_datum = {};
                                 userData.hospoda_tolary_datum[bezTecky] = dnes;
@@ -2154,6 +2158,8 @@
                     await pripoctiUkolProgress('pocet_piv', 1);
                     await pripoctiTydenniProgress(1);
                     posledniStats = null; // vynuť přepočet pro Krčmu
+
+                    if (tolaruZaTentoZapis > 0) await updateDoc(logRef, { tolary_ziskano: tolaruZaTentoZapis });
                 } catch (eTolary) { console.warn('Chyba Tolary/úkoly:', eTolary.message); }
 
                 // Globální statistiky — increment() nefunguje v batch.set(), musíme použít updateDoc se set+merge zvlášť

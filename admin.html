@@ -213,7 +213,13 @@
             <div id="admin-hrac-info" class="hidden mb-3 bg-black bg-opacity-40 rounded-xl p-3 text-sm border border-gray-700">
                 <span class="text-yellow-400 font-bold" id="admin-hrac-prezdivka">—</span>
                 <span class="text-gray-400 ml-2" id="admin-hrac-xp">0 XP</span>
+                <span class="text-yellow-300 ml-2" id="admin-hrac-tolary">🪙 0</span>
                 <span class="text-gray-600 ml-2 text-xs" id="admin-hrac-uid"></span>
+                <div class="flex gap-2 mt-2">
+                    <input id="admin-tolary-mnozstvi" type="number" placeholder="±množství" class="w-24 p-1 text-xs">
+                    <input id="admin-tolary-duvod" type="text" placeholder="Důvod (reklamace, oprava...)" class="flex-grow p-1 text-xs">
+                    <button id="btn-admin-tolary-upravit" class="btn-blue px-3 py-1 text-xs uppercase flex-shrink-0">Upravit Tolary</button>
+                </div>
             </div>
 
             <div id="admin-logy-loading" class="hidden text-gray-500 italic text-sm text-center py-4">Načítám záznamy...</div>
@@ -362,7 +368,7 @@
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, collectionGroup, getDocs, doc, deleteDoc, updateDoc,
-                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where, Timestamp }
+                 increment, addDoc, getDoc, setDoc, query, orderBy, limit, writeBatch, where, Timestamp, serverTimestamp }
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ─── FIREBASE CONFIG ──────────────────────────────────────────────
@@ -612,6 +618,7 @@
                 adminVybranyHracUid = d.id;
                 $('admin-hrac-prezdivka').textContent = h.prezdivka || '—';
                 $('admin-hrac-xp').textContent = (h.xp || 0) + ' XP';
+                $('admin-hrac-tolary').textContent = '🪙 ' + (h.tolary || 0);
                 $('admin-hrac-uid').textContent = d.id;
                 show('admin-hrac-info');
                 const logySnap = await getDocs(query(
@@ -653,20 +660,57 @@
             if (!adminVybranyHracUid) return;
             if (!confirm(`Smazat záznam "${pivo}" @ ${hospoda}? Odečte -100 XP hráči.`)) return;
             try {
+                // Zjisti, kolik Tolarů hráč za tento konkrétní zápis dostal, aby šly přesně vrátit.
+                const logSnap = await getDoc(doc(db, "hraci", adminVybranyHracUid, "log_piv", logId));
+                const tolaryZaZapis = logSnap.exists() ? (logSnap.data().tolary_ziskano || 0) : 0;
+
                 const batch = writeBatch(db);
                 batch.delete(doc(db, "hraci", adminVybranyHracUid, "log_piv", logId));
-                batch.update(doc(db, "hraci", adminVybranyHracUid), { xp: increment(-100) });
+                const hracOpravy = { xp: increment(-100) };
+                if (tolaryZaZapis > 0) hracOpravy.tolary = increment(-tolaryZaZapis);
+                batch.update(doc(db, "hraci", adminVybranyHracUid), hracOpravy);
                 await batch.commit();
+                if (tolaryZaZapis > 0) {
+                    try {
+                        await addDoc(collection(db, "hraci", adminVybranyHracUid, "tolary_transakce"), {
+                            mnozstvi: -tolaryZaZapis,
+                            duvod: `Admin: smazán zápis "${pivo}" @ ${hospoda}`,
+                            cas: serverTimestamp()
+                        });
+                    } catch(e) {}
+                }
                 const bezTecky = hospoda.replace(/\./g, '_');
                 try { await updateDoc(doc(db, "statistiky_piv", pivo), { pocet: increment(-1) }); } catch(e) {}
                 try { await updateDoc(doc(db, "statistiky_hospod", bezTecky), { pocet: increment(-1) }); } catch(e) {}
                 const row = document.getElementById('logrow-' + logId);
                 if (row) row.remove();
                 const hSnap = await getDoc(doc(db, "hraci", adminVybranyHracUid));
-                if (hSnap.exists()) $('admin-hrac-xp').textContent = (hSnap.data().xp || 0) + ' XP';
-                notify('Záznam smazán a -100 XP odečteno.', 'warn');
+                if (hSnap.exists()) {
+                    $('admin-hrac-xp').textContent = (hSnap.data().xp || 0) + ' XP';
+                    $('admin-hrac-tolary').textContent = '🪙 ' + (hSnap.data().tolary || 0);
+                }
+                notify(`Záznam smazán, -100 XP${tolaryZaZapis > 0 ? ` a -${tolaryZaZapis} Tolarů` : ''} odečteno.`, 'warn');
             } catch(e) { notify('Chyba při mazání: ' + e.message, 'err'); }
         };
+
+        // ─── RUČNÍ ÚPRAVA TOLARŮ (reklamace, oprava chyby) ───────────────────
+        $('btn-admin-tolary-upravit').addEventListener('click', async () => {
+            if (!adminVybranyHracUid) { notify('Nejprve vyhledej hráče.', 'warn'); return; }
+            const mnozstvi = parseInt($('admin-tolary-mnozstvi').value, 10);
+            const duvod = $('admin-tolary-duvod').value.trim() || 'Admin úprava';
+            if (!mnozstvi) { notify('Zadej nenulové množství (kladné nebo záporné).', 'warn'); return; }
+            try {
+                await updateDoc(doc(db, "hraci", adminVybranyHracUid), { tolary: increment(mnozstvi) });
+                await addDoc(collection(db, "hraci", adminVybranyHracUid, "tolary_transakce"), {
+                    mnozstvi, duvod: `Admin: ${duvod}`, cas: serverTimestamp()
+                });
+                const hSnap = await getDoc(doc(db, "hraci", adminVybranyHracUid));
+                $('admin-hrac-tolary').textContent = '🪙 ' + (hSnap.data().tolary || 0);
+                $('admin-tolary-mnozstvi').value = '';
+                $('admin-tolary-duvod').value = '';
+                notify(`Tolary upraveny o ${mnozstvi > 0 ? '+' : ''}${mnozstvi}.`, 'ok');
+            } catch(e) { notify('Chyba: ' + e.message, 'err'); }
+        });
 
         // ─── 5A. PŘEPOČÍTAT STATISTIKY ───────────────────────────────────
         $('btn-migrace-statistiky').addEventListener('click', async () => {
