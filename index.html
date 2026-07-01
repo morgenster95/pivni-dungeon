@@ -373,6 +373,22 @@
         .sin-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem; }
         .sin-row:last-child { border-bottom: none; }
         .sin-row.me { color: #ffd35a; font-weight: bold; }
+        .sin-row--rare { color:#8fc4f0 !important; font-weight:600;
+          background: linear-gradient(180deg,rgba(74,144,217,.12),rgba(20,10,4,.34));
+          border-radius:8px; padding:5px 8px; border-bottom:none; box-shadow:0 0 10px rgba(74,144,217,.18); }
+        /* Pódium 1.-3. místo */
+        .pd-podium { border-radius:8px 8px 0 0; margin-top:5px; }
+        .pd-podium__num { font-family:var(--pd-font-head); font-weight:900; line-height:1; }
+        .pd-podium__score { font-size:9px; margin-top:2px; }
+        .pd-podium--zlato  { background:linear-gradient(180deg,#f3b224,#c98915); border:2px solid #8a5a17; }
+        .pd-podium--zlato .pd-podium__num { color:#4a2e08; font-size:24px; }
+        .pd-podium--zlato .pd-podium__score { color:#5a3a12; font-weight:600; }
+        .pd-podium--stribro { background:linear-gradient(180deg,#565d68,#3a3f48); border:2px solid #23262c; }
+        .pd-podium--stribro .pd-podium__num { color:#e2e6ec; font-size:20px; }
+        .pd-podium--stribro .pd-podium__score { color:#c9d0da; }
+        .pd-podium--bronz { background:linear-gradient(180deg,#a86b3e,#7a4a28); border:2px solid #4a2c16; }
+        .pd-podium--bronz .pd-podium__num { color:#f4e0c8; font-size:18px; }
+        .pd-podium--bronz .pd-podium__score { color:#e8cba8; }
         .sin-section-title { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 1px; color: #ffd35a; font-weight: 800; font-family: 'Baloo 2', sans-serif; margin-bottom: 6px; margin-top: 14px; }
         .sin-section-title:first-child { margin-top: 0; }
 
@@ -2936,16 +2952,46 @@
                 const snapHraci = await getDocs(
                     query(collection(db, "hraci"), orderBy("xp", "desc"), limit(10))
                 );
-                const radkyHraci = snapHraci.docs.map((d, i) => {
+                const top3 = snapHraci.docs.slice(0, 3);
+                const zbytek = snapHraci.docs.slice(3);
+
+                const slotPodia = (d, rank) => {
+                    if (!d) return `<div style="width:${rank === 1 ? 96 : 88}px;"></div>`;
                     const h = d.data();
                     const isMe = d.id === currentUser.uid;
-                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                    const trida = rank === 1 ? 'zlato' : rank === 2 ? 'stribro' : 'bronz';
+                    const avatarGrad = rank === 1 ? '' : rank === 2
+                        ? 'background:linear-gradient(160deg,#b0b6c0,#6a7180);'
+                        : 'background:linear-gradient(160deg,#c98a5a,#8a5730);';
+                    const w = rank === 1 ? 56 : 48, h2 = rank === 1 ? 64 : 54;
+                    const pad = rank === 1 ? '16px 0 10px' : rank === 2 ? '12px 0 8px' : '9px 0 6px';
+                    return `<div style="text-align:center;width:${rank === 1 ? 96 : 88}px;">
+                        ${rank === 1 ? '<div style="font-size:16px;margin-bottom:1px;">👑</div>' : ''}
+                        <div class="pd-avatar-shield" style="width:${w}px;height:${h2}px;margin:0 auto 6px;${avatarGrad}${rank === 1 ? 'filter:drop-shadow(0 0 10px rgba(255,190,50,.7));' : ''}">
+                            <div class="pd-avatar-shield__inner" style="font-size:${rank === 1 ? '1.6rem' : '1.3rem'};">${escapeHtml(h.avatar || '⚔️')}</div>
+                        </div>
+                        <div style="font-weight:${rank === 1 ? 700 : 600};color:${rank === 1 ? '#ffd868' : '#e6d4b0'};font-size:${rank === 1 ? '12px' : '11px'};line-height:1.1;">${escapeHtml(h.prezdivka || '—')}${isMe ? ' 👈' : ''}</div>
+                        <div class="pd-podium pd-podium--${trida}" style="padding:${pad};">
+                            <div class="pd-podium__num">${rank}</div>
+                            <div class="pd-podium__score">${h.xp ?? 0}</div>
+                        </div>
+                    </div>`;
+                };
+                const podiumHtml = top3.length > 0
+                    ? `<div style="display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:2px 0 12px;">
+                        ${slotPodia(top3[1], 2)}${slotPodia(top3[0], 1)}${slotPodia(top3[2], 3)}
+                    </div>`
+                    : '';
+
+                const radkyHraci = zbytek.map((d, i) => {
+                    const h = d.data();
+                    const isMe = d.id === currentUser.uid;
                     const jmeno = isMe
                         ? `${h.prezdivka ?? '—'} 👈`
                         : `<span class="profil-link" onclick="otevritProfil('${d.id}')">${h.prezdivka ?? '—'}</span>`;
-                    return `<div class="sin-row${isMe ? ' me' : ''}">
-                        <span>${medal} ${jmeno}</span>
-                        <span class="text-yellow-500">${h.xp ?? 0} XP</span>
+                    return `<div class="sin-row${isMe ? ' sin-row--rare' : ''}">
+                        <span>${i + 4}. ${jmeno}</span>
+                        <span class="${isMe ? '' : 'text-yellow-500'}">${h.xp ?? 0} XP</span>
                     </div>`;
                 });
                 // Najdi moji pozici pokud nejsem v top 10
@@ -2956,13 +3002,13 @@
                     );
                     const idx = vsichniSnap.docs.findIndex(d => d.id === currentUser.uid);
                     if (idx >= 0) {
-                        mojePoziceHrac = `<div class="sin-row me border-t border-yellow-900 mt-1 pt-1">
-                            <span>... ${idx+1}. ${userData.prezdivka} 👈</span>
-                            <span class="text-yellow-500">${userData.xp ?? 0} XP</span>
+                        mojePoziceHrac = `<div class="sin-row sin-row--rare mt-1">
+                            <span>... ${idx+1}. ${escapeHtml(userData.prezdivka || '—')} 👈</span>
+                            <span>${userData.xp ?? 0} XP</span>
                         </div>`;
                     }
                 }
-                $('sin-hraci').innerHTML = radkyHraci.join('') + mojePoziceHrac;
+                $('sin-hraci').innerHTML = podiumHtml + radkyHraci.join('') + mojePoziceHrac;
 
                 // 2. Top cechy podle skóre
                 const snapCechy = await getDocs(
