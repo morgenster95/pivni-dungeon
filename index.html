@@ -101,8 +101,19 @@
           box-shadow: inset 0 0 34px rgba(150,110,50,.42), 0 6px 16px rgba(0,0,0,.45);
           color: var(--pd-parch-ink);
         }
-        .pd-panel--iron {
-          background: linear-gradient(180deg,#2c2820,#1a1712);
+        .pd-panel--iron, .war-card {
+          background-image:
+            radial-gradient(circle 3px at center, #cfcabb, #4a473f),
+            radial-gradient(circle 3px at center, #cfcabb, #4a473f),
+            radial-gradient(circle 3px at center, #cfcabb, #4a473f),
+            radial-gradient(circle 3px at center, #cfcabb, #4a473f),
+            linear-gradient(180deg,#2c2820,#1a1712);
+          background-repeat: no-repeat;
+          background-position:
+            8px 8px, calc(100% - 8px) 8px,
+            8px calc(100% - 8px), calc(100% - 8px) calc(100% - 8px),
+            0 0;
+          background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px, 100% 100%;
           border: 4px solid var(--pd-iron-border);
           box-shadow: 0 6px 16px rgba(0,0,0,.5), inset 0 0 0 1.5px rgba(0,0,0,.5);
         }
@@ -351,7 +362,7 @@
         .log-btn-repeat { background: linear-gradient(180deg,#54d07f,#2e9b54); color: #0f3d22; box-shadow: 0 2px 0 #1c6e3a; }
         .log-btn-delete { background: linear-gradient(180deg,#ef6a5a,#c23b34); color: #fff; box-shadow: 0 2px 0 #7d2420; }
 
-        .war-card { background: rgba(0,0,0,0.3); border: 2px solid #c05621; border-radius: 12px; padding: 11px; }
+        .war-card { border-radius: 12px; padding: 14px; }
         .war-progress-bar { background: rgba(0,0,0,0.5); border-radius: 6px; height: 9px; overflow: hidden; display: flex; border: 2px solid #160d18; }
         .war-bar-left { background: linear-gradient(90deg, #f6e05e, #d69e2e); height: 100%; transition: width 0.5s; }
         .war-bar-right { background: linear-gradient(90deg, #fc8181, #e53e3e); height: 100%; transition: width 0.5s; }
@@ -403,7 +414,12 @@
         .stat-tile-label { font-size:0.6rem; color:#9a86a4; margin-top:2px; line-height:1.2; }
 
         /* ── Odznaky ── */
-        .odznak-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; width:72px; cursor:default; }
+        .odznak-wrap {
+            display:flex; flex-direction:column; align-items:center; gap:6px; width:84px; cursor:default;
+            background: radial-gradient(80% 60% at 30% 20%, #403c33, #26231d);
+            border: 2px solid #565043; border-radius: 14px;
+            padding: 12px 6px 10px; box-shadow: inset 0 2px 6px rgba(0,0,0,.45);
+        }
         .odznak-stit {
             width:58px; height:66px;
             clip-path: polygon(14% 0%, 86% 0%, 100% 14%, 100% 62%, 50% 100%, 0% 62%, 0% 14%);
@@ -411,21 +427,29 @@
             font-size:1.55rem; position:relative; transition:transform .18s, filter .18s;
             flex-shrink:0;
         }
-        .odznak-stit.bronz  { background:linear-gradient(150deg,#e89040 0%,#7b3c0a 100%); }
-        .odznak-stit.stribro{ background:linear-gradient(150deg,#dde0e8 0%,#6a6e7e 100%); }
-        .odznak-stit.zlato  { background:linear-gradient(150deg,#ffe566 0%,#a07010 100%); }
-        .odznak-stit.earned { filter:drop-shadow(0 0 6px rgba(255,211,90,.55)) drop-shadow(0 0 2px rgba(255,255,255,.2)); }
-        .odznak-stit.locked { filter:grayscale(1) brightness(0.28); }
+        .odznak-stit.bronz  { background:linear-gradient(155deg, var(--pd-copper) 0%, #5a2f10 100%); }
+        .odznak-stit.stribro{ background:linear-gradient(155deg,#e2e6ec 0%,#868c99 100%); }
+        .odznak-stit.zlato  { background:linear-gradient(155deg, var(--pd-gold) 0%, var(--pd-gold-deep) 100%); }
+        .odznak-stit.bronz.earned   { filter:drop-shadow(0 0 6px rgba(224,144,64,.55)); box-shadow: inset 0 0 0 3px rgba(0,0,0,.25); }
+        .odznak-stit.stribro.earned{ filter:drop-shadow(0 0 7px rgba(200,210,230,.65)); box-shadow: inset 0 0 0 3px rgba(255,255,255,.25); }
+        .odznak-stit.zlato.earned  { filter:drop-shadow(0 0 11px rgba(255,211,90,.8)); box-shadow: inset 0 0 0 3px rgba(255,255,255,.4); animation: pd-float 4s ease-in-out infinite; }
+        .odznak-stit.locked { background:linear-gradient(155deg,#3a3730,#22201b); }
+        .odznak-ikona { width:28px; height:28px; }
+        .odznak-stit.locked .odznak-ikona { opacity:.28; filter:grayscale(1); }
         .odznak-stit.earned:hover { transform:scale(1.1); }
+        .odznak-lock { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); font-size:1rem; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
         .odznak-gem { position:absolute; bottom:6px; right:7px; width:10px; height:10px; border-radius:50%; }
         .odznak-gem.bronz   { background:#cd8032; box-shadow:0 0 4px #cd8032; }
         .odznak-gem.stribro { background:#c0c8d8; box-shadow:0 0 4px #c0c8d8; }
         .odznak-gem.zlato   { background:#ffd700; box-shadow:0 0 6px #ffd700; }
-        .odznak-nazev { font-size:0.58rem; text-align:center; line-height:1.25; font-family:'Baloo 2',sans-serif; font-weight:700; max-width:72px; }
-        .odznak-nazev.ziskano { color:#ffd35a; }
-        .odznak-nazev.locked  { color:#4a3a50; }
+        .odznak-spark { position:absolute; font-size:9px; color:#fff2b0; animation: pd-spark 1.6s ease-in-out infinite; }
+        .odznak-spark.s1 { top:5px; left:9px; }
+        .odznak-spark.s2 { top:13px; right:8px; font-size:7px; animation-delay:.5s; }
+        .odznak-nazev { font-size:0.58rem; text-align:center; line-height:1.25; font-family:'Baloo 2',sans-serif; font-weight:700; max-width:76px; }
+        .odznak-nazev.ziskano { color: var(--pd-gold); }
+        .odznak-nazev.locked  { color:#6f6555; }
         @keyframes odznak-shine { 0%,100%{filter:drop-shadow(0 0 6px rgba(255,211,90,.55))} 50%{filter:drop-shadow(0 0 14px rgba(255,211,90,.9)) drop-shadow(0 0 4px #fff)} }
-        .odznak-stit.novy { animation: odznak-shine 1.2s ease-in-out 3; }
+        .odznak-stit.novy { animation: odznak-shine 1.2s ease-in-out 3, pd-float 4s ease-in-out infinite; }
 
         /* ── Záložka Piva ── */
         .pivo-karta { background:rgba(0,0,0,0.35); border:2px solid #4a3a26; border-radius:14px; padding:12px 13px; display:flex; align-items:center; gap:12px; transition: border-color .15s; }
@@ -521,8 +545,7 @@
         .log-item { background: rgba(20,14,8,.5); border-left: 4px solid var(--pd-amber); }
         .glog-item { background: rgba(20,14,8,.5); border-left: 4px solid var(--pd-brass); }
 
-        /* Válka → železo */
-        .war-card { background: linear-gradient(180deg,#2c2820,#1a1712); border: 3px solid #7a4a2a; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+        /* Válka → železo (viz pd-panel--iron, .war-card výše — nýty v rozích) */
         .war-progress-bar { border-color: #17110a; }
         .war-bar-left  { background: linear-gradient(90deg, var(--pd-gold), var(--pd-gold-deep)); }
         .war-bar-right { background: linear-gradient(90deg, #fc8181, var(--pd-danger)); }
@@ -534,12 +557,6 @@
         /* Síň slávy / statistiky → kámen */
         .sin-card, .stat-tile, .kraj-card { background: linear-gradient(180deg,#403c33,#26231d); border-color: var(--pd-stone-border); }
         .sin-section-title, .stat-tile-val { font-family: var(--pd-font-head); color: var(--pd-gold); }
-
-        /* Odznaky-štíty → shodný tvar štítu jako pd-badge, přebarveno na kov */
-        .odznak-stit.bronz   { background: linear-gradient(155deg, var(--pd-copper) 0%, #5a2f10 100%); }
-        .odznak-stit.stribro { background: linear-gradient(155deg,#e2e6ec 0%,#868c99 100%); }
-        .odznak-stit.zlato   { background: linear-gradient(155deg, var(--pd-gold) 0%, var(--pd-gold-deep) 100%); }
-        .odznak-nazev.ziskano { color: var(--pd-gold); }
 
         /* Piva karty — sudová etiketa */
         .pivo-karta {
@@ -825,7 +842,7 @@
         <div id="notifikace-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
             <div class="glass-card w-full max-w-sm p-4 border border-orange-700" style="max-height:90vh;overflow-y:auto;">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-xl text-yellow-400 fantasy-font">🔔 Zvonek</h3>
+                    <h3 class="text-xl text-yellow-400 fantasy-font"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-bell"/></svg> Zvonek</h3>
                     <button onclick="$('notifikace-modal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
                 </div>
                 <div id="notifikace-box" class="space-y-1 text-xs">
@@ -895,7 +912,7 @@
                         <datalist id="seznam-piv"></datalist>
                         <button onclick="document.getElementById('modal-overlay').classList.remove('hidden')" title="Navrhnout chybějící pivo" class="btn-gold px-3 rounded text-lg"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug-stamp"/></svg></button>
                     </div>
-                    <button id="btn-claim" class="btn-primary w-full py-4 text-xl font-black uppercase shadow-lg">🍺 Zapsat pivo (+100 XP)</button>
+                    <button id="btn-claim" class="btn-primary w-full py-4 text-xl font-black uppercase shadow-lg"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Zapsat pivo (+100 XP)</button>
                     <!-- Skryté inputy pro kompatibilitu -->
                     <input id="pub-name-input" type="hidden">
                 </div>
@@ -908,7 +925,7 @@
                 <!-- Editace profilu -->
                 <div class="glass-card p-4 mb-4 border border-orange-900 text-left">
                     <div class="flex items-center justify-between mb-3">
-                        <div class="sin-section-title" style="margin:0">⚙️ Můj profil</div>
+                        <div class="sin-section-title" style="margin:0"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-gear"/></svg> Můj profil</div>
                         <button id="btn-profil-toggle" onclick="toggleEditProfil()" class="text-xs text-orange-400 underline">Upravit</button>
                     </div>
                     <!-- Zobrazení -->
@@ -989,20 +1006,20 @@
 
                 <!-- Sledovaní hráči -->
                 <div class="mb-4">
-                    <div class="sin-section-title">👥 Sleduji hráče</div>
+                    <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-clink"/></svg> Sleduji hráče</div>
                     <div id="seznam-sledovanych" class="bg-black bg-opacity-50 rounded p-3 border border-gray-800 text-xs space-y-1 max-h-36 overflow-y-auto"></div>
                 </div>
 
                 <!-- Osobní statistiky -->
                 <div class="mb-4">
-                    <div class="sin-section-title">📊 Moje statistiky</div>
+                    <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-xp"/></svg> Moje statistiky</div>
                     <div id="osobni-stats-grid" class="grid grid-cols-3 gap-2"></div>
                 </div>
 
                 <!-- Odznaky -->
                 <div class="mb-4">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="sin-section-title" style="margin:0">🏅 Moje odznaky</div>
+                        <div class="sin-section-title" style="margin:0"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg> Moje odznaky</div>
                         <span id="odznak-pocet" class="text-[10px] text-gray-500"></span>
                     </div>
                     <div id="odznaky-grid" class="flex flex-wrap gap-3 justify-start"></div>
@@ -1099,7 +1116,7 @@
                             <select id="select-rival-cech" class="w-full p-2 text-sm mb-2">
                                 <option value="">— Vyber soupeře —</option>
                             </select>
-                            <button id="btn-vyhlasit-valku" class="btn-war w-full py-2 uppercase text-xs">⚔️ Vyhlásit válku</button>
+                            <button id="btn-vyhlasit-valku" class="btn-war w-full py-2 uppercase text-xs"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Vyhlásit válku</button>
                         </div>
                     </div>
 
@@ -1311,7 +1328,7 @@
 
                     <!-- Nejlépe hodnocená piva -->
                     <div class="sin-card">
-                        <div class="sin-section-title">⭐ Nejlépe hodnocené moky</div>
+                        <div class="sin-section-title"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-trophy"/></svg> Nejlépe hodnocené moky</div>
                         <div id="sin-hodnocena-piva"></div>
                     </div>
 
@@ -2452,7 +2469,7 @@
                 notify('Chyba: ' + e.message);
             } finally {
                 $('btn-claim').disabled = false;
-                $('btn-claim').textContent = '🍺 Zapsat pivo (+100 XP)';
+                $('btn-claim').innerHTML = '<svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Zapsat pivo (+100 XP)';
             }
         });
 
@@ -3516,7 +3533,7 @@
                         return `<div class="pd-kraj-row${isVedouci ? ' pd-kraj-row--leading' : ''}">
                             <div class="flex justify-between items-center">
                                 <span class="text-sm ${isMe ? 'text-yellow-400 font-bold' : 'text-gray-300'}">${znacka} ${escapeHtml(k.kraj)}${isMe ? ' 👈' : ''}</span>
-                                <span class="text-yellow-500 font-bold">${k.piv} 🍺</span>
+                                <span class="text-yellow-500 font-bold">${k.piv} <svg class="pd-ico" style="width:0.9em;height:0.9em"><use href="#ic-mug"/></svg></span>
                             </div>
                             <div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:${pct}%"></div></div>
                         </div>`;
@@ -3669,24 +3686,24 @@
 
         const ACHIEVEMENTY_DEF = [
             // ── BRONZ ──
-            { id:'prvni_pivo',    stupen:'bronz',  ikona:'🍺', nazev:'První doušek',    popis:'Zapsal jsi své první pivo',             podminka: s => s.celkemPiv >= 1    },
-            { id:'deset_piv',     stupen:'bronz',  ikona:'⚗️', nazev:'Žíznivý hrdina',  popis:'Celkem 10 piv zapsáno',                 podminka: s => s.celkemPiv >= 10   },
-            { id:'pet_hospod',    stupen:'bronz',  ikona:'🗺️', nazev:'Průzkumník',      popis:'5 různých hospod navštíveno',           podminka: s => s.hospod >= 5       },
-            { id:'verny_host',    stupen:'bronz',  ikona:'🏠', nazev:'Věrný host',       popis:'Jednu hospodu navštívil 5× nebo více',  podminka: s => s.maxNavstev >= 5   },
-            { id:'deset_druhu',   stupen:'bronz',  ikona:'👅', nazev:'Ochutnávač',      popis:'10 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 10     },
-            { id:'socialni',      stupen:'bronz',  ikona:'🤝', nazev:'Sociální pijan',  popis:'Pil s kamarádem 10× nebo více',         podminka: s => s.spolecne >= 10    },
-            { id:'nocni_pijan',   stupen:'bronz',  ikona:'🌙', nazev:'Noční hlídka',    popis:'Zapis po půlnoci (00:00–04:00)',        podminka: s => s.nocniZapis        },
+            { id:'prvni_pivo',    stupen:'bronz',  ikona:'ic-mug',       nazev:'První doušek',    popis:'Zapsal jsi své první pivo',             podminka: s => s.celkemPiv >= 1    },
+            { id:'deset_piv',     stupen:'bronz',  ikona:'ic-mug-stamp', nazev:'Žíznivý hrdina',  popis:'Celkem 10 piv zapsáno',                 podminka: s => s.celkemPiv >= 10   },
+            { id:'pet_hospod',    stupen:'bronz',  ikona:'ic-map',       nazev:'Průzkumník',      popis:'5 různých hospod navštíveno',           podminka: s => s.hospod >= 5       },
+            { id:'verny_host',    stupen:'bronz',  ikona:'ic-home',      nazev:'Věrný host',       popis:'Jednu hospodu navštívil 5× nebo více',  podminka: s => s.maxNavstev >= 5   },
+            { id:'deset_druhu',   stupen:'bronz',  ikona:'ic-bag',       nazev:'Ochutnávač',      popis:'10 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 10     },
+            { id:'socialni',      stupen:'bronz',  ikona:'ic-clink',     nazev:'Sociální pijan',  popis:'Pil s kamarádem 10× nebo více',         podminka: s => s.spolecne >= 10    },
+            { id:'nocni_pijan',   stupen:'bronz',  ikona:'ic-bell',      nazev:'Noční hlídka',    popis:'Zapis po půlnoci (00:00–04:00)',        podminka: s => s.nocniZapis        },
             // ── STŘÍBRO ──
-            { id:'padesatpiv',    stupen:'stribro', ikona:'🎖️', nazev:'Pivní veterán',  popis:'Celkem 50 piv zapsáno',                 podminka: s => s.celkemPiv >= 50   },
-            { id:'deset_hospod',  stupen:'stribro', ikona:'🏰', nazev:'Dobrodruh',       popis:'10 různých hospod navštíveno',          podminka: s => s.hospod >= 10      },
-            { id:'stamgast',      stupen:'stribro', ikona:'🪑', nazev:'Štamgast',        popis:'Jednu hospodu navštívil 10× nebo více', podminka: s => s.maxNavstev >= 10  },
-            { id:'dvacet_druhu',  stupen:'stribro', ikona:'🎭', nazev:'Degustátor',      popis:'25 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 25     },
-            { id:'pivni_banda',   stupen:'stribro', ikona:'🍻', nazev:'Pivní banda',     popis:'Pil s kamarádem 30× nebo více',         podminka: s => s.spolecne >= 30    },
-            { id:'streak_7',      stupen:'stribro', ikona:'🔥', nazev:'Týdenní série',   popis:'7 dní v řadě se zápisem piva',          podminka: s => s.streakMax >= 7    },
+            { id:'padesatpiv',    stupen:'stribro', ikona:'ic-shield',   nazev:'Pivní veterán',  popis:'Celkem 50 piv zapsáno',                 podminka: s => s.celkemPiv >= 50   },
+            { id:'deset_hospod',  stupen:'stribro', ikona:'ic-map',      nazev:'Dobrodruh',       popis:'10 různých hospod navštíveno',          podminka: s => s.hospod >= 10      },
+            { id:'stamgast',      stupen:'stribro', ikona:'ic-home',     nazev:'Štamgast',        popis:'Jednu hospodu navštívil 10× nebo více', podminka: s => s.maxNavstev >= 10  },
+            { id:'dvacet_druhu',  stupen:'stribro', ikona:'ic-bag',      nazev:'Degustátor',      popis:'25 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 25     },
+            { id:'pivni_banda',   stupen:'stribro', ikona:'ic-clink',    nazev:'Pivní banda',     popis:'Pil s kamarádem 30× nebo více',         podminka: s => s.spolecne >= 30    },
+            { id:'streak_7',      stupen:'stribro', ikona:'ic-streak',   nazev:'Týdenní série',   popis:'7 dní v řadě se zápisem piva',          podminka: s => s.streakMax >= 7    },
             // ── ZLATO ──
-            { id:'sto_piv',       stupen:'zlato',  ikona:'🏆', nazev:'Stý džbán',       popis:'Celkem 100 piv zapsáno',                podminka: s => s.celkemPiv >= 100  },
-            { id:'dvacet_hospod', stupen:'zlato',  ikona:'🌍', nazev:'Velký průzkumník', popis:'20 různých hospod navštíveno',          podminka: s => s.hospod >= 20      },
-            { id:'somelier',      stupen:'zlato',  ikona:'🎩', nazev:'Pivní someliér',  popis:'50 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 50     },
+            { id:'sto_piv',       stupen:'zlato',  ikona:'ic-trophy',    nazev:'Stý džbán',       popis:'Celkem 100 piv zapsáno',                podminka: s => s.celkemPiv >= 100  },
+            { id:'dvacet_hospod', stupen:'zlato',  ikona:'ic-crown',     nazev:'Velký průzkumník', popis:'20 různých hospod navštíveno',          podminka: s => s.hospod >= 20      },
+            { id:'somelier',      stupen:'zlato',  ikona:'ic-chest',     nazev:'Pivní someliér',  popis:'50 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 50     },
         ];
 
         function vypoctiStatsZLogy(logDocs) {
@@ -3764,16 +3781,16 @@
         function vykresliOsobniStats(stats) {
             const grid = $('osobni-stats-grid');
             const tiles = [
-                { val: stats.celkemPiv,    label: 'piv celkem',        ikona: '🍺' },
-                { val: stats.ruznych,      label: 'různých druhů',     ikona: '🌈' },
-                { val: stats.hospod,       label: 'hospod navštíveno', ikona: '🏰' },
-                { val: `${stats.streakAkt}d`, label: 'aktuální série', ikona: '🔥' },
-                { val: stats.nejDen,       label: 'nejaktivnější den', ikona: '📅' },
-                { val: `${stats.prumerTyden}`, label: 'piv / týden v průměru', ikona: '📈' },
+                { val: stats.celkemPiv,    label: 'piv celkem',        ikona: 'ic-mug' },
+                { val: stats.ruznych,      label: 'různých druhů',     ikona: 'ic-mug-stamp' },
+                { val: stats.hospod,       label: 'hospod navštíveno', ikona: 'ic-map' },
+                { val: `${stats.streakAkt}d`, label: 'aktuální série', ikona: 'ic-streak' },
+                { val: stats.nejDen,       label: 'nejaktivnější den', ikona: 'ic-journal' },
+                { val: `${stats.prumerTyden}`, label: 'piv / týden v průměru', ikona: 'ic-xp' },
             ];
             grid.innerHTML = tiles.map(t => `
                 <div class="stat-tile">
-                    <div style="font-size:1.1rem;">${t.ikona}</div>
+                    <svg class="pd-ico" style="width:22px;height:22px"><use href="#${t.ikona}"/></svg>
                     <div class="stat-tile-val">${t.val}</div>
                     <div class="stat-tile-label">${t.label}</div>
                 </div>`).join('');
@@ -3805,7 +3822,7 @@
 
                 // Notifikace pro nové odznaky
                 noveOdznaky.forEach((a, i) => {
-                    setTimeout(() => notify(`🏅 Nový odznak: ${a.nazev}! ${a.ikona}`), i * 800);
+                    setTimeout(() => notify(`🏅 Nový odznak: ${a.nazev}!`), i * 800);
                 });
 
                 // Tolary za odznak (dle stupně) + zápis do zvonku notifikací
@@ -3815,7 +3832,7 @@
                     try {
                         await addDoc(collection(db, "hraci", currentUser.uid, "notifikace"), {
                             typ: 'odznak',
-                            text: `Nový odznak: ${a.nazev} ${a.ikona}`,
+                            text: `Nový odznak: ${a.nazev}`,
                             cas: serverTimestamp(),
                             precteno: false
                         });
@@ -3839,8 +3856,9 @@
 
                 wrap.innerHTML = `
                     <div class="odznak-stit ${def.stupen} ${mam ? 'earned' : 'locked'} ${nove ? 'novy' : ''}">
-                        ${def.ikona}
-                        ${mam ? `<div class="odznak-gem ${def.stupen}"></div>` : ''}
+                        <svg class="pd-ico odznak-ikona"><use href="#${def.ikona}"/></svg>
+                        ${mam && def.stupen === 'zlato' ? `<span class="odznak-spark s1">✦</span><span class="odznak-spark s2">✦</span>` : ''}
+                        ${mam ? `<div class="odznak-gem ${def.stupen}"></div>` : `<div class="odznak-lock">🔒</div>`}
                     </div>
                     <div class="odznak-nazev ${mam ? 'ziskano' : 'locked'}">${def.nazev}</div>`;
 
@@ -3912,27 +3930,27 @@
                     <div class="text-xs text-gray-400">Úroveň ${lvl}</div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 mb-3">
-                    <div class="stat-tile"><div style="font-size:1.1rem;">🪙</div><div class="stat-tile-val">${userData.tolary || 0}</div><div class="stat-tile-label">Tolarů</div></div>
-                    <div class="stat-tile"><div style="font-size:1.1rem;">🔥</div><div class="stat-tile-val">${stats.streakAkt || 0}d</div><div class="stat-tile-label">Série</div></div>
-                    <div class="stat-tile"><div style="font-size:1.1rem;">🍺</div><div class="stat-tile-val">${stats.celkemPiv || 0}</div><div class="stat-tile-label">Piv celkem</div></div>
+                    <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-coin"/></svg><div class="stat-tile-val">${userData.tolary || 0}</div><div class="stat-tile-label">Tolarů</div></div>
+                    <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-streak"/></svg><div class="stat-tile-val">${stats.streakAkt || 0}d</div><div class="stat-tile-label">Série</div></div>
+                    <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><div class="stat-tile-val">${stats.celkemPiv || 0}</div><div class="stat-tile-label">Piv celkem</div></div>
                 </div>
-                <button class="btn-gold w-full py-3 uppercase text-sm mb-3" onclick="switchTab('mapa')">🍺 Zapsat pivo</button>
+                <button class="btn-gold w-full py-3 uppercase text-sm mb-3" onclick="switchTab('mapa')"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> Zapsat pivo</button>
                 <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
-                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">📜 Denní úkol</div>
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-journal"/></svg> Denní úkol</div>
                     <div class="text-sm mb-1">${escapeHtml(ukol.popis)}</div>
                     <div class="xp-bar-outer"><div class="xp-bar-inner" style="width:${Math.min(100, ukol.progress / ukol.cil * 100)}%"></div></div>
                     <div class="text-[10px] text-gray-500 mt-1">${ukol.progress}/${ukol.cil}${ukol.splneno ? ' · ✅ Splněno' : ''}</div>
                 </div>
                 <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
-                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">🗓️ Týdenní výzva</div>
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-streak"/></svg> Týdenní výzva</div>
                     <div class="text-sm mb-1">Zapiš ${vyzva.cil} piv tento týden (+${vyzva.odmena} 🪙)</div>
                     <div class="xp-bar-outer"><div class="xp-bar-inner" style="width:${Math.min(100, vyzva.progress / vyzva.cil * 100)}%"></div></div>
                     <div class="text-[10px] text-gray-500 mt-1">${vyzva.progress}/${vyzva.cil}${vyzva.splneno ? ' · ✅ Splněno' : ''}</div>
                 </div>
                 <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
-                    <div class="text-xs text-orange-400 uppercase font-bold mb-1">🏅 Poslední odznak</div>
+                    <div class="text-xs text-orange-400 uppercase font-bold mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg> Poslední odznak</div>
                     ${posledniOdznak
-                        ? `<div class="text-sm">${posledniOdznak.ikona} ${escapeHtml(posledniOdznak.nazev)}</div>`
+                        ? `<div class="text-sm flex items-center gap-2"><svg class="pd-ico" style="width:20px;height:20px"><use href="#${posledniOdznak.ikona}"/></svg> ${escapeHtml(posledniOdznak.nazev)}</div>`
                         : `<div class="text-gray-600 italic text-sm">Zatím žádný odznak — vyraz na dungeony!</div>`}
                 </div>
                 ${valkaHtml}
