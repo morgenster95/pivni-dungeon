@@ -5,7 +5,7 @@ import './styles/index.css';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
     from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion, collection, collectionGroup,
-         addDoc, query, where, getDocs, orderBy, limit, startAfter, deleteDoc, writeBatch, serverTimestamp, Timestamp }
+         addDoc, query, where, getDocs, orderBy, limit, startAfter, deleteDoc, writeBatch, serverTimestamp, Timestamp, deleteField }
     from "firebase/firestore";
 import { app, auth, db } from './firebase.js';
 import { $, show, hide, setHtml, escapeHtml, notify, pdStateEmpty, pdStateSleep, pdStateLoading, pdStateError } from './ui/dom.js';
