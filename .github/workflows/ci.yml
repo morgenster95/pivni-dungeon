@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Kontrola kódu
+        run: npx eslint src
+      - name: Unit testy pravidel hry
+        run: npm test
+      - name: Sestavení
+        run: npm run build
+      - name: Test přetékání na mobilu (demo režim)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:layout
+        env:
+          CI: true
