@@ -375,7 +375,7 @@ async function nactiPiva() {
         const unikatni = [...new Set(piva)].sort();
         schvalenaPiva = new Set(unikatni); // ulož pro validaci
         $('seznam-piv').innerHTML = unikatni
-            .map(p => `<option value="${p.replace(/"/g, '&quot;')}">`).join('');
+            .map(p => `<option value="${escapeHtml(p)}">`).join('');
     } catch (e) { console.error("Chyba načítání piv:", e); }
 }
 
@@ -477,7 +477,7 @@ function renderLogZapis(d, idx, logBox) {
     const datum = casObj ? casObj.toLocaleDateString('cs-CZ') : '—';
     const cas   = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) : '';
     const spolecneHtml = z.spolecne_s
-        ? '<span class="spolecne-badge"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-clink"/></svg> ' + z.spolecne_s + '</span>'
+        ? '<span class="spolecne-badge"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-clink"/></svg> ' + escapeHtml(z.spolecne_s) + '</span>'
         : '';
 
     const div = document.createElement('div');
@@ -485,8 +485,8 @@ function renderLogZapis(d, idx, logBox) {
     div.innerHTML =
         '<div class="flex justify-between items-start gap-1">' +
             '<div class="min-w-0">' +
-                '<span class="text-yellow-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> ' + (z.pivo || '—') + '</span>' +
-                '<span class="text-gray-400"> @ ' + (z.hospoda || '—') + '</span>' +
+                '<span class="text-yellow-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg> ' + escapeHtml(z.pivo || '—') + '</span>' +
+                '<span class="text-gray-400"> @ ' + escapeHtml(z.hospoda || '—') + '</span>' +
                 '<span class="block text-gray-600 text-[10px] mt-0.5">' +
                     datum + (cas ? ' · ' + cas : '') +
                 '</span>' +
@@ -518,7 +518,7 @@ async function vykresliDenicek() {
         dBox.innerHTML = sorted.map(([n, p]) => {
             const star = p >= 10 ? '🌟' : p >= 5 ? '⭐' : '🔸';
             const nazev = n.replace(/_/g, '.');
-            return `<div class="log-item flex justify-between"><span>${star} ${nazev}</span><span class="text-yellow-500">${p}× návštěv</span></div>`;
+            return `<div class="log-item flex justify-between"><span>${star} ${escapeHtml(nazev)}</span><span class="text-yellow-500">${escapeHtml(p)}× návštěv</span></div>`;
         }).join('');
     } else {
         dBox.innerHTML = '<div class="text-gray-600 italic text-center py-2">Žádné dungeony zatím nenavštíveny.</div>';
@@ -704,12 +704,17 @@ function onLocationFound(e) {
 }
 
 function buildPopup(name, lat, lon) {
-    const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `<b style="font-family:Cinzel,serif">${name}</b><br>
-        <button onclick="window.pickPub('${safeName}',${lat},${lon})"
-            style="background:#c05621;color:#fff;padding:4px 8px;border-radius:6px;margin-top:6px;width:100%;font-size:11px;font-weight:bold;font-family:Cinzel,serif;border:none;cursor:pointer;">
-            <svg class="pd-ico" style="width:1em;height:1em;vertical-align:middle"><use href="#ic-mug"/></svg> Tady piju!
-        </button>`;
+    // Název pochází z OpenStreetMap — vkládáme ho jako text, ne jako HTML (B01)
+    const box = document.createElement('div');
+    const b = document.createElement('b');
+    b.style.fontFamily = 'Cinzel,serif';
+    b.textContent = name;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'background:#c05621;color:#fff;padding:4px 8px;border-radius:6px;margin-top:6px;width:100%;font-size:11px;font-weight:bold;font-family:Cinzel,serif;border:none;cursor:pointer;';
+    btn.innerHTML = '<svg class="pd-ico" style="width:1em;height:1em;vertical-align:middle"><use href="#ic-mug"/></svg> Tady piju!';
+    btn.addEventListener('click', () => window.pickPub(name, lat, lon));
+    box.append(b, document.createElement('br'), btn);
+    return box;
 }
 
 $('btn-hledej').addEventListener('click', () => {
@@ -979,6 +984,12 @@ $('btn-odeslat-navrh').addEventListener('click', async () => {
     } catch (e) { notify('Chyba: ' + e.message); }
 });
 
+// Odkazy na profil hráče: data-profil="uid" (B01 — žádná data uvnitř inline onclick)
+document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-profil]');
+    if (el) window.otevritProfil(el.dataset.profil);
+});
+
 // ─── TABY ─────────────────────────────────────────────────────────────
 window.switchTab = (tabName) => {
     ['krcma', 'mapa', 'denik', 'piva', 'cech', 'kralovstvi', 'sin'].forEach(t => {
@@ -1021,7 +1032,7 @@ async function nactiPozvankyCechu() {
         const p = d.data();
         const card = document.createElement('div');
         card.className = 'bg-black bg-opacity-50 border border-yellow-800 rounded p-2 flex justify-between items-center mb-2 text-xs';
-        card.innerHTML = `<span class="text-yellow-400 font-bold">${p.cech_nazev}</span>`;
+        card.innerHTML = `<span class="text-yellow-400 font-bold">${escapeHtml(p.cech_nazev)}</span>`;
         const btn = document.createElement('button');
         btn.textContent = '✓ Přijmout';
         btn.className = 'btn-primary px-3 py-1 text-xs';
@@ -1086,13 +1097,13 @@ async function nactiClenyCechu() {
                 <div class="pd-avatar-shield__inner" style="font-size:0.85rem;">${escapeHtml(h.avatar || '⚔️')}</div>
             </div>
             <div class="flex-grow min-w-0 text-left">
-                <span class="${isMe ? '' : 'profil-link'}" ${isMe ? '' : `onclick="otevritProfil('${d.id}')"`}>${i+1}. ${escapeHtml(h.prezdivka || '—')}</span>
-                <div style="font-size:0.6rem;color:#9d8b6c;">úroveň ${lvl} · ${h.xp ?? 0} XP</div>
+                <span class="${isMe ? '' : 'profil-link'}" ${isMe ? '' : `data-profil="${escapeHtml(d.id)}"`}>${i+1}. ${escapeHtml(h.prezdivka || '—')}</span>
+                <div style="font-size:0.6rem;color:#9d8b6c;">úroveň ${lvl} · ${escapeHtml(h.xp ?? 0)} XP</div>
             </div>
             <span class="rank-badge ${isZ ? 'rank-zakladatel' : 'rank-clen'}">${isZ ? 'Zakladatel' : 'Člen'}</span>
         </div>`;
     }).join('');
-    } catch(e) { $('cech-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání členů: ' + e.message + '</div>'; }
+    } catch(e) { $('cech-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání členů: ' + escapeHtml(e.message) + '</div>'; }
 }
 
 // ─── CECH AKCE ────────────────────────────────────────────────────────
@@ -1291,7 +1302,7 @@ async function nactiValky() {
         const muzePrijmout = v.stav === 'ceka' && v.mujSmer === 'obrance';
         card.innerHTML = `
             <div class="flex justify-between items-center mb-1">
-                <span class="text-orange-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> vs. ${soupeřNazev}</span>
+                <span class="text-orange-400 font-bold"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> vs. ${escapeHtml(soupeřNazev)}</span>
                 <span class="text-[10px] ${v.stav === 'aktivni' ? 'text-green-400' : 'text-yellow-500'}">
                     ${v.stav === 'aktivni' ? '<svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-streak"/></svg> Aktivní' : '⏳ Čeká na přijetí'}
                 </span>
@@ -1302,14 +1313,14 @@ async function nactiValky() {
                 <div class="war-bar-right" style="width:${jichPct}%"></div>
             </div>
             <div class="flex justify-between text-[10px] text-gray-400">
-                <span>My: ${nashBodu} bodů</span>
-                <span>Cíl: ${v.cil_bodu ?? VALKA_CIL_BODU}</span>
-                <span>Oni: ${jichBodu} bodů</span>
+                <span>My: ${escapeHtml(nashBodu)} bodů</span>
+                <span>Cíl: ${escapeHtml(v.cil_bodu ?? VALKA_CIL_BODU)}</span>
+                <span>Oni: ${escapeHtml(jichBodu)} bodů</span>
             </div>
             <div class="text-[10px] text-gray-600 mt-1">Konec: ${konecStr}</div>
             ` : ''}
             ${muzePrijmout ? `
-            <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${v.id}"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Přijmout výzvu</button>
+            <button class="btn-war w-full py-1 mt-2 text-xs" data-vid="${escapeHtml(v.id)}"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Přijmout výzvu</button>
             ` : ''}
         `;
 
@@ -1477,7 +1488,7 @@ async function nactiSinSlavy() {
                 <div style="font-weight:${rank === 1 ? 700 : 600};color:${rank === 1 ? '#ffd868' : '#e6d4b0'};font-size:${rank === 1 ? '12px' : '11px'};line-height:1.1;">${escapeHtml(h.prezdivka || '—')}${isMe ? ' 👈' : ''}</div>
                 <div class="pd-podium pd-podium--${trida}" style="padding:${pad};">
                     <div class="pd-podium__num">${rank}</div>
-                    <div class="pd-podium__score">${h.xp ?? 0}</div>
+                    <div class="pd-podium__score">${escapeHtml(h.xp ?? 0)}</div>
                 </div>
             </div>`;
         };
@@ -1491,11 +1502,11 @@ async function nactiSinSlavy() {
             const h = d.data();
             const isMe = d.id === currentUser.uid;
             const jmeno = isMe
-                ? `${h.prezdivka ?? '—'} 👈`
-                : `<span class="profil-link" onclick="otevritProfil('${d.id}')">${h.prezdivka ?? '—'}</span>`;
+                ? `${escapeHtml(h.prezdivka ?? '—')} 👈`
+                : `<span class="profil-link" data-profil="${escapeHtml(d.id)}">${escapeHtml(h.prezdivka ?? '—')}</span>`;
             return `<div class="sin-row${isMe ? ' sin-row--rare' : ''}">
                 <span>${i + 4}. ${jmeno}</span>
-                <span class="${isMe ? '' : 'text-yellow-500'}">${h.xp ?? 0} XP</span>
+                <span class="${isMe ? '' : 'text-yellow-500'}">${escapeHtml(h.xp ?? 0)} XP</span>
             </div>`;
         });
         // Najdi moji pozici pokud nejsem v top 10
@@ -1508,7 +1519,7 @@ async function nactiSinSlavy() {
             if (idx >= 0) {
                 mojePoziceHrac = `<div class="sin-row sin-row--rare mt-1">
                     <span>... ${idx+1}. ${escapeHtml(userData.prezdivka || '—')} 👈</span>
-                    <span>${userData.xp ?? 0} XP</span>
+                    <span>${escapeHtml(userData.xp ?? 0)} XP</span>
                 </div>`;
             }
         }
@@ -1523,8 +1534,8 @@ async function nactiSinSlavy() {
             const isMe = d.id === userData.cech_id;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
             return `<div class="sin-row${isMe ? ' me' : ''}">
-                <span>${medal} ${c.nazev}${isMe ? ' <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg>' : ''}</span>
-                <span class="text-yellow-500">${c.skore ?? 0} <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg></span>
+                <span>${medal} ${escapeHtml(c.nazev)}${isMe ? ' <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-shield"/></svg>' : ''}</span>
+                <span class="text-yellow-500">${escapeHtml(c.skore ?? 0)} <svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-mug"/></svg></span>
             </div>`;
         });
         if (radkyCechy.length === 0) radkyCechy.push('<div class="sin-row"><span class="text-gray-600 italic">Žádné cechy zatím.</span></div>');
@@ -1544,8 +1555,8 @@ async function nactiSinSlavy() {
                 const p = d.data();
                 const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                 return `<div class="sin-row">
-                    <span>${medal} ${d.id}</span>
-                    <span class="text-yellow-500">${p.pocet}× vypito</span>
+                    <span>${medal} ${escapeHtml(d.id)}</span>
+                    <span class="text-yellow-500">${escapeHtml(p.pocet)}× vypito</span>
                 </div>`;
             }).join('');
         }
@@ -1562,8 +1573,8 @@ async function nactiSinSlavy() {
                 const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                 const nazev = h.nazev || d.id.replace(/_/g, '.'); // preferuj uložený název, fallback na ID
                 return `<div class="sin-row">
-                    <span>${medal} ${nazev}</span>
-                    <span class="text-yellow-500">${h.pocet}× navštíveno</span>
+                    <span>${medal} ${escapeHtml(nazev)}</span>
+                    <span class="text-yellow-500">${escapeHtml(h.pocet)}× navštíveno</span>
                 </div>`;
             }).join('');
         }
@@ -1584,7 +1595,7 @@ async function nactiSinSlavy() {
                 const hviezdy = '★'.repeat(Math.round(p.hodnoceni_prumerne || 0)) + '☆'.repeat(5 - Math.round(p.hodnoceni_prumerne || 0));
                 return `<div class="sin-row">
                     <span>${medal} ${escapeHtml(p.nazev)}</span>
-                    <span class="text-yellow-400">${hviezdy} <span class="text-gray-500 text-[10px]">${(p.hodnoceni_prumerne||0).toFixed(1)} (${p.hodnoceni_pocet||0})</span></span>
+                    <span class="text-yellow-400">${hviezdy} <span class="text-gray-500 text-[10px]">${(Number(p.hodnoceni_prumerne)||0).toFixed(1)} (${escapeHtml(p.hodnoceni_pocet||0)})</span></span>
                 </div>`;
             }).join('');
         }
@@ -1605,11 +1616,11 @@ function formatGlobalLogItem(d) {
     const casObj = z.cas?.toDate ? z.cas.toDate() : null;
     const casStr = casObj ? casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}) + ' · ' + casObj.toLocaleDateString('cs-CZ') : '—';
     const jmeno = z.hrac_uid === currentUser?.uid
-        ? `<span class="text-yellow-400 font-bold">${z.hrac_prezdivka}</span>`
-        : `<span class="profil-link" onclick="otevritProfil('${z.hrac_uid}')">${z.hrac_prezdivka}</span>`;
+        ? `<span class="text-yellow-400 font-bold">${escapeHtml(z.hrac_prezdivka)}</span>`
+        : `<span class="profil-link" data-profil="${escapeHtml(z.hrac_uid)}">${escapeHtml(z.hrac_prezdivka)}</span>`;
     return `<div class="glog-item">
-        ${jmeno} <span class="text-gray-400">vypil</span> <span class="text-orange-300 font-bold">🍺 ${z.pivo || '—'}</span>
-        <span class="text-gray-500"> @ ${z.hospoda || '—'}</span>
+        ${jmeno} <span class="text-gray-400">vypil</span> <span class="text-orange-300 font-bold">🍺 ${escapeHtml(z.pivo || '—')}</span>
+        <span class="text-gray-500"> @ ${escapeHtml(z.hospoda || '—')}</span>
         <span class="block text-gray-600 text-[10px] mt-0.5">${casStr}</span>
     </div>`;
 }
@@ -1647,7 +1658,7 @@ async function nactiGlobalniLogFull() {
         }
         box.innerHTML = snap.docs.map(formatGlobalLogItem).join('');
     } catch(e) {
-        box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + e.message + '</div>';
+        box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">Chyba: ' + escapeHtml(e.message) + '</div>';
     }
 }
 
@@ -1949,8 +1960,8 @@ async function nactiSledovane() {
             const h = snap.data();
             const { lvl } = xpLevel(h.xp || 0);
             rows.push('<div class="flex justify-between items-center py-1">' +
-                '<span class="profil-link" onclick="otevritProfil(\'' + uid + '\')">'+
-                (h.avatar || '⚔️') + ' ' + (h.prezdivka || '—') +
+                '<span class="profil-link" data-profil="' + escapeHtml(uid) + '">'+
+                escapeHtml(h.avatar || '⚔️') + ' ' + escapeHtml(h.prezdivka || '—') +
                 '</span>' +
                 '<span class="text-gray-500">Úr. ' + lvl + '</span>' +
                 '</div>');
@@ -2020,7 +2031,7 @@ async function nactiKralovstvi() {
                 return `<div class="pd-kraj-row${isVedouci ? ' pd-kraj-row--leading' : ''}">
                     <div class="flex justify-between items-center">
                         <span class="text-sm ${isMe ? 'text-yellow-400 font-bold' : 'text-gray-300'}">${znacka} ${escapeHtml(k.kraj)}${isMe ? ' 👈' : ''}</span>
-                        <span class="text-yellow-500 font-bold">${k.piv} <svg class="pd-ico" style="width:0.9em;height:0.9em"><use href="#ic-mug"/></svg></span>
+                        <span class="text-yellow-500 font-bold">${escapeHtml(k.piv)} <svg class="pd-ico" style="width:0.9em;height:0.9em"><use href="#ic-mug"/></svg></span>
                     </div>
                     <div class="kraj-bar-outer"><div class="kraj-bar-inner" style="width:${pct}%"></div></div>
                 </div>`;
@@ -2047,7 +2058,7 @@ async function nactiKralovstvi() {
         });
 
     } catch(e) {
-        $('kral-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání: ' + e.message + '</div>';
+        $('kral-zebricek').innerHTML = '<div class="text-red-400 text-xs">Chyba načítání: ' + escapeHtml(e.message) + '</div>';
     }
 }
 
@@ -2311,7 +2322,7 @@ window.vykresliKrcmu = async function() {
                 valkaHtml = `
                     <div class="glass-card p-3 mb-3" style="border:1px solid #8a5a17">
                         <div class="text-xs text-orange-400 uppercase font-bold mb-1"><svg class="pd-ico" style="width:1em;height:1em"><use href="#ic-banner"/></svg> Probíhá cechovní válka</div>
-                        <div class="text-sm">Náš cech ${nase} : ${jejich} soupeř</div>
+                        <div class="text-sm">Náš cech ${escapeHtml(nase)} : ${escapeHtml(jejich)} soupeř</div>
                     </div>`;
             }
         } catch (e) { console.warn('Chyba načtení války pro Krčmu:', e.message); }
@@ -2323,7 +2334,7 @@ window.vykresliKrcmu = async function() {
             <div class="text-xs text-gray-400">Úroveň ${lvl}</div>
         </div>
         <div class="grid grid-cols-3 gap-2 mb-3">
-            <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-coin"/></svg><div class="stat-tile-val">${userData.tolary || 0}</div><div class="stat-tile-label">Tolarů</div></div>
+            <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-coin"/></svg><div class="stat-tile-val">${escapeHtml(userData.tolary || 0)}</div><div class="stat-tile-label">Tolarů</div></div>
             <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-streak"/></svg><div class="stat-tile-val">${stats.streakAkt || 0}d</div><div class="stat-tile-label">Série</div></div>
             <div class="stat-tile"><svg class="pd-ico" style="width:22px;height:22px"><use href="#ic-mug"/></svg><div class="stat-tile-val">${stats.celkemPiv || 0}</div><div class="stat-tile-label">Piv celkem</div></div>
         </div>
@@ -2415,8 +2426,8 @@ async function nactiPivaTab() {
         vsechnaPivaData = Object.entries(pivMap).map(([nazev, mujPocet]) => ({
             id: nazev,
             mujPocet,
-            hodnoceni_prumerne: pivStatsMap[nazev]?.hodnoceni_prumerne || 0,
-            hodnoceni_pocet:    pivStatsMap[nazev]?.hodnoceni_pocet    || 0,
+            hodnoceni_prumerne: Number(pivStatsMap[nazev]?.hodnoceni_prumerne) || 0,
+            hodnoceni_pocet:    Number(pivStatsMap[nazev]?.hodnoceni_pocet) || 0,
             obrazek_url:        pivStatsMap[nazev]?.obrazek_url        || null
         }));
 
@@ -2424,8 +2435,8 @@ async function nactiPivaTab() {
             id:    nazev,
             nazev: nazev,
             mujPocet,
-            hodnoceni_prumerne: hospStatsMap[nazev]?.hodnoceni_prumerne || 0,
-            hodnoceni_pocet:    hospStatsMap[nazev]?.hodnoceni_pocet    || 0,
+            hodnoceni_prumerne: Number(hospStatsMap[nazev]?.hodnoceni_prumerne) || 0,
+            hodnoceni_pocet:    Number(hospStatsMap[nazev]?.hodnoceni_pocet) || 0,
         }));
 
         $('piva-loading').style.display = 'none';
@@ -2485,12 +2496,12 @@ window.renderPivaSeznamu = function() {
         const hlasu       = item.hodnoceni_pocet    || 0;
         const mojeHv      = moje[klic] || 0;
 
-        const ikonaHtml = (pivaTyp === 'piva' && item.obrazek_url)
-            ? `<img src="${item.obrazek_url}" alt="" class="pivo-ikona">`
+        const ikonaHtml = (pivaTyp === 'piva' && /^https:\/\//.test(item.obrazek_url || ''))
+            ? `<img src="${escapeHtml(item.obrazek_url)}" alt="" class="pivo-ikona">`
             : `<div class="pivo-ikona"><svg class="pd-ico" style="width:1.5em;height:1.5em"><use href="#${pivaTyp === 'piva' ? 'ic-mug' : 'ic-home'}"/></svg></div>`;
 
         const prumHtml = hlasu > 0
-            ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}★</span><span class="text-gray-500 text-[10px] ml-1">(${hlasu}×)</span>`
+            ? `<span class="text-yellow-400 font-bold">${prumerne.toFixed(1)}★</span><span class="text-gray-500 text-[10px] ml-1">(${escapeHtml(hlasu)}×)</span>`
             : `<span class="text-gray-600 text-[10px]">Zatím nehodnoceno</span>`;
 
         const pocetLabel = pivaTyp === 'piva'

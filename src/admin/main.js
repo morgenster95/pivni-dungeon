@@ -201,12 +201,12 @@ async function nactiValky() {
                     </div>
                     <div class="text-xs text-gray-400">Stav: ${stavBadge}</div>
                     <div class="text-xs text-gray-500 mt-1">
-                        Skóre: <span class="text-yellow-400">${v.utocnik_bodu ?? 0}</span>
-                         : <span class="text-red-400">${v.obrance_bodu ?? 0}</span>
-                        (cíl: ${v.cil_bodu ?? 50})
+                        Skóre: <span class="text-yellow-400">${escapeHtml(v.utocnik_bodu ?? 0)}</span>
+                         : <span class="text-red-400">${escapeHtml(v.obrance_bodu ?? 0)}</span>
+                        (cíl: ${escapeHtml(v.cil_bodu ?? 50)})
                     </div>
                 </div>
-                ${v.stav !== 'skoncila' ? `<button class="btn-danger px-3 py-1 text-xs uppercase" data-vid="${d.id}">Ukončit</button>` : ''}
+                ${v.stav !== 'skoncila' ? `<button class="btn-danger px-3 py-1 text-xs uppercase" data-vid="${escapeHtml(d.id)}">Ukončit</button>` : ''}
             </div>`;
         const delBtn = card.querySelector('[data-vid]');
         if (delBtn) {
@@ -230,7 +230,7 @@ async function nactiZebricek() {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
         return `<div class="hrac-row">
             <span>${medal} <span class="text-yellow-400 font-bold">${escapeHtml(h.prezdivka ?? h.email ?? '—')}</span></span>
-            <span class="text-yellow-500 text-xs font-bold">${h.xp ?? 0} XP</span>
+            <span class="text-yellow-500 text-xs font-bold">${escapeHtml(h.xp ?? 0)} XP</span>
         </div>`;
     }).join('') || '<div class="text-gray-600 text-sm italic text-center py-2">Žádní hráči.</div>';
 }
@@ -270,13 +270,13 @@ $('btn-hledat-hrace').addEventListener('click', async () => {
                 const datum = casObj
                     ? casObj.toLocaleDateString('cs-CZ') + ' ' + casObj.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})
                     : '—';
-                return `<div class="log-zapis-row" id="logrow-${ld.id}">
+                return `<div class="log-zapis-row" id="logrow-${escapeHtml(ld.id)}">
                     <span class="min-w-0">
                         <span class="text-yellow-400 font-bold">${escapeHtml(z.pivo || '—')}</span>
                         <span class="text-gray-400"> @ ${escapeHtml(z.hospoda || '—')}</span>
                         <span class="text-gray-600 text-[10px] block">${datum}</span>
                     </span>
-                    <button onclick="adminSmazatZapis('${ld.id}','${escapeHtml(z.pivo||'')}','${escapeHtml(z.hospoda||'')}')"
+                    <button data-smazat="${escapeHtml(ld.id)}" data-pivo="${escapeHtml(z.pivo||'')}" data-hospoda="${escapeHtml(z.hospoda||'')}"
                         class="btn-danger px-2 py-1 text-xs flex-shrink-0">🗑️</button>
                 </div>`;
             }).join('');
@@ -290,6 +290,12 @@ $('btn-hledat-hrace').addEventListener('click', async () => {
 });
 
 $('admin-hrac-email').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-hledat-hrace').click(); });
+
+// Mazání zápisu: data v data-* atributech, ne v inline onclick (B01 — apostrof v názvu piva by spustil kód)
+document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-smazat]');
+    if (b) window.adminSmazatZapis(b.dataset.smazat, b.dataset.pivo, b.dataset.hospoda);
+});
 
 window.adminSmazatZapis = async (logId, pivo, hospoda) => {
     if (!adminVybranyHracUid) return;
