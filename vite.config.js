@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 
 // `npm run demo` = celá hra bez sítě a bez produkčních dat: Firebase se nahradí simulací v src/dev/mock.
 export default defineConfig(({ mode }) => ({
+  // Relativní cesty: funguje na github.io/pivni-dungeon/ i na vlastní doméně
+  base: './',
   resolve: mode === 'demo' ? {
     alias: {
       'firebase/app': resolve(import.meta.dirname, 'src/dev/mock/app.js'),
