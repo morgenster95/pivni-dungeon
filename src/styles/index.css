@@ -1,0 +1,5 @@
+/* Pořadí odpovídá původnímu chování: vlastní styly, pak Tailwind (CDN ho dříve vkládal až za ně). */
+@import './app.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
