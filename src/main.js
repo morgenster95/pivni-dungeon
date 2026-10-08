@@ -2,26 +2,18 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import Chart from 'chart.js/auto';
 import './styles/index.css';
-import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider }
     from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion, collection, collectionGroup,
          addDoc, query, where, getDocs, orderBy, limit, startAfter, deleteDoc, writeBatch, serverTimestamp, Timestamp }
     from "firebase/firestore";
-
-// ─── FIREBASE CONFIG ──────────────────────────────────────────────────
-const firebaseConfig = {
-    apiKey: "AIzaSyCrtK_99uh1SGyj2KhA2ljH3aAhynDnhqI",
-    authDomain: "pivnidungeon.firebaseapp.com",
-    projectId: "pivnidungeon",
-    storageBucket: "pivnidungeon.firebasestorage.app",
-    messagingSenderId: "174543526039",
-    appId: "1:174543526039:web:be6092c458e376c306b1d2"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+import { app, auth, db } from './firebase.js';
+import { $, show, hide, setHtml, escapeHtml, notify, pdStateEmpty, pdStateSleep, pdStateLoading, pdStateError } from './ui/dom.js';
+import { xpLevel, titulPostavy } from './game/xp.js';
+import { dnesniDatum, isoTyden, hashRetezce } from './game/datum.js';
+import { DENNI_UKOLY_DEF, TYDENNI_VYZVY_DEF } from './game/ukoly.js';
+import { ACHIEVEMENTY_DEF, vypoctiStatsZLogy } from './game/odznaky.js';
+import { vygenerujPivniKartu, vygenerujWrappedCanvas, otevritShareModal } from './ui/share.js';
 
 // ─── KONSTANTY ────────────────────────────────────────────────────────
 const ZAKLAD_PIV = [
@@ -49,88 +41,10 @@ let map = null, userLatLng = null, currentPubLatLng = null;
 let currentUser = null, userData = {};
 let posledniStats = null; // cache osobních statistik pro Krčmu (invaliduje se po zápisu piva)
 
-// ─── HELPERS ──────────────────────────────────────────────────────────
-function $(id) { return document.getElementById(id); }
-function show(id) { $(id).classList.remove('hidden'); }
-function hide(id) { $(id).classList.add('hidden'); }
-function setHtml(id, html) { $(id).innerHTML = html; }
-window.escapeHtml = function(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-const escapeHtml = window.escapeHtml;
-function notify(msg) {
-    // Jednoduchý toast místo alert()
-    const t = document.createElement('div');
-    t.textContent = msg;
-    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:10px 20px;border-radius:10px;z-index:9999;font-size:0.85rem;border:1px solid #8b4513;font-family:Cinzel,serif;max-width:90%;text-align:center;';
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 3000);
-}
 function zavritModal() { $('modal-overlay').classList.add('hidden'); $('navrh-piva-input').value = ''; }
 window.zavritModal = zavritModal;
 
-// ─── ZNOVUPOUŽITELNÉ STAVY (prázdno/spí/načítám/chyba) ────────────────
-function pdStateEmpty(title, hint) {
-    return `<div class="pd-panel pd-panel--stone pd-state">
-        <div class="pd-state__icon"><span>🕸️</span></div>
-        <div class="pd-state__title">${escapeHtml(title)}</div>
-        <div class="pd-state__hint">„${escapeHtml(hint)}“</div>
-    </div>`;
-}
-function pdStateSleep(title, hint) {
-    return `<div class="pd-panel pd-panel--stone pd-state">
-        <div style="font-size:44px;margin-bottom:8px;filter:grayscale(.3);">😴</div>
-        <div class="pd-state__title">${escapeHtml(title)}</div>
-        <div class="pd-state__hint">„${escapeHtml(hint)}“</div>
-    </div>`;
-}
-function pdStateLoading(text) {
-    return `<div class="pd-panel pd-panel--stone pd-state">
-        <div class="pd-mug-loading"><div class="pd-mug-loading__foam"></div><div class="pd-mug-loading__head"></div></div>
-        <div class="pd-state__title">${escapeHtml(text || 'Načítám…')}</div>
-        <div class="pd-state__hint">„Točíme čerstvé. Pěna se usazuje…“</div>
-    </div>`;
-}
-function pdStateError(msg) {
-    return `<div class="pd-panel pd-panel--stone pd-state pd-state--error">
-        <div style="font-size:44px;margin-bottom:8px;">💥</div>
-        <div class="pd-state__title">No to nám přeteklo…</div>
-        <div class="pd-state__hint">„${escapeHtml(msg || 'Něco se rozlilo. Zkus to prosím znovu, hrdino.')}“</div>
-    </div>`;
-}
-
-// XP level (každých 1000 XP = 1 level)
-function xpLevel(xp) {
-    const lvl = Math.floor(xp / 1000) + 1;
-    const prog = (xp % 1000) / 1000 * 100;
-    return { lvl, prog };
-}
-
-// Titul postavy odvozený z levelu (bez nutnosti nového pole)
-function titulPostavy(lvl) {
-    if (lvl >= 20) return '⚜ Pivní Legenda';
-    if (lvl >= 10) return '⚜ Rytíř Zlatého Ležáku';
-    if (lvl >= 5)  return '🍺 Zdatný Pijan';
-    return '🌱 Nováček';
-}
-
 // ─── TOLARY (herní měna) ──────────────────────────────────────────────
-function dnesniDatum() { return new Date().toISOString().slice(0, 10); } // "2026-07-02"
-
-function isoTyden(d = new Date()) {
-    // ISO 8601 týden ve formátu "2026-W27"
-    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const den = (dt.getUTCDay() + 6) % 7;
-    dt.setUTCDate(dt.getUTCDate() - den + 3);
-    const prvniCtvrtek = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
-    const tyden = 1 + Math.round(((dt - prvniCtvrtek) / 86400000 - 3 + (prvniCtvrtek.getUTCDay() + 6) % 7) / 7);
-    return `${dt.getUTCFullYear()}-W${tyden}`;
-}
-
-function hashRetezce(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
-    return h;
-}
-
 // Připíše tolary hráči + zaznamená transakci do historie + zobrazí toast.
 async function udelTolary(mnozstvi, duvod) {
     if (!currentUser || !mnozstvi) return;
@@ -146,22 +60,6 @@ async function udelTolary(mnozstvi, duvod) {
 }
 
 // ─── DENNÍ ÚKOL & TÝDENNÍ VÝZVA ───────────────────────────────────────
-const DENNI_UKOLY_DEF = [
-    { typ: 'pocet_piv',    cil: 1, popis: 'Zapiš 1 pivo' },
-    { typ: 'pocet_piv',    cil: 2, popis: 'Zapiš 2 piva' },
-    { typ: 'pocet_piv',    cil: 3, popis: 'Zapiš 3 piva' },
-    { typ: 'nova_hospoda', cil: 1, popis: 'Zapiš pivo v nové hospodě' },
-    { typ: 'nove_pivo',    cil: 1, popis: 'Ochutnej nové pivo' },
-    { typ: 'hodnoceni',    cil: 1, popis: 'Ohodnoť pivo nebo hospodu' },
-    { typ: 'hodnoceni',    cil: 2, popis: 'Ohodnoť 2× pivo nebo hospodu' },
-    { typ: 'spolecne',     cil: 1, popis: 'Zapiš pivo s kamarádem' },
-];
-const TYDENNI_VYZVY_DEF = [
-    { cil: 5,  odmena: 30 },
-    { cil: 8,  odmena: 45 },
-    { cil: 10, odmena: 60 },
-];
-
 // Vygeneruje (nebo vrátí existující) denní úkol pro dnešek — deterministicky dle uid+datum.
 function zajistiDenniUkol() {
     const dnes = dnesniDatum();
@@ -657,7 +555,7 @@ async function vykresliDenicek() {
         vykresliGraf(pocty);
 
         // Osobní statistiky + odznaky
-        const stats = vypoctiStatsZLogy(grafSnap.docs);
+        const stats = vypoctiStatsZLogy(grafSnap.docs, userData?.dungeony);
         posledniStats = stats;
         vykresliOsobniStats(stats);
         zkontrolujAVykresliOdznaky(stats);
@@ -1049,7 +947,7 @@ $('btn-claim').addEventListener('click', async () => {
         const sBtn = $('btn-sdilet-zapis');
         sBtn.classList.remove('hidden');
         sBtn.onclick = async () => {
-            const c = await vygenerujPivniKartu(posledniZapis.hospoda, posledniZapis.pivo);
+            const c = await vygenerujPivniKartu(posledniZapis.hospoda, posledniZapis.pivo, userData);
             otevritShareModal(c);
         };
         await loadUserData();
@@ -2273,100 +2171,6 @@ window.otevritProfil = async (uid) => {
 
 // ─── ODZNAKY & OSOBNÍ STATISTIKY ─────────────────────────────────────────
 
-const ACHIEVEMENTY_DEF = [
-    // ── BRONZ ──
-    { id:'prvni_pivo',    stupen:'bronz',  ikona:'ic-mug',       nazev:'První doušek',    popis:'Zapsal jsi své první pivo',             podminka: s => s.celkemPiv >= 1    },
-    { id:'deset_piv',     stupen:'bronz',  ikona:'ic-mug-stamp', nazev:'Žíznivý hrdina',  popis:'Celkem 10 piv zapsáno',                 podminka: s => s.celkemPiv >= 10   },
-    { id:'pet_hospod',    stupen:'bronz',  ikona:'ic-map',       nazev:'Průzkumník',      popis:'5 různých hospod navštíveno',           podminka: s => s.hospod >= 5       },
-    { id:'verny_host',    stupen:'bronz',  ikona:'ic-home',      nazev:'Věrný host',       popis:'Jednu hospodu navštívil 5× nebo více',  podminka: s => s.maxNavstev >= 5   },
-    { id:'deset_druhu',   stupen:'bronz',  ikona:'ic-bag',       nazev:'Ochutnávač',      popis:'10 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 10     },
-    { id:'socialni',      stupen:'bronz',  ikona:'ic-clink',     nazev:'Sociální pijan',  popis:'Pil s kamarádem 10× nebo více',         podminka: s => s.spolecne >= 10    },
-    { id:'nocni_pijan',   stupen:'bronz',  ikona:'ic-bell',      nazev:'Noční hlídka',    popis:'Zapis po půlnoci (00:00–04:00)',        podminka: s => s.nocniZapis        },
-    // ── STŘÍBRO ──
-    { id:'padesatpiv',    stupen:'stribro', ikona:'ic-shield',   nazev:'Pivní veterán',  popis:'Celkem 50 piv zapsáno',                 podminka: s => s.celkemPiv >= 50   },
-    { id:'deset_hospod',  stupen:'stribro', ikona:'ic-map',      nazev:'Dobrodruh',       popis:'10 různých hospod navštíveno',          podminka: s => s.hospod >= 10      },
-    { id:'stamgast',      stupen:'stribro', ikona:'ic-home',     nazev:'Štamgast',        popis:'Jednu hospodu navštívil 10× nebo více', podminka: s => s.maxNavstev >= 10  },
-    { id:'dvacet_druhu',  stupen:'stribro', ikona:'ic-bag',      nazev:'Degustátor',      popis:'25 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 25     },
-    { id:'pivni_banda',   stupen:'stribro', ikona:'ic-clink',    nazev:'Pivní banda',     popis:'Pil s kamarádem 30× nebo více',         podminka: s => s.spolecne >= 30    },
-    { id:'streak_7',      stupen:'stribro', ikona:'ic-streak',   nazev:'Týdenní série',   popis:'7 dní v řadě se zápisem piva',          podminka: s => s.streakMax >= 7    },
-    // ── ZLATO ──
-    { id:'sto_piv',       stupen:'zlato',  ikona:'ic-trophy',    nazev:'Stý džbán',       popis:'Celkem 100 piv zapsáno',                podminka: s => s.celkemPiv >= 100  },
-    { id:'dvacet_hospod', stupen:'zlato',  ikona:'ic-crown',     nazev:'Velký průzkumník', popis:'20 různých hospod navštíveno',          podminka: s => s.hospod >= 20      },
-    { id:'somelier',      stupen:'zlato',  ikona:'ic-chest',     nazev:'Pivní someliér',  popis:'50 různých druhů piv vyzkoušeno',       podminka: s => s.ruznych >= 50     },
-];
-
-function vypoctiStatsZLogy(logDocs) {
-    const poctyPiv = {}, dny = new Set();
-    let spolecne = 0, nocniZapis = false;
-
-    logDocs.forEach(d => {
-        const z = d.data();
-        if (z.pivo) poctyPiv[z.pivo] = (poctyPiv[z.pivo] || 0) + 1;
-        if (z.spolecne_s) spolecne++;
-        if (z.cas) {
-            const dt = z.cas.toDate ? z.cas.toDate() : new Date(z.cas);
-            dny.add(dt.toISOString().slice(0, 10));
-            const h = dt.getHours();
-            if (h >= 0 && h < 4) nocniZapis = true;
-        }
-    });
-
-    // Streak
-    const serazene = [...dny].sort();
-    let streakMax = serazene.length > 0 ? 1 : 0, aktStreak = 1;
-    for (let i = 1; i < serazene.length; i++) {
-        const diff = (new Date(serazene[i]) - new Date(serazene[i-1])) / 86400000;
-        aktStreak = diff === 1 ? aktStreak + 1 : 1;
-        streakMax = Math.max(streakMax, aktStreak);
-    }
-
-    // Aktuální streak (od dneška zpět)
-    let streakAkt = 0;
-    const dnesStr = new Date().toISOString().slice(0, 10);
-    const vcerStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (dny.has(dnesStr) || dny.has(vcerStr)) {
-        let den = dny.has(dnesStr) ? new Date() : new Date(Date.now() - 86400000);
-        while (dny.has(den.toISOString().slice(0, 10))) {
-            streakAkt++;
-            den = new Date(den - 86400000);
-        }
-    }
-
-    // Nejaktivnější den v týdnu
-    const dnyTydne = [0,0,0,0,0,0,0];
-    logDocs.forEach(d => {
-        const z = d.data();
-        if (z.cas) {
-            const dt = z.cas.toDate ? z.cas.toDate() : new Date(z.cas);
-            dnyTydne[dt.getDay()]++;
-        }
-    });
-    const dnyNazvy = ['Ne','Po','Út','St','Čt','Pá','So'];
-    const nejDenIdx = dnyTydne.indexOf(Math.max(...dnyTydne));
-
-    // Průměr piv / týden — od prvního zápisu do DNEŠKA (inaktivita průměr snižuje)
-    let prumerTyden = 0;
-    if (serazene.length >= 1) {
-        const prvni = new Date(serazene[0]);
-        const tydny = Math.max(1, (Date.now() - prvni) / (7 * 86400000));
-        prumerTyden = (logDocs.length / tydny).toFixed(1);
-    }
-
-    return {
-        celkemPiv:  logDocs.length,
-        ruznych:    Object.keys(poctyPiv).length,
-        hospod:     Object.keys(userData?.dungeony || {}).length,
-        maxNavstev: Math.max(0, ...Object.values(userData?.dungeony || {})),
-        spolecne,
-        streakMax,
-        streakAkt,
-        nocniZapis,
-        nejDen:     dnyNazvy[nejDenIdx],
-        prumerTyden,
-        poctyPiv
-    };
-}
-
 function vykresliOsobniStats(stats) {
     const grid = $('osobni-stats-grid');
     const tiles = [
@@ -2465,7 +2269,7 @@ async function ziskejKrcmaStats() {
             collection(db, "hraci", currentUser.uid, "log_piv"),
             orderBy("cas", "desc"), limit(500)
         ));
-        posledniStats = vypoctiStatsZLogy(snap.docs);
+        posledniStats = vypoctiStatsZLogy(snap.docs, userData?.dungeony);
     } catch (e) {
         console.warn('Chyba načtení statistik pro Krčmu:', e.message);
         posledniStats = { celkemPiv: 0, streakAkt: 0 };
@@ -2793,107 +2597,6 @@ async function hodnotitPolozku(typ, klic, stars) {
 // ─── SHARE KARTY ──────────────────────────────────────────────────────────
 let posledniZapis = null;
 
-function kresliZaokrRekt(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
-    ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
-    ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
-    ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
-    ctx.closePath();
-}
-
-function fitText(ctx, text, maxW, maxSize) {
-    ctx.font = `bold ${maxSize}px Arial, sans-serif`;
-    if (ctx.measureText(text).width <= maxW) return;
-    const scale = maxW / ctx.measureText(text).width;
-    ctx.font = `bold ${Math.floor(maxSize * scale)}px Arial, sans-serif`;
-}
-
-async function vygenerujPivniKartu(pubName, beerName) {
-    const W = 1080, H = 1080;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const ctx = c.getContext('2d');
-
-    // Pozadí
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#1a0f2e'); bg.addColorStop(0.5, '#160f08'); bg.addColorStop(1, '#0a0618');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-    // Záře nahoře
-    const glow = ctx.createRadialGradient(W/2, 80, 20, W/2, 80, 500);
-    glow.addColorStop(0, 'rgba(255,168,30,0.3)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-
-    // Rám zlatý
-    ctx.strokeStyle = '#ffd35a'; ctx.lineWidth = 10;
-    ctx.strokeRect(20, 20, W-40, H-40);
-    ctx.strokeStyle = 'rgba(255,211,90,0.22)'; ctx.lineWidth = 2;
-    ctx.strokeRect(38, 38, W-76, H-76);
-
-    ctx.textAlign = 'center';
-
-    // Header
-    ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 62px Arial, sans-serif';
-    ctx.fillText('PIVNÍ DUNGEON', W/2, 112);
-    ctx.fillStyle = 'rgba(255,211,90,0.45)'; ctx.font = '28px Arial, sans-serif';
-    ctx.fillText('pivnidungeon.cz', W/2, 155);
-
-    // Dělicí čára
-    ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(80, 180); ctx.lineTo(W-80, 180); ctx.stroke();
-
-    // Velký emoji piva
-    ctx.font = '210px serif'; ctx.fillStyle = '#fff';
-    ctx.fillText('🍺', W/2, 420);
-
-    // "PRÁVĚ PIJU"
-    ctx.fillStyle = 'rgba(255,255,255,0.42)'; ctx.font = 'bold 42px Arial, sans-serif';
-    ctx.fillText('P R Á V Ě   P I J U', W/2, 555);
-
-    // Název piva
-    ctx.fillStyle = '#ffffff';
-    fitText(ctx, beerName, 900, 74);
-    ctx.fillText(beerName, W/2, 648);
-
-    // "v hospodě"
-    ctx.fillStyle = 'rgba(243,168,30,0.65)'; ctx.font = '32px Arial, sans-serif';
-    ctx.fillText('v hospodě', W/2, 708);
-
-    // Název hospody
-    ctx.fillStyle = '#f3a81e';
-    fitText(ctx, pubName, 900, 54);
-    ctx.fillText(pubName, W/2, 772);
-
-    // Dělicí čára
-    ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(80, 812); ctx.lineTo(W-80, 812); ctx.stroke();
-
-    // Hráčské info
-    const av  = userData?.avatar      || '⚔️';
-    const nik = userData?.prezdivka   || 'Hrdina';
-    const xp  = userData?.xp          || 0;
-    const { lvl } = xpLevel(xp);
-
-    ctx.font = '54px serif'; ctx.fillStyle = '#fff';
-    ctx.fillText(av, W/2, 892);
-    ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 40px Arial, sans-serif';
-    ctx.fillText(nik, W/2, 946);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '26px Arial, sans-serif';
-    ctx.fillText(`Úroveň ${lvl}  ·  ${xp} XP`, W/2, 988);
-
-    // Datum
-    const now = new Date();
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = '22px Arial, sans-serif';
-    ctx.fillText(
-        now.toLocaleDateString('cs-CZ') + ' ' +
-        now.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'}),
-        W/2, 1038
-    );
-    return c;
-}
-
 window.otevritWrapped = async function() {
     notify('Generuji Wrapped... 🍺', 'ok');
     try {
@@ -2947,138 +2650,3 @@ window.otevritWrapped = async function() {
     } catch(e) { notify('Chyba generování: ' + e.message, 'err'); }
 }
 
-async function vygenerujWrappedCanvas(s) {
-    const W = 1080;
-    const tW = 458, tH = 172, gap = 16, startY = 355;
-
-    // Sestav tiles nejdřív — výška canvasu se spočítá z jejich počtu
-    const tiles = [
-        { emoji:'🍺', value: s.celkemPiv.toString(), label: 'piv celkem'        },
-        { emoji:'🌈', value: s.ruznych.toString(),   label: 'různých druhů'     },
-        { emoji:'🏰', value: s.hospod.toString(),    label: 'hospod navštíveno' },
-        { emoji:'⭐', value: `Úr. ${s.lvl}`,        label: `${s.xp} XP celkem` },
-        { emoji:'🥇', value: s.oblPivo ? s.oblPivo.nazev : '—',
-                       label: s.oblPivo ? `${s.oblPivo.pocet}× vypito`    : 'oblíbené pivo'    },
-        { emoji:'🏠', value: s.oblHosp ? s.oblHosp.nazev : '—',
-                       label: s.oblHosp ? `${s.oblHosp.pocet}× návštěv`  : 'oblíbená hospoda' },
-    ];
-    if (s.nejSpoluhrac) {
-        tiles.push(
-            { emoji:'📅', value: s.nejMesic ? s.nejMesic.nazev : '—',
-                          label: s.nejMesic ? `${s.nejMesic.pocet} piv`         : 'nejlepší měsíc' },
-            { emoji:'🍻', value: s.nejSpoluhrac.nazev, label: `${s.nejSpoluhrac.pocet}× spolu` }
-        );
-    } else if (s.nejMesic) {
-        tiles.push({ emoji:'📅', value: s.nejMesic.nazev, label: `${s.nejMesic.pocet} piv — nejlepší měsíc` });
-    }
-
-    const rows    = Math.ceil(tiles.length / 2);
-    const footerY = startY + rows * (tH + gap) + 20;
-    const H       = footerY + 80; // přesná výška: tiles + footer + dolní okraj
-
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const ctx = c.getContext('2d');
-
-    // Pozadí
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#1a0f2e'); bg.addColorStop(0.45, '#160f08'); bg.addColorStop(1, '#08050f');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-    // Záře
-    const glow = ctx.createRadialGradient(W/2, H*0.22, 60, W/2, H*0.22, 520);
-    glow.addColorStop(0, 'rgba(255,168,30,0.22)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-
-    // Rám
-    ctx.strokeStyle = '#ffd35a'; ctx.lineWidth = 10; ctx.strokeRect(20, 20, W-40, H-40);
-    ctx.strokeStyle = 'rgba(255,211,90,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(38, 38, W-76, H-76);
-
-    ctx.textAlign = 'center';
-
-    // Header
-    ctx.fillStyle = 'rgba(255,211,90,0.5)'; ctx.font = '34px Arial, sans-serif';
-    ctx.fillText('🍻  PIVNÍ DUNGEON  🍺', W/2, 105);
-    ctx.fillStyle = '#ffd35a'; ctx.font = 'bold 94px Arial, sans-serif';
-    ctx.fillText('MŮJ WRAPPED', W/2, 218);
-    ctx.font = '52px serif'; ctx.fillStyle = '#fff';
-    ctx.fillText(s.avatar + '  ' + s.nick, W/2, 298);
-
-    ctx.strokeStyle = 'rgba(255,211,90,0.22)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(80, 326); ctx.lineTo(W-80, 326); ctx.stroke();
-
-    // Tiles
-    const cols = [60, W - 60 - tW];
-    tiles.forEach((tile, i) => {
-        const col = i % 2, row = Math.floor(i / 2);
-        const x = cols[col], y = startY + row * (tH + gap);
-
-        const tGrad = ctx.createLinearGradient(x, y, x, y + tH);
-        tGrad.addColorStop(0, 'rgba(255,211,90,0.13)');
-        tGrad.addColorStop(1, 'rgba(255,211,90,0.04)');
-        ctx.fillStyle = tGrad;
-        kresliZaokrRekt(ctx, x, y, tW, tH, 18); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,211,90,0.32)'; ctx.lineWidth = 1.5;
-        kresliZaokrRekt(ctx, x, y, tW, tH, 18); ctx.stroke();
-
-        const cx = x + tW/2;
-        ctx.fillStyle = '#fff'; ctx.font = '38px serif'; ctx.textAlign = 'center';
-        ctx.fillText(tile.emoji, cx, y + 50);
-        ctx.fillStyle = '#fff';
-        fitText(ctx, tile.value, tW - 24, 36);
-        ctx.fillText(tile.value, cx, y + 103);
-        ctx.fillStyle = 'rgba(255,211,90,0.62)'; ctx.font = '21px Arial, sans-serif';
-        ctx.fillText(tile.label.length > 22 ? tile.label.slice(0,21)+'…' : tile.label, cx, y + 138);
-    });
-
-    // Footer
-    ctx.strokeStyle = 'rgba(255,211,90,0.18)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(80, footerY); ctx.lineTo(W-80, footerY); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,211,90,0.38)'; ctx.font = '27px Arial, sans-serif';
-    ctx.fillText('🍻  PIVNÍ DUNGEON  ·  pivnidungeon.cz  🍺', W/2, footerY + 46);
-
-    return c;
-}
-
-function otevritShareModal(canvas) {
-    const wrap = $('share-canvas-wrap');
-    wrap.innerHTML = '';
-    const previewW = Math.min(window.innerWidth - 48, 400);
-    canvas.style.cssText = `width:${previewW}px;height:auto;border-radius:12px;display:block;`;
-    wrap.appendChild(canvas);
-
-    const modal = $('share-modal');
-    modal.style.display = 'flex';
-    modal.classList.remove('hidden');
-
-    $('btn-share-download').onclick = () => {
-        const a = document.createElement('a');
-        a.download = 'pivni-dungeon-share.png';
-        a.href = canvas.toDataURL('image/png');
-        a.click();
-    };
-
-    $('btn-share-native').onclick = async () => {
-        try {
-            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-            const file = new File([blob], 'pivni-dungeon.png', { type: 'image/png' });
-            if (navigator.share && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    text: '🍺 Pivní Dungeon — pivnidungeon.cz'
-                });
-            } else {
-                $('btn-share-download').click();
-            }
-        } catch(e) {
-            if (e.name !== 'AbortError') $('btn-share-download').click();
-        }
-    };
-}
-
-window.zavritShareModal = () => {
-    const modal = $('share-modal');
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-    $('share-canvas-wrap').innerHTML = '';
-};
