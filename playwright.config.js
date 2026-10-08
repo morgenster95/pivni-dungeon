@@ -9,6 +9,8 @@ const launchOptions = process.env.PD_CHROMIUM
 export default defineConfig({
   testDir: 'tests/layout',
   workers: 1,
+  // V CI vypisuje chyby jako anotace u commitu/PR
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: { baseURL: 'http://localhost:4173', launchOptions },
   webServer: {
     command: 'npm run build:demo && npx vite preview --outDir dist-demo --port 4173 --strictPort',
