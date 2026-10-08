@@ -1,4 +1,5 @@
 // Definice odznaků a výpočet osobních statistik ze záznamů.
+import { datumPraha, predchoziDen } from './datum.js';
 export const ACHIEVEMENTY_DEF = [
     // ── BRONZ ──
     { id:'prvni_pivo',    stupen:'bronz',  ikona:'ic-mug',       nazev:'První doušek',    popis:'Zapsal jsi své první pivo',             podminka: s => s.celkemPiv >= 1    },
@@ -31,7 +32,7 @@ export function vypoctiStatsZLogy(logDocs, dungeony = {}) {
         if (z.spolecne_s) spolecne++;
         if (z.cas) {
             const dt = z.cas.toDate ? z.cas.toDate() : new Date(z.cas);
-            dny.add(dt.toISOString().slice(0, 10));
+            dny.add(datumPraha(dt));
             const h = dt.getHours();
             if (h >= 0 && h < 4) nocniZapis = true;
         }
@@ -48,13 +49,13 @@ export function vypoctiStatsZLogy(logDocs, dungeony = {}) {
 
     // Aktuální streak (od dneška zpět)
     let streakAkt = 0;
-    const dnesStr = new Date().toISOString().slice(0, 10);
-    const vcerStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const dnesStr = datumPraha();
+    const vcerStr = predchoziDen(dnesStr);
     if (dny.has(dnesStr) || dny.has(vcerStr)) {
-        let den = dny.has(dnesStr) ? new Date() : new Date(Date.now() - 86400000);
-        while (dny.has(den.toISOString().slice(0, 10))) {
+        let den = dny.has(dnesStr) ? dnesStr : vcerStr;
+        while (dny.has(den)) {
             streakAkt++;
-            den = new Date(den - 86400000);
+            den = predchoziDen(den);
         }
     }
 

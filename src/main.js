@@ -10,7 +10,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion, co
 import { app, auth, db } from './firebase.js';
 import { $, show, hide, setHtml, escapeHtml, notify, pdStateEmpty, pdStateSleep, pdStateLoading, pdStateError } from './ui/dom.js';
 import { xpLevel, titulPostavy } from './game/xp.js';
-import { dnesniDatum, isoTyden, hashRetezce } from './game/datum.js';
+import { dnesniDatum, mesicPraha, isoTyden, hashRetezce } from './game/datum.js';
 import { DENNI_UKOLY_DEF, TYDENNI_VYZVY_DEF } from './game/ukoly.js';
 import { ACHIEVEMENTY_DEF, vypoctiStatsZLogy } from './game/odznaky.js';
 import { vygenerujPivniKartu, vygenerujWrappedCanvas, otevritShareModal } from './ui/share.js';
@@ -862,7 +862,7 @@ $('btn-claim').addEventListener('click', async () => {
 
         // Krajová válka — přičti bod kraji pokud má hráč zvolený kraj
         if (userData.kraj) {
-            const mesic = new Date().toISOString().slice(0, 7); // "2025-03"
+            const mesic = mesicPraha(); // "2025-03"
             const krajRef = doc(db, "kralovstvi", mesic + '_' + userData.kraj);
             try {
                 await setDoc(krajRef, {
@@ -1720,7 +1720,7 @@ window.zopakovatzapis = async (pivo, hospoda, posledniId) => {
             await pripoctiValecneBody(hospoda);
         }
         if (userData.kraj) {
-            const mesic = new Date().toISOString().slice(0, 7);
+            const mesic = mesicPraha();
             try { await setDoc(doc(db, "kralovstvi", mesic + '_' + userData.kraj), { kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
             try { await setDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid), { uid: currentUser.uid, kraj: userData.kraj, mesic, piv: increment(1) }, { merge: true }); } catch(e) {}
         }
@@ -1792,7 +1792,7 @@ window.smazatZapis = async (docId, docRef, z) => {
 
         // 5. Krajová válka
         if (userData.kraj) {
-            const mesic = new Date().toISOString().slice(0, 7);
+            const mesic = mesicPraha();
             try {
                 const hkRef = doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid);
                 const hkSnap = await getDoc(hkRef);
@@ -1889,7 +1889,7 @@ $('btn-ulozit-profil').addEventListener('click', async () => {
             }
             // Vymaz příspěvek v aktuálním měsíci
             if (userData.kraj) {
-                const mesic = new Date().toISOString().slice(0, 7);
+                const mesic = mesicPraha();
                 try {
                     await deleteDoc(doc(db, "kralovstvi_hraci", mesic + '_' + currentUser.uid));
                     // Odečti od krajského součtu
@@ -1976,7 +1976,7 @@ window.kliknoutKraj = (kraj) => {
 };
 
 async function nactiKralovstvi() {
-    const mesic = new Date().toISOString().slice(0, 7);
+    const mesic = mesicPraha();
 
     // Nastav info o resetu
     const pristiMesic = new Date();
@@ -2621,7 +2621,7 @@ window.otevritWrapped = async function() {
             const z = d.data();
             if (z.pivo) poctyPiv[z.pivo] = (poctyPiv[z.pivo] || 0) + 1;
             if (z.cas) {
-                const m = (z.cas.toDate ? z.cas.toDate() : new Date(z.cas)).toISOString().slice(0,7);
+                const m = mesicPraha(z.cas.toDate ? z.cas.toDate() : new Date(z.cas));
                 mesicePocty[m] = (mesicePocty[m] || 0) + 1;
             }
             if (z.spolecne_s) {
