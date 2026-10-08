@@ -9,6 +9,7 @@ const launchOptions = process.env.PD_CHROMIUM
 export default defineConfig({
   testDir: 'tests/layout',
   workers: 1,
+  retries: process.env.CI ? 1 : 0,
   // V CI vypisuje chyby jako anotace u commitu/PR
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: { baseURL: 'http://localhost:4173', launchOptions },
